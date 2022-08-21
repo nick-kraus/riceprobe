@@ -1,0 +1,6 @@
+if BOARD_RICE_NUCLEO_H743ZI
+
+config BOARD
+	default "rice_nucleo_h743zi"
+
+endif # BOARD_RICE_NUCLEO_H743ZI

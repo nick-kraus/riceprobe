@@ -1,0 +1,15 @@
+description: RICE I/O protocol driver
+
+compatible: "rice,io"
+
+properties:
+    label:
+      type: string
+      required: true
+    
+    led_status_gpios:
+      type: phandle-array
+      required: false
+      description: Status LED GPIO Pin.
+
+        Outputs the status of the remote IO interface.

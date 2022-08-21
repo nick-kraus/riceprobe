@@ -1,0 +1,46 @@
+manifest:
+  defaults:
+    remote: zephyrproject-rtos
+  
+  self:
+    path: app
+
+  remotes:
+    - name: zephyrproject-rtos
+      url-base: https://github.com/zephyrproject-rtos
+    
+    - name: nick-kraus
+      url-base: git@github.com:nick-kraus
+
+  projects:
+    - name: zephyr
+      remote: nick-kraus
+      revision: v3.1-branch-riceprobe
+      west-commands: scripts/west-commands.yml
+    
+    # custom modified hal fixes CIDR mismatch warning
+    - name: hal_atmel
+      remote: nick-kraus
+      revision: b2757974381edbaf571344ae254b564db61c3a22
+      path: modules/hal/atmel
+    
+    # projects below are lifted from zephyr-v3.1.0 west.yml, with unused projects removed
+    - name: cmsis
+      revision: 5f86244bad4ad5a590e084f0e72ba7a1416c2edf
+      path: modules/hal/cmsis
+
+    - name: hal_stm32
+      revision: 51b373cd3455b8c2b9babbf6ff41918116a442ac
+      path: modules/hal/stm32
+    
+    - name: mbedtls
+      revision: 7fed49c9b9f983ad6416986661ef637459723bcb
+      path: modules/crypto/mbedtls
+
+    - name: mcuboot
+      revision: e58ea98aec6e5539c5f872a98059e461d0155bbb
+      path: bootloader/mcuboot
+
+    - name: segger
+      revision: 3a52ab222133193802d3c3b4d21730b9b1f1d2f6
+      path: modules/debug/segger

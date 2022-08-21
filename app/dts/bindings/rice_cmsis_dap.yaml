@@ -1,0 +1,22 @@
+description: CMSIS-DAP protocol driver
+
+compatible: "rice,cmsis-dap"
+
+properties:
+    label:
+      type: string
+      required: true
+    
+    led_connect_gpios:
+      type: phandle-array
+      required: false
+      description: Connect LED GPIO Pin.
+
+        Outputs the connection status of the debug probe.
+      
+    led_running_gpios:
+      type: phandle-array
+      required: false
+      description: Connect LED GPIO Pin.
+
+        Outputs the running status of the debug probe.

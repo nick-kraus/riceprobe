@@ -1,0 +1,3 @@
+config BOARD_RICE_NUCLEO_H743ZI
+	bool "Remote ICE Nucleo H743ZI Development Board"
+	depends on SOC_STM32H743XX

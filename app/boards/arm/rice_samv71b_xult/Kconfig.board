@@ -1,0 +1,3 @@
+config BOARD_RICE_SAMV71B_XULT
+	bool "Remote ICE ATSAMV71 Xplained Ultra Development Board"
+	depends on SOC_PART_NUMBER_SAMV71Q21 || SOC_PART_NUMBER_SAMV71Q21B

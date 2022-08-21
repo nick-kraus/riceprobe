@@ -1,0 +1,13 @@
+description: USB-to-UART driver
+
+compatible: "rice,vcp"
+
+properties:
+    label:
+      type: string
+      required: true
+    
+    uart:
+      type: phandle
+      required: true
+      description: UART device to use for USB-to-UART device.
