@@ -16,7 +16,7 @@
 
     dap: dap {
         label = "dap";
-        compatible = "rice,cmsis-dap";
+        compatible = "rice,dap";
     };
 
     io: io {

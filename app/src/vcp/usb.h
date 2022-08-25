@@ -1,5 +1,5 @@
-#ifndef __USB_PRIV_H__
-#define __USB_PRIV_H__
+#ifndef __VCP_USB_PRIV_H__
+#define __VCP_USB_PRIV_H__
 
 #include <sys/byteorder.h>
 #include <usb/usb_device.h>
@@ -119,19 +119,12 @@ void vcp_usb_status_cb(struct usb_cfg_data *cfg, enum usb_dc_status_code status,
     };                                                                                              \
                                                                                                     \
     static struct usb_ep_cfg_data vcp_usb_ep_data_##idx[] = {                                       \
-        {                                                                                           \
-            /* TODO: when we add support for manipulating the control lines we will                 \
-             * need to use this callback to ensure the host received the interrupt                  \
-             * notification as requested. */                                                        \
-            .ep_cb = NULL,                                                                          \
-            .ep_addr = AUTO_EP_IN,                                                                  \
-        }, {                                                                                        \
-            .ep_cb = usb_transfer_ep_callback,                                                      \
-            .ep_addr = AUTO_EP_OUT,                                                                 \
-        }, {                                                                                        \
-            .ep_cb = usb_transfer_ep_callback,                                                      \
-            .ep_addr = AUTO_EP_IN,                                                                  \
-        },                                                                                          \
+        /* TODO: when we add support for manipulating the control lines we will                     \
+         * need to use this callback to ensure the host received the interrupt                      \
+         * notification as requested. */                                                            \
+        { .ep_cb = NULL, .ep_addr = AUTO_EP_IN },                                                   \
+        { .ep_cb = usb_transfer_ep_callback, .ep_addr = AUTO_EP_OUT },                              \
+        { .ep_cb = usb_transfer_ep_callback, .ep_addr = AUTO_EP_IN },                               \
     };                                                                                              \
                                                                                                     \
     USBD_DEFINE_CFG_DATA(config_name) = {                                                           \
@@ -147,4 +140,4 @@ void vcp_usb_status_cb(struct usb_cfg_data *cfg, enum usb_dc_status_code status,
         .endpoint = vcp_usb_ep_data_##idx,                                                          \
     };
 
-#endif /* __USB_PRIV_H__ */
+#endif /* __VCP_USB_PRIV_H__ */

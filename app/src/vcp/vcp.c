@@ -5,8 +5,8 @@
 #include <sys/slist.h>
 #include <zephyr.h>
 
-#include "usb.h"
-#include "vcp.h"
+#include "vcp/usb.h"
+#include "vcp/vcp.h"
 
 LOG_MODULE_REGISTER(vcp);
 

@@ -34,13 +34,8 @@ struct vcp_config {
 
 extern sys_slist_t vcp_devlist;
 
-/** @brief Returns the configured state of the VCP device. */
 bool vcp_is_configured(const struct device *dev);
-
-/** @brief Configures the VCP device, and enabled receiving and transmitting of UART data. */
 int vcp_configure(const struct device *dev, k_work_handler_t handler);
-
-/** @brief Resets the VCP device, de-configuring it and disabling the passing of UART data. */
 int vcp_reset(const struct device *dev);
 
 #endif /* __VCP_PRIV_H__ */

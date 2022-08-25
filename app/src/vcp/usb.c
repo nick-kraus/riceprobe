@@ -6,8 +6,9 @@
 #include <usb_descriptor.h>
 #include <zephyr.h>
 
-#include "usb.h"
-#include "vcp.h"
+#include "usb_util.h"
+#include "vcp/usb.h"
+#include "vcp/vcp.h"
 
 LOG_MODULE_DECLARE(vcp);
 
@@ -26,50 +27,16 @@ USBD_STRING_DESCR_USER_DEFINE(primary) struct {
 	.bString = VCP_USB_INTERFACE_STRING,
 };
 
-// unfortunately we cannot use the functions declared in 'usb_descriptor.h'
-// since they rely on having the dev->config pointer be directly pointing
-// to the usb configuration data, which isn't very flexible.
-static const struct device *vcp_dev_from_usb_cfg(struct usb_cfg_data *cfg) {
-    struct vcp_data *data;
-    SYS_SLIST_FOR_EACH_CONTAINER(&vcp_devlist, data, devlist_node) {
-        const struct device* dev = data->dev;
-        const struct vcp_config *config = dev->config;
-        const struct usb_cfg_data *cfg_cur = config->usb_config;
-
-        if (cfg_cur == cfg) {
-            return dev;
-        }
-    }
-
-    return NULL;
-}
-
-static const struct device *vcp_dev_from_usb_intf(uint8_t intf_num) {
-    struct vcp_data *data;
-    SYS_SLIST_FOR_EACH_CONTAINER(&vcp_devlist, data, devlist_node) {
-        const struct device* dev = data->dev;
-        const struct vcp_config *config = dev->config;
-        const struct usb_cfg_data *cfg = config->usb_config;
-        const struct usb_if_descriptor *intf = cfg->interface_descriptor;
-
-        if (intf->bInterfaceNumber == intf_num) {
-            return dev;
-        }
-    }
-
-    return NULL;
-}
-
 int vcp_usb_class_handle_req(
     struct usb_setup_packet *setup,
     int32_t *len,
     uint8_t **data
 ) {
     int ret;
-    uint8_t intf = (uint8_t) (setup->wIndex & 0xFF);
-    const struct device *dev = vcp_dev_from_usb_intf(intf);
+    uint8_t intf_num = (uint8_t) (setup->wIndex & 0xFF);
+    const struct device *dev = DRIVER_DEV_FROM_USB_INTF(struct vcp_data, struct vcp_config, intf_num, vcp_devlist);
     if (dev == NULL) {
-        LOG_WRN("device data not found for interface %u", intf);
+        LOG_WRN("device data not found for interface %u", intf_num);
         return -ENODEV;
     }
     const struct vcp_config *config = dev->config;
@@ -285,7 +252,7 @@ void vcp_usb_status_cb(
 ) {
     int32_t ret;
 
-    const struct device *dev = vcp_dev_from_usb_cfg(cfg);
+    const struct device *dev = DRIVER_DEV_FROM_USB_CFG(struct vcp_data, struct vcp_config, cfg, vcp_devlist);
     if (dev == NULL) {
         LOG_WRN("device data not found for cfg %p", cfg);
         return;

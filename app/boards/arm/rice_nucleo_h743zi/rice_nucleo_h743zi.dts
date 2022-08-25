@@ -15,7 +15,7 @@
 
     dap: dap {
         label = "dap";
-        compatible = "rice,cmsis-dap";
+        compatible = "rice,dap";
         led_connect_gpios = <&gpiob 0 GPIO_ACTIVE_HIGH>;
         led_running_gpios = <&gpioe 1 GPIO_ACTIVE_HIGH>;
     };
