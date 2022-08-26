@@ -13,7 +13,7 @@ bool dap_is_configured(const struct device *dev) {
     return data->configured;
 }
 
-int dap_configure(const struct device *dev) {
+int32_t dap_configure(const struct device *dev) {
     struct dap_data *data = dev->data;
     const struct dap_config *config = dev->config;
 
@@ -26,7 +26,7 @@ int dap_configure(const struct device *dev) {
     return 0;
 }
 
-int dap_reset(const struct device *dev) {
+int32_t dap_reset(const struct device *dev) {
     struct dap_data *data = dev->data;
     const struct dap_config *config = dev->config;
 
@@ -38,7 +38,7 @@ int dap_reset(const struct device *dev) {
 
 sys_slist_t dap_devlist;
 
-static int dap_init(const struct device *dev) {
+static int32_t dap_init(const struct device *dev) {
     struct dap_data *data = dev->data;
 
     data->dev = dev;

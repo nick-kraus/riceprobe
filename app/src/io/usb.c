@@ -25,7 +25,7 @@ USBD_STRING_DESCR_USER_DEFINE(primary) struct {
 	.bString = IO_USB_INTERFACE_STRING,
 };
 
-static void io_usb_write_cb(uint8_t ep, int size, void *priv) {
+static void io_usb_write_cb(uint8_t ep, int32_t size, void *priv) {
 	const struct device *dev = priv;
     const struct io_config *config = dev->config;
     int32_t ret;
@@ -44,7 +44,7 @@ static void io_usb_write_cb(uint8_t ep, int size, void *priv) {
     }
 }
 
-static void io_usb_read_cb(uint8_t ep, int size, void *priv) {
+static void io_usb_read_cb(uint8_t ep, int32_t size, void *priv) {
 	const struct device *dev = priv;
     const struct io_config *config = dev->config;
 	struct usb_cfg_data *cfg = config->usb_config;
@@ -100,7 +100,7 @@ void io_usb_interface_config(struct usb_desc_header *head, uint8_t bInterfaceNum
 }
 
 void io_usb_status_cb(struct usb_cfg_data *cfg, enum usb_dc_status_code status, const uint8_t *param) {
-	int ret;
+	int32_t ret;
 	
 	const struct device *dev = DRIVER_DEV_FROM_USB_CFG(struct io_data, struct io_config, cfg, io_devlist);
 	if (dev == NULL) {

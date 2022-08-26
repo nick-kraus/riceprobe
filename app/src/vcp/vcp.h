@@ -35,7 +35,7 @@ struct vcp_config {
 extern sys_slist_t vcp_devlist;
 
 bool vcp_is_configured(const struct device *dev);
-int vcp_configure(const struct device *dev, k_work_handler_t handler);
-int vcp_reset(const struct device *dev);
+int32_t vcp_configure(const struct device *dev, k_work_handler_t handler);
+int32_t vcp_reset(const struct device *dev);
 
 #endif /* __VCP_PRIV_H__ */

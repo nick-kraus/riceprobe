@@ -15,7 +15,7 @@ bool vcp_is_configured(const struct device *dev) {
     return data->configured;
 }
 
-int vcp_configure(const struct device *dev, k_work_handler_t handler) {
+int32_t vcp_configure(const struct device *dev, k_work_handler_t handler) {
     struct vcp_data *data = dev->data;
     const struct vcp_config *config = dev->config;
 
@@ -32,7 +32,7 @@ int vcp_configure(const struct device *dev, k_work_handler_t handler) {
     return 0;
 }
 
-int vcp_reset(const struct device *dev) {
+int32_t vcp_reset(const struct device *dev) {
     struct vcp_data *data = dev->data;
     const struct vcp_config *config = dev->config;
 
@@ -114,7 +114,7 @@ static void vcp_uart_isr(const struct device *dev, void *user_data) {
 
 sys_slist_t vcp_devlist;
 
-static int vcp_init(const struct device *dev) {
+static int32_t vcp_init(const struct device *dev) {
     struct vcp_data *data = dev->data;
     const struct vcp_config *config = dev->config;
 

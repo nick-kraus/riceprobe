@@ -23,7 +23,7 @@ struct dap_config {
 extern sys_slist_t dap_devlist;
 
 bool dap_is_configured(const struct device *dev);
-int dap_configure(const struct device *dev);
-int dap_reset(const struct device *dev);
+int32_t dap_configure(const struct device *dev);
+int32_t dap_reset(const struct device *dev);
 
 #endif /* __DAP_PRIV_H__ */

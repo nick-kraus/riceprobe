@@ -27,12 +27,12 @@ USBD_STRING_DESCR_USER_DEFINE(primary) struct {
 	.bString = VCP_USB_INTERFACE_STRING,
 };
 
-int vcp_usb_class_handle_req(
+int32_t vcp_usb_class_handle_req(
     struct usb_setup_packet *setup,
     int32_t *len,
     uint8_t **data
 ) {
-    int ret;
+    int32_t ret;
     uint8_t intf_num = (uint8_t) (setup->wIndex & 0xFF);
     const struct device *dev = DRIVER_DEV_FROM_USB_INTF(struct vcp_data, struct vcp_config, intf_num, vcp_devlist);
     if (dev == NULL) {
@@ -141,7 +141,7 @@ int vcp_usb_class_handle_req(
     return -ENOTSUP;
 }
 
-static void vcp_usb_write_cb(uint8_t ep, int size, void *priv) {
+static void vcp_usb_write_cb(uint8_t ep, int32_t size, void *priv) {
     const struct device *dev = priv;
     struct vcp_data *data = dev->data;
     const struct vcp_config *config = dev->config;
@@ -203,7 +203,7 @@ static void usb_work_handler(struct k_work *work) {
     );
 }
 
-static void vcp_usb_read_cb(uint8_t ep, int size, void *priv) {
+static void vcp_usb_read_cb(uint8_t ep, int32_t size, void *priv) {
     const struct device *dev = priv;
     const struct vcp_config *config = dev->config;
     int32_t ret;

@@ -28,7 +28,7 @@ struct vcp_usb_descriptor {
 } __packed;
 
 void vcp_usb_int_cb(uint8_t ep, enum usb_dc_ep_cb_status_code ep_status);
-int vcp_usb_class_handle_req(struct usb_setup_packet *setup, int32_t *len, uint8_t **data);
+int32_t vcp_usb_class_handle_req(struct usb_setup_packet *setup, int32_t *len, uint8_t **data);
 void vcp_usb_interface_config(struct usb_desc_header *head, uint8_t bInterfaceNumber);
 void vcp_usb_status_cb(struct usb_cfg_data *cfg, enum usb_dc_status_code status, const uint8_t *param);
 

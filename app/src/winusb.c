@@ -116,7 +116,7 @@ struct usb_msos_extprop_descr {
     }
 };
 
-int winusb_custom_handle_req(struct usb_setup_packet *pSetup, int32_t *len, uint8_t **data) {
+int32_t winusb_custom_handle_req(struct usb_setup_packet *pSetup, int32_t *len, uint8_t **data) {
 	if (usb_reqtype_is_to_device(pSetup)) {
 		return -ENOTSUP;
 	}
@@ -134,7 +134,7 @@ int winusb_custom_handle_req(struct usb_setup_packet *pSetup, int32_t *len, uint
 	return -EINVAL;
 }
 
-int winusb_vendor_handle_req(struct usb_setup_packet *pSetup, int32_t *len, uint8_t **data) {
+int32_t winusb_vendor_handle_req(struct usb_setup_packet *pSetup, int32_t *len, uint8_t **data) {
 	if (usb_reqtype_is_to_device(pSetup)) {
 		return -ENOTSUP;
 	}

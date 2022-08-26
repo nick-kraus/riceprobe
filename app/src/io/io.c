@@ -13,7 +13,7 @@ bool io_is_configured(const struct device *dev) {
     return data->configured;
 }
 
-int io_configure(const struct device *dev) {
+int32_t io_configure(const struct device *dev) {
     struct io_data *data = dev->data;
     const struct io_config *config = dev->config;
 
@@ -26,7 +26,7 @@ int io_configure(const struct device *dev) {
     return 0;
 }
 
-int io_reset(const struct device *dev) {
+int32_t io_reset(const struct device *dev) {
     struct io_data *data = dev->data;
     const struct io_config *config = dev->config;
 
@@ -38,7 +38,7 @@ int io_reset(const struct device *dev) {
 
 sys_slist_t io_devlist;
 
-static int io_init(const struct device *dev) {
+static int32_t io_init(const struct device *dev) {
     struct io_data *data = dev->data;
 
     data->dev = dev;

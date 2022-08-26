@@ -23,7 +23,7 @@ struct io_config {
 extern sys_slist_t io_devlist;
 
 bool io_is_configured(const struct device *dev);
-int io_configure(const struct device *dev);
-int io_reset(const struct device *dev);
+int32_t io_configure(const struct device *dev);
+int32_t io_reset(const struct device *dev);
 
 #endif /* __IO_PRIV_H__ */
