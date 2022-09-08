@@ -1,6 +1,6 @@
 target_sources(app PRIVATE
     "src/main.c"
-    "src/winusb.c"
+    "src/usb.c"
     "src/dap/dap.c"
     "src/dap/usb.c"
     "src/io/io.c"

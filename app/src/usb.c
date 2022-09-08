@@ -4,7 +4,7 @@
 #include <usb_descriptor.h>
 #include <zephyr.h>
 
-LOG_MODULE_REGISTER(winusb, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(usb, LOG_LEVEL_DBG);
 
 // The format of the MS OS descriptor is based on the definition in the Microsoft document titled
 // 'Microsoft OS Descriptors Overview'.
@@ -73,8 +73,13 @@ struct usb_msos_compatid_descr {
     }
 };
 
-uint8_t *winusb_func0_first_interface = &usb_msos_compatid_descr.func0.bFirstInterfaceNumber;
-uint8_t *winusb_func1_first_interface = &usb_msos_compatid_descr.func1.bFirstInterfaceNumber;
+void usb_winusb_set_func0_interface(uint8_t intf) {
+    usb_msos_compatid_descr.func0.bFirstInterfaceNumber = intf;
+}
+
+void usb_winusb_set_func1_interface(uint8_t intf) {
+    usb_msos_compatid_descr.func1.bFirstInterfaceNumber = intf;
+}
 
 struct usb_msos_device_intf_guid {
     uint32_t dwSize;
@@ -116,7 +121,7 @@ struct usb_msos_extprop_descr {
     }
 };
 
-int32_t winusb_custom_handle_req(struct usb_setup_packet *pSetup, int32_t *len, uint8_t **data) {
+int32_t usb_winusb_custom_handle_req(struct usb_setup_packet *pSetup, int32_t *len, uint8_t **data) {
 	if (usb_reqtype_is_to_device(pSetup)) {
 		return -ENOTSUP;
 	}
@@ -134,7 +139,7 @@ int32_t winusb_custom_handle_req(struct usb_setup_packet *pSetup, int32_t *len, 
 	return -EINVAL;
 }
 
-int32_t winusb_vendor_handle_req(struct usb_setup_packet *pSetup, int32_t *len, uint8_t **data) {
+int32_t usb_winusb_vendor_handle_req(struct usb_setup_packet *pSetup, int32_t *len, uint8_t **data) {
 	if (usb_reqtype_is_to_device(pSetup)) {
 		return -ENOTSUP;
 	}

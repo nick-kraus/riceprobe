@@ -102,10 +102,6 @@ def test_usb_dap_write_read(usb_device):
     dap_out_ep = dap_intf.endpoints()[0]
     dap_in_ep = dap_intf.endpoints()[1]
 
-    # first write / read may not actually work due to a zephyr driver bug, so don't panic on failure
-    dap_out_ep.write(b'\x00')
-    dap_in_ep.read(1)
-
     dap_out_ep.write(b'testing')
     data = dap_in_ep.read(7)
     assert(data.tobytes() == b'testing')
@@ -116,10 +112,6 @@ def test_usb_io_write_read(usb_device):
     io_out_ep = io_intf.endpoints()[0]
     io_in_ep = io_intf.endpoints()[1]
 
-    # first write / read may not actually work due to a zephyr driver bug, so don't panic on failure
-    io_out_ep.write(b'\x00')
-    io_in_ep.read(1)
-
     io_out_ep.write(b'testing')
     data = io_in_ep.read(7)
     assert(data.tobytes() == b'testing')
@@ -128,10 +120,6 @@ def test_usb_vcp_loopback():
     # specifically use the pyserial interface to check the loopback, as this should ensure that all of actions an OS
     # takes while connecting to a CDC ACM device are also working correctly, not just raw data loopback
     ser = serial.serial_for_url(f'hwgrep://{RICEPROBE_VID:x}:{RICEPROBE_PID:x}', baudrate=115200, timeout=0.1)
-
-    # first write / read may not actually work due to a zephyr driver bug, so don't panic on failure
-    ser.write(b'\x00')
-    ser.read(1)
 
     ser.write(b'testing')
     data = ser.read(7)

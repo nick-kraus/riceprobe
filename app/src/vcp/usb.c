@@ -6,7 +6,7 @@
 #include <usb_descriptor.h>
 #include <zephyr.h>
 
-#include "usb_util.h"
+#include "../usb.h"
 #include "vcp/usb.h"
 #include "vcp/vcp.h"
 

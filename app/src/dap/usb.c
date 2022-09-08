@@ -4,10 +4,9 @@
 #include <usb_descriptor.h>
 #include <zephyr.h>
 
+#include "../usb.h"
 #include "dap/dap.h"
 #include "dap/usb.h"
-#include "usb_util.h"
-#include "winusb.h"
 
 LOG_MODULE_DECLARE(dap);
 
@@ -96,7 +95,7 @@ void dap_usb_interface_config(struct usb_desc_header *head, uint8_t bInterfaceNu
     desc->if0.iInterface = usb_get_str_descriptor_idx(&dap_interface_string_descriptor);
 
     // dap functionality occupies the 'first' function in the MS OS descriptors
-    *winusb_func0_first_interface = bInterfaceNumber;
+	usb_winusb_set_func0_interface(bInterfaceNumber);
 }
 
 void dap_usb_status_cb(struct usb_cfg_data *cfg, enum usb_dc_status_code status, const uint8_t *param) {

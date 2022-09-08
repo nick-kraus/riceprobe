@@ -4,10 +4,9 @@
 #include <usb_descriptor.h>
 #include <zephyr.h>
 
+#include "../usb.h"
 #include "io/io.h"
 #include "io/usb.h"
-#include "usb_util.h"
-#include "winusb.h"
 
 LOG_MODULE_DECLARE(io);
 
@@ -96,7 +95,7 @@ void io_usb_interface_config(struct usb_desc_header *head, uint8_t bInterfaceNum
     desc->if0.iInterface = usb_get_str_descriptor_idx(&io_interface_string_descriptor);
 
     // io functionality occupies the 'second' function in the MS OS descriptors
-    *winusb_func1_first_interface = bInterfaceNumber;
+	usb_winusb_set_func1_interface(bInterfaceNumber);
 }
 
 void io_usb_status_cb(struct usb_cfg_data *cfg, enum usb_dc_status_code status, const uint8_t *param) {
