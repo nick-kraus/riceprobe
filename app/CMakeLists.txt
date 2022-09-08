@@ -2,6 +2,7 @@ target_sources(app PRIVATE
     "src/main.c"
     "src/usb.c"
     "src/dap/dap.c"
+    "src/dap/commands_general.c"
     "src/dap/usb.c"
     "src/io/io.c"
     "src/io/usb.c"

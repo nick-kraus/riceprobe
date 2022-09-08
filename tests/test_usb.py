@@ -102,9 +102,33 @@ def test_usb_dap_write_read(usb_device):
     dap_out_ep = dap_intf.endpoints()[0]
     dap_in_ep = dap_intf.endpoints()[1]
 
-    dap_out_ep.write(b'testing')
-    data = dap_in_ep.read(7)
-    assert(data.tobytes() == b'testing')
+    # unsupported writes should return the single hex byte 0xff
+    dap_out_ep.write(b'\xf0')
+    data = dap_in_ep.read(512)
+    assert(len(data) == 1)
+    assert(data.tobytes() == b'\xff')
+
+    ##
+    ## Info Command
+    ##
+
+    # vendor name from info should match USB vendor string
+    dap_out_ep.write(b'\x00\x01')
+    data = dap_in_ep.read(512)
+    assert(len(data) == 13)
+    assert(data.tobytes() == b'\x00\x0bNick Kraus\x00')
+
+    # product name from info should match USB product string
+    dap_out_ep.write(b'\x00\x02')
+    data = dap_in_ep.read(512)
+    assert(len(data) == 12)
+    assert(data.tobytes() == b'\x00\x0aRICEProbe\x00')
+
+    # unsupported info id
+    dap_out_ep.write(b'\x00\xff')
+    data = dap_in_ep.read(512)
+    assert(len(data) == 1)
+    assert(data.tobytes() == b'\xff')
 
 def test_usb_io_write_read(usb_device):
     cfg = usb_device.get_active_configuration()
