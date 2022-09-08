@@ -178,7 +178,7 @@ static void usb_work_handler(struct k_work *work) {
     }
 
     uint8_t *ptr;
-    int32_t size = ring_buf_get_claim(config->rx_rbuf, &ptr, VCP_RING_BUF_SIZE);
+    uint32_t size = ring_buf_get_claim(config->rx_rbuf, &ptr, VCP_RING_BUF_SIZE);
     if (size == 0) {
         LOG_DBG("rx ring buffer empty, nothing to send");
         return;
@@ -221,7 +221,7 @@ static void vcp_usb_read_cb(uint8_t ep, int32_t size, void *priv) {
 
     // write data into the largest continuous buffer space available within the ring bufer
     uint8_t *ptr;
-    int32_t space = ring_buf_put_claim(config->tx_rbuf, &ptr, VCP_RING_BUF_SIZE);
+    uint32_t space = ring_buf_put_claim(config->tx_rbuf, &ptr, VCP_RING_BUF_SIZE);
     usb_transfer(
         ep,
         ptr,

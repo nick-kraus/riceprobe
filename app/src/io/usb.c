@@ -58,7 +58,7 @@ static void io_usb_read_cb(uint8_t ep, int32_t size, void *priv) {
             LOG_ERR("buffer write finish failed with error %d", ret);
         } else {
 			uint8_t *ptr;
-			int32_t size = ring_buf_get_claim(config->rbuf, &ptr, IO_RING_BUF_SIZE);
+			uint32_t size = ring_buf_get_claim(config->rbuf, &ptr, IO_RING_BUF_SIZE);
 			if (size == 0) {
 				LOG_DBG("ring buffer empty, nothing to send");
 				return;
@@ -77,7 +77,7 @@ static void io_usb_read_cb(uint8_t ep, int32_t size, void *priv) {
 
 	// write data into the largest continuous buffer space available within the ring bufer
     uint8_t *ptr;
-    int32_t space = ring_buf_put_claim(config->rbuf, &ptr, IO_RING_BUF_SIZE);
+    uint32_t space = ring_buf_put_claim(config->rbuf, &ptr, IO_RING_BUF_SIZE);
     usb_transfer(
         ep,
         ptr,
