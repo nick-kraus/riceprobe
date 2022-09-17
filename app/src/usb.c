@@ -4,6 +4,8 @@
 #include <usb_descriptor.h>
 #include <zephyr.h>
 
+#include "nvs.h"
+
 LOG_MODULE_REGISTER(usb, LOG_LEVEL_DBG);
 
 // The format of the MS OS descriptor is based on the definition in the Microsoft document titled
@@ -159,4 +161,16 @@ int32_t usb_winusb_vendor_handle_req(struct usb_setup_packet *pSetup, int32_t *l
     }
 
 	return -ENOTSUP;
+}
+
+uint8_t *usb_update_sn_string_descriptor(void) {
+    static uint8_t serial[sizeof(CONFIG_USB_DEVICE_SN)];
+
+    int32_t ret = nvs_get_serial_number(serial, sizeof(serial));
+    if (ret < 0) {
+        LOG_WRN("failed to update USB serial number with NVS value");
+        serial[0] = '\0';
+    }
+
+    return serial;
 }

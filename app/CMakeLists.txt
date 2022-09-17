@@ -1,5 +1,6 @@
 target_sources(app PRIVATE
     "src/main.c"
+    "src/nvs.c"
     "src/usb.c"
     "src/dap/dap.c"
     "src/dap/commands_general.c"
@@ -15,7 +16,7 @@ target_include_directories(app PRIVATE
 )
 
 target_compile_definitions(app PRIVATE
-    -DCONFIG_REPO_VERSION_STRING=${REPO_VERSION_STRING}
+    -DCONFIG_REPO_VERSION_STRING="${REPO_VERSION_STRING}"
     -DCONFIG_REPO_VERSION_MAJOR=${REPO_VERSION_MAJOR}
     -DCONFIG_REPO_VERSION_MINOR=${REPO_VERSION_MINOR}
     -DCONFIG_REPO_VERSION_PATCH=${REPO_VERSION_PATCH}

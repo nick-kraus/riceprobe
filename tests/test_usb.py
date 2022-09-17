@@ -1,4 +1,5 @@
 import pytest
+import re
 import serial
 import usb.core
 import usb.util
@@ -30,10 +31,8 @@ def test_usb_descriptor(usb_device):
     # String Descriptors
     assert(usb.util.get_string(usb_device, usb_device.iManufacturer) == 'Nick Kraus')
     assert(usb.util.get_string(usb_device, usb_device.iProduct) == 'RICEProbe')
-    # USB Serial Number is taken from the hardware unique ID, we don't know much about all specific serial numbers,
-    # but it should be serializable into a number and fairly large (at least as big as a uint32_t)
-    serial_number = int(usb.util.get_string(usb_device, usb_device.iSerialNumber))
-    assert(serial_number >= (2 ** 32) - 1)
+    regex = re.compile(r'^RPB1-[23][0-9][0-5][0-9][0-9]{6}[0-9A-Z]$')
+    assert(re.match(regex, usb.util.get_string(usb_device, usb_device.iSerialNumber)))
 
     cfg = usb_device.get_active_configuration()
 
@@ -124,8 +123,88 @@ def test_usb_dap_write_read(usb_device):
     assert(len(data) == 12)
     assert(data.tobytes() == b'\x00\x0aRICEProbe\x00')
 
-    # unsupported info id
+    # serial number from info should match USB serial number
+    dap_out_ep.write(b'\x00\x03')
+    data = dap_in_ep.read(512)
+    assert(len(data) == 19)
+    assert(data.tobytes()[0:2] == b'\x00\x11')
+    assert(re.match(rb'^RPB1-[23][0-9][0-5][0-9][0-9]{6}[0-9A-Z]\x00$', data.tobytes()[2:]))
+
+    # protocol version should match known string
+    dap_out_ep.write(b'\x00\x04')
+    data = dap_in_ep.read(512)
+    assert(len(data) == 8)
+    assert(data.tobytes() == b'\x00\x062.1.1\x00')
+
+    # all of target device vendor, target device name, target board vendor, and
+    # target board name should return an empty string
+    dap_out_ep.write(b'\x00\x05')
+    data = dap_in_ep.read(512)
+    assert(len(data) == 2)
+    assert(data.tobytes() == b'\x00\x00')
+    dap_out_ep.write(b'\x00\x06')
+    data = dap_in_ep.read(512)
+    assert(len(data) == 2)
+    assert(data.tobytes() == b'\x00\x00')
+    dap_out_ep.write(b'\x00\x07')
+    data = dap_in_ep.read(512)
+    assert(len(data) == 2)
+    assert(data.tobytes() == b'\x00\x00')
+    dap_out_ep.write(b'\x00\x08')
+    data = dap_in_ep.read(512)
+    assert(len(data) == 2)
+    assert(data.tobytes() == b'\x00\x00')
+
+    # firmware version should match a known pattern
+    dap_out_ep.write(b'\x00\x09')
+    data = dap_in_ep.read(512)
+    assert(len(data) >= 20)
+    assert(data.tobytes()[0] == ord(b'\x00'))
+    assert(data.tobytes()[1] == len(data) - 2)
+    assert(re.match(rb'^v\d+\.\d+\.\d+-\d+-g[0-9a-f]{7}(-dirty)?\x00$', data.tobytes()[2:]))
+
+    # capabilities should match a known value
+    dap_out_ep.write(b'\x00\xf0')
+    data = dap_in_ep.read(512)
+    assert(len(data) == 4)
+    assert(data.tobytes() == b'\x00\x02\x00\x01')
+
+    # test domain timer should return the default unused value
+    dap_out_ep.write(b'\x00\xf1')
+    data = dap_in_ep.read(512)
+    assert(len(data) == 6)
+    assert(data.tobytes() == b'\x00\x08\x00\x00\x00\x00')
+
+    # uart rx and tx buffer size should match a known value
+    dap_out_ep.write(b'\x00\xfb')
+    data = dap_in_ep.read(512)
+    assert(len(data) == 6)
+    assert(data.tobytes() == b'\x00\x04\x00\x04\x00\x00')
+    dap_out_ep.write(b'\x00\xfc')
+    data = dap_in_ep.read(512)
+    assert(len(data) == 6)
+    assert(data.tobytes() == b'\x00\x04\x00\x04\x00\x00')
+
+    # swo trace buffer size should return 0 while unsupported
+    dap_out_ep.write(b'\x00\xfd')
+    data = dap_in_ep.read(512)
+    assert(len(data) == 6)
+    assert(data.tobytes() == b'\x00\x04\x00\x00\x00\x00')
+
+    # usb packet count should match a known value
+    dap_out_ep.write(b'\x00\xfe')
+    data = dap_in_ep.read(512)
+    assert(len(data) == 3)
+    assert(data.tobytes() == b'\x00\x01\x02')
+
+    # usb packet size should match a known value
     dap_out_ep.write(b'\x00\xff')
+    data = dap_in_ep.read(512)
+    assert(len(data) == 4)
+    assert(data.tobytes() == b'\x00\x02\x00\x02')
+
+    # unsupported info id
+    dap_out_ep.write(b'\x00\xbb')
     data = dap_in_ep.read(512)
     assert(len(data) == 1)
     assert(data.tobytes() == b'\xff')

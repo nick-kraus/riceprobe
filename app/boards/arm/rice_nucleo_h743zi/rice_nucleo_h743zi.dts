@@ -68,7 +68,7 @@
     d3ppre = <1>;
 };
 
-zephyr_udc0: &usbotg_fs {
+usbd: &usbotg_fs {
     pinctrl-0 = <&usb_otg_fs_dm_pa11 &usb_otg_fs_dp_pa12>;
     pinctrl-names = "default";
     status = "okay";
@@ -114,12 +114,19 @@ zephyr_udc0: &usbotg_fs {
         #address-cells = <1>;
         #size-cells = <1>;
 
-        /* 128KB for bootloader */
+        /* 64KB for bootloader */
         boot_partition: partition@0 {
             label = "mcuboot";
-            reg = <0x00000000 DT_SIZE_K(128)>;
+            reg = <0x00000000 DT_SIZE_K(64)>;
             read-only;
         };
+
+        /* 512B for manufacturing data */
+        manufacturer_partition: partition@10000 {
+			label = "manufacturing";
+			reg = <0x00010000 0x00000200>;
+			read-only;
+		};
 
         /* storage: 128KB for settings */
         storage_partition: partition@20000 {

@@ -5,6 +5,8 @@
 #include <usb/usb_device.h>
 #include <zephyr.h>
 
+/* supported version of the DAP protocol */
+#define DAP_PROTOCOL_VERSION "2.1.1"
 /* size of the internal buffers in bytes */
 #define DAP_RING_BUF_SIZE (1024)
 

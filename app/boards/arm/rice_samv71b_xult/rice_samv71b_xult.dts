@@ -51,6 +51,13 @@
 			read-only;
 		};
 
+		/* 512 bytes within the second half of sector 0 */
+		manufacturer_partition: partition@10000 {
+			label = "manufacturing";
+			reg = <0x00010000 0x00000200>;
+			read-only;
+		};
+
 		/* From sector 1 to sector 7 (included): slot0 (896 kbytes) */
 		slot0_partition: partition@20000 {
 			label = "image-0";
@@ -107,7 +114,7 @@
 	pinctrl-names = "default";
 };
 
-&usbhs {
+usbd: &usbhs {
 	status = "okay";
 };
 

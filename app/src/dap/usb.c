@@ -32,7 +32,7 @@ static void dap_usb_write_cb(uint8_t ep, int32_t size, void *priv) {
 
 	LOG_DBG("write_cb, ep 0x%x, %d bytes", ep, size);
 
-	// finishing the buffer read that was started in the read callback
+	/* finishing the buffer read that was started in the read callback */
     ret = ring_buf_get_finish(config->response_buf, size);
     if (ret < 0) {
         LOG_ERR("buffer read finish failed with error %d", ret);
@@ -61,7 +61,7 @@ static void dap_usb_read_cb(uint8_t ep, int32_t size, void *priv) {
 	if (ret < 0) {
 		LOG_ERR("dap handle request failed with error %d", ret);
 
-		// commands that failed or aren't implemented get a simple 0xff response byte
+		/* commands that failed or aren't implemented get a simple 0xff response byte */
 		ring_buf_reset(config->response_buf);
 		uint8_t response = DAP_COMMAND_RESPONSE_ERROR;
         ring_buf_put(config->response_buf, &response, 1);
@@ -86,7 +86,7 @@ static void dap_usb_read_cb(uint8_t ep, int32_t size, void *priv) {
 	);
 
 end: ;
-	// write data into the largest continuous buffer space available within the ring bufer
+	/* write data into the largest continuous buffer space available within the ring bufer */
 	uint32_t space = ring_buf_put_claim(config->request_buf, &ptr, DAP_RING_BUF_SIZE);
 	usb_transfer(
 		ep,
@@ -105,7 +105,7 @@ void dap_usb_interface_config(struct usb_desc_header *head, uint8_t bInterfaceNu
     desc->if0.bInterfaceNumber = bInterfaceNumber;
     desc->if0.iInterface = usb_get_str_descriptor_idx(&dap_interface_string_descriptor);
 
-    // dap functionality occupies the 'first' function in the MS OS descriptors
+    /* dap functionality occupies the 'first' function in the MS OS descriptors */
 	usb_winusb_set_func0_interface(bInterfaceNumber);
 }
 

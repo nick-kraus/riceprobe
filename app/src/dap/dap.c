@@ -44,16 +44,28 @@ int32_t dap_reset(const struct device *dev) {
 int32_t dap_handle_request(const struct device *dev) {
     const struct dap_config *config = dev->config;
 
-    // this request should not be handled before the previous response was transmitted, so
-    // we can assume that the response buffer is safe to reset
+    /* this request should not be handled before the previous response was transmitted, so
+     * we can assume that the response buffer is safe to reset */
     ring_buf_reset(config->response_buf);
-    // data should be available at the front of the ring buffer before calling this handler
+    /* data should be available at the front of the ring buffer before calling this handler */
     uint8_t command = 0xff;
     ring_buf_get(config->request_buf, &command, 1);
     
     switch (command) {
     case DAP_COMMAND_INFO:
         return dap_handle_command_info(dev);
+    case DAP_COMMAND_HOST_STATUS:
+        return dap_handle_command_host_status(dev);
+    case DAP_COMMAND_CONNECT:
+        return dap_handle_command_connect(dev);
+    case DAP_COMMAND_DISCONNECT:
+        return dap_handle_command_disconnect(dev);
+    case DAP_COMMAND_WRITE_ABORT:
+        return dap_handle_command_write_abort(dev);
+    case DAP_COMMAND_DELAY:
+        return dap_handle_command_delay(dev);
+    case DAP_COMMAND_RESET_TARGET:
+        return dap_handle_command_reset_target(dev);
     default:
         LOG_ERR("unsupported command 0x%x", command);
         return -ENOTSUP;
