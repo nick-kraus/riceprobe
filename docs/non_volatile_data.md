@@ -26,9 +26,10 @@ A version 4 UUID will be included in manufacturing data to act as a secondary me
 
 The data will be layed out in a 512-byte partition as follows, with all multi-byte integers stored in little endian format unless otherwise specified:
 
-| Start Address | Size (bytes) | Name           | Format Description             |
-|---------------|--------------|----------------|--------------------------------|
-| 0x00          | 2            | Tag            | 2 byte binary tag              |
-| 0x02          | 2            | Layout Version | 16-bit version number          |
-| 0x04          | 32           | Serial Number  | NULL terminated ASCII string   |
-| 0x24          | 16           | UUIDv4         | Binary UUIDv4 big-endian bytes |
+| Start Address | Size (bytes) | Name                   | Format Description             |
+|---------------|--------------|------------------------|--------------------------------|
+| 0x00          | 2            | Tag                    | 2 byte binary tag              |
+| 0x02          | 1            | Layout Version (Major) | 8-bit version number           |
+| 0x03          | 1            | Layout Version (Minor) | 8-bit version number           |
+| 0x04          | 32           | Serial Number          | NULL terminated ASCII string   |
+| 0x24          | 16           | UUIDv4                 | Binary UUIDv4 big-endian bytes |
