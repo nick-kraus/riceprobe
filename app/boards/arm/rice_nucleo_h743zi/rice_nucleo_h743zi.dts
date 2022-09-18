@@ -40,7 +40,7 @@
     status = "okay";
 };
 
-// STLink 8MHz clock
+/* STLink 8MHz clock */
 &clk_hse {
     hse-bypass;
     clock-frequency = <DT_FREQ_M(8)>;

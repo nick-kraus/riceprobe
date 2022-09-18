@@ -43,8 +43,8 @@ int32_t vcp_reset(const struct device *dev) {
     ring_buf_reset(config->rx_rbuf);
     ring_buf_reset(config->tx_rbuf);
 
-    // wait for the work handler to be idle, then cancel it, to allow a different
-    // transport to re-configure it in the future
+    /* wait for the work handler to be idle, then cancel it, to allow a different
+     * transport to re-configure it in the future */
     while (k_work_cancel(&data->rx_work)) {
         k_sleep(K_MSEC(1));
     }
@@ -70,8 +70,8 @@ static void vcp_uart_isr(const struct device *dev, void *user_data) {
             uint8_t *ptr;
             uint32_t space = ring_buf_put_claim(config->rx_rbuf, &ptr, VCP_RING_BUF_SIZE);
             if (space == 0) {
-                // TODO: with hardware flow control, we just set the proper lines and disable
-                // the receive irq instead of flushing the uart stream
+                /* TODO: with hardware flow control, we just set the proper lines and disable
+                 * the receive irq instead of flushing the uart stream */
                 uint8_t drop;
                 LOG_ERR("receive buffer full, flushing uart data");
                 while (uart_fifo_read(dev, &drop, 1) > 0) {
@@ -96,8 +96,8 @@ static void vcp_uart_isr(const struct device *dev, void *user_data) {
             uint8_t *ptr;
             uint32_t avail = ring_buf_get_claim(config->tx_rbuf, &ptr, VCP_RING_BUF_SIZE);
             if (avail == 0) {
-                // no need to proceed further, we can disable the tx IRQ as it will be enabled
-                // the next time data is received from the host transport
+                /* no need to proceed further, we can disable the tx IRQ as it will be enabled
+                 * the next time data is received from the host transport */
                 uart_irq_tx_disable(dev);
                 continue;
             }

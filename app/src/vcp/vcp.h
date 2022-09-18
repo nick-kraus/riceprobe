@@ -12,11 +12,11 @@
 struct vcp_data {
     bool configured;
 
-    // writes any received uart data to the host transport
+    /* writes any received uart data to the host transport */
     struct k_work rx_work;
 
-    // the device self reference and device list node are used by the transport to get a
-    // handle to the correct driver instance, to retreive the *data and *config structs
+    /* the device self reference and device list node are used by the transport to get a
+     * handle to the correct driver instance, to retreive the *data and *config structs */
     const struct device *dev;
     sys_snode_t devlist_node;
 };
@@ -24,8 +24,8 @@ struct vcp_data {
 struct vcp_config {
     const struct device *uart_dev;
 
-    // tx_rbuf will receive data from the transport and transmit through the uart
-    // device, and vice-versa for rx_buf
+    /* tx_rbuf will receive data from the transport and transmit through the uart
+     * device, and vice-versa for rx_buf */
     struct ring_buf *rx_rbuf;
     struct ring_buf *tx_rbuf;
 

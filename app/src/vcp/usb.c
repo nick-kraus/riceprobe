@@ -46,12 +46,12 @@ int32_t vcp_usb_class_handle_req(
             struct cdc_acm_line_coding usb_line_coding;
             memcpy(&usb_line_coding, *data, sizeof(usb_line_coding));
 
-            // cdc_acm_line_coding dwDTERate and bParityType have 1:1 mapping
-            // with uart_config baudrate and parity, but the other values need
-            // to be mapped.
-
-            // uart stop bits supports one extra value before the bCharFormat
-            // equivalent values are supported at a 1:1 mapping
+            /* cdc_acm_line_coding dwDTERate and bParityType have 1:1 mapping
+             * with uart_config baudrate and parity, but the other values need
+             * to be mapped.
+             * 
+             * uart stop bits supports one extra value before the bCharFormat
+             * equivalent values are supported at a 1:1 mapping */
             uint8_t uart_stop_bits = usb_line_coding.bCharFormat + 1;
             uint8_t uart_data_bits;
             switch (usb_line_coding.bDataBits) {
@@ -87,20 +87,20 @@ int32_t vcp_usb_class_handle_req(
             }
             return ret;
         } else if (setup->bRequest == SET_CONTROL_LINE_STATE) {
-            // TODO: support setting the control line state
+            /* TODO: support setting the control line state */
             LOG_DBG("setting control line state is not currently supported");
             return 0;
         }
     } else {
         if (setup->bRequest == GET_LINE_CODING) {
-            // static so we can safely return the pointer to this structure after the
-            // function has returned
+            /* static so we can safely return the pointer to this structure after the
+             * function has returned */
             static struct cdc_acm_line_coding usb_line_coding;
             struct uart_config uart_line_coding;
             uart_config_get(config->uart_dev, &uart_line_coding);
 
-            // 16 bit data isn't supported by most zephyr uart drivers, and
-            // won't even be considered here
+            /* 16 bit data isn't supported by most zephyr uart drivers, and
+             * won't even be considered here */
             uint8_t b_data_bits;
             switch (uart_line_coding.data_bits) {
             case UART_CFG_DATA_BITS_5:
@@ -121,7 +121,7 @@ int32_t vcp_usb_class_handle_req(
 
             usb_line_coding = (struct cdc_acm_line_coding) {
                 .dwDTERate = sys_cpu_to_le32(uart_line_coding.baudrate),
-                // here we must convert the bCharFormat value in the opposite way as above
+                /* here we must convert the bCharFormat value in the opposite way as above */
                 .bCharFormat = uart_line_coding.stop_bits - 1,
                 .bParityType = uart_line_coding.parity,
                 .bDataBits = b_data_bits,
@@ -149,7 +149,7 @@ static void vcp_usb_write_cb(uint8_t ep, int32_t size, void *priv) {
 
     LOG_DBG("write_cb, ep 0x%x, %d bytes", ep, size);
 
-    // finishing the buffer read that was started in the work handler
+    /* finishing the buffer read that was started in the work handler */
     ret = ring_buf_get_finish(config->rx_rbuf, size);
     if (ret < 0) {
         LOG_ERR("rx buffer read finish failed with error %d", ret);
@@ -184,11 +184,9 @@ static void usb_work_handler(struct k_work *work) {
         return;
     }
 
-    /*
-     * Prevent transferring data sizes that exactly match the packet size, causing a
+    /* Prevent transferring data sizes that exactly match the packet size, causing a
      * zero-length packet which indicate to the host that no more data is to be
-     * received over the transport stream.
-     */
+     * received over the transport stream. */
     if (size % VCP_BULK_EP_MPS == 0) {
         size--;
     }
@@ -210,7 +208,7 @@ static void vcp_usb_read_cb(uint8_t ep, int32_t size, void *priv) {
 
     LOG_DBG("read_cb, ep 0x%x, %d bytes", ep, size);
     if (size > 0) {
-        // the data will already exist in the buffer from the previous read_cb call
+        /* the data will already exist in the buffer from the previous read_cb call */
         ret = ring_buf_put_finish(config->tx_rbuf, size);
         if (ret < 0) {
             LOG_ERR("tx buffer write finish failed with error %d", ret);
@@ -219,7 +217,7 @@ static void vcp_usb_read_cb(uint8_t ep, int32_t size, void *priv) {
         }
     }
 
-    // write data into the largest continuous buffer space available within the ring bufer
+    /* write data into the largest continuous buffer space available within the ring bufer */
     uint8_t *ptr;
     uint32_t space = ring_buf_put_claim(config->tx_rbuf, &ptr, VCP_RING_BUF_SIZE);
     usb_transfer(

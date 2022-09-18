@@ -31,7 +31,7 @@ static void io_usb_write_cb(uint8_t ep, int32_t size, void *priv) {
 
 	LOG_DBG("write_cb, ep 0x%x, %d bytes", ep, size);
 
-	// finishing the buffer read that was started in the read callback
+	/* finishing the buffer read that was started in the read callback */
     ret = ring_buf_get_finish(config->rbuf, size);
     if (ret < 0) {
         LOG_ERR("buffer read finish failed with error %d", ret);
@@ -51,7 +51,7 @@ static void io_usb_read_cb(uint8_t ep, int32_t size, void *priv) {
 
 	LOG_DBG("read_cb, ep 0x%x, %d bytes", ep, size);
     if (size > 0) {
-        // the data will already exist in the buffer from the previous read_cb call
+        /* the data will already exist in the buffer from the previous read_cb call */
         ret = ring_buf_put_finish(config->rbuf, size);
         if (ret < 0) {
             LOG_ERR("buffer write finish failed with error %d", ret);
@@ -74,7 +74,7 @@ static void io_usb_read_cb(uint8_t ep, int32_t size, void *priv) {
         }
     }
 
-	// write data into the largest continuous buffer space available within the ring bufer
+	/* write data into the largest continuous buffer space available within the ring bufer */
     uint8_t *ptr;
     uint32_t space = ring_buf_put_claim(config->rbuf, &ptr, IO_RING_BUF_SIZE);
     usb_transfer(
@@ -94,7 +94,7 @@ void io_usb_interface_config(struct usb_desc_header *head, uint8_t bInterfaceNum
     desc->if0.bInterfaceNumber = bInterfaceNumber;
     desc->if0.iInterface = usb_get_str_descriptor_idx(&io_interface_string_descriptor);
 
-    // io functionality occupies the 'second' function in the MS OS descriptors
+    /* io functionality occupies the 'second' function in the MS OS descriptors */
 	usb_winusb_set_func1_interface(bInterfaceNumber);
 }
 

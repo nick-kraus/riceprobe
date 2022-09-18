@@ -8,17 +8,17 @@
 
 LOG_MODULE_REGISTER(usb, LOG_LEVEL_DBG);
 
-// The format of the MS OS descriptor is based on the definition in the Microsoft document titled
-// 'Microsoft OS Descriptors Overview'.
-//
-// These descriptors are read on first device initialization by Windows to automatically install
-// WinUSB driver support for this device (and all devices with matching USB VID and PID), so that
-// manually driver installation is not required by the end user.
-//
-// For testing purposes, the registry entry named 'oscv' located at
-// 'HLKM/SYSTEM/CurrentControlSet/Control/UsbFlags/vvvvpppprrrr' can be deleted to force Windows
-// to re-query the device for MS OS descriptor support. For more details please see
-// https://docs.microsoft.com/en-us/windows-hardware/drivers/usbcon/usb-device-specific-registry-settings
+/* The format of the MS OS descriptor is based on the definition in the Microsoft document titled
+ * 'Microsoft OS Descriptors Overview'.
+ *
+ * These descriptors are read on first device initialization by Windows to automatically install
+ * WinUSB driver support for this device (and all devices with matching USB VID and PID), so that
+ * manually driver installation is not required by the end user.
+ *
+ * For testing purposes, the registry entry named 'oscv' located at
+ * 'HLKM/SYSTEM/CurrentControlSet/Control/UsbFlags/vvvvpppprrrr' can be deleted to force Windows
+ * to re-query the device for MS OS descriptor support. For more details please see
+ * https://docs.microsoft.com/en-us/windows-hardware/drivers/usbcon/usb-device-specific-registry-settings */
 
 #define USB_MSOS_VENDOR_CODE    0x20
 
