@@ -1,5 +1,6 @@
 #include <drivers/hwinfo.h>
 #include <logging/log.h>
+#include <sys/byteorder.h>
 #include <sys/ring_buffer.h>
 #include <zephyr.h>
 
@@ -174,7 +175,16 @@ int32_t dap_handle_command_write_abort(const struct device *dev) {
 }
 
 int32_t dap_handle_command_delay(const struct device *dev) {
-    return -ENOTSUP; /* TODO */
+    const struct dap_config *config = dev->config;
+
+    uint16_t delay_us = 0;
+    ring_buf_get(config->request_buf, (uint8_t*) &delay_us, 2);
+    k_busy_wait(sys_le16_to_cpu(delay_us));
+
+    uint8_t response[] = {DAP_COMMAND_DELAY, DAP_COMMAND_RESPONSE_OK};
+    ring_buf_put(config->response_buf, response, ARRAY_SIZE(response));
+
+    return ring_buf_size_get(config->response_buf);
 }
 
 int32_t dap_handle_command_reset_target(const struct device *dev) {

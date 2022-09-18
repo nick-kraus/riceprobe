@@ -1,5 +1,6 @@
 import pytest
 import re
+import time
 
 @pytest.fixture
 def dap_ep(usb_dap_intf):
@@ -114,3 +115,20 @@ def test_usb_dap_info_command(dap_ep):
     data = dap_in_ep.read(512)
     assert(len(data) == 1)
     assert(data.tobytes() == b'\xff')
+
+def test_usb_dap_delay_command(dap_ep):
+    (dap_out_ep, dap_in_ep) = dap_ep
+
+    delay = 65535
+    command = bytearray(b'\x09\x00\x00')
+    command[1:3] = delay.to_bytes(2, byteorder='little')
+
+    start = time.time()
+    dap_out_ep.write(command)
+    data = dap_in_ep.read(512)
+    end = time.time()
+
+    assert(data.tobytes() == b'\x09\x00')
+    # not looking for much accuracy with such a small delay time, just something within reason
+    delta = (end - start) * 1000000
+    assert(delta > (0.5 * delay) and delta < (1.5 * delay))
