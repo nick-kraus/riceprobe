@@ -1,6 +1,6 @@
 description: CMSIS-DAP protocol driver
 
-compatible: "rice,cmsis-dap"
+compatible: "rice,dap"
 
 properties:
     label:
