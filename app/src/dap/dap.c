@@ -1,3 +1,4 @@
+#include <drivers/gpio.h>
 #include <logging/log.h>
 #include <sys/ring_buffer.h>
 #include <sys/slist.h>
@@ -38,6 +39,11 @@ int32_t dap_reset(const struct device *dev) {
     ring_buf_reset(config->request_buf);
     ring_buf_reset(config->response_buf);
 
+    /* clear current led state, leave combined flag */
+    data->led_state &= DAP_STATUS_LEDS_COMBINED;
+    gpio_pin_set_dt(&config->led_connect_gpio, 0);
+    gpio_pin_set_dt(&config->led_running_gpio, 0);
+
     return 0;
 }
 
@@ -72,42 +78,77 @@ int32_t dap_handle_request(const struct device *dev) {
     }
 }
 
+static void handle_running_led_timer(struct k_timer *timer) {
+    const struct device *dev = timer->user_data;
+    const struct dap_config *config = dev->config;
+
+    /* we choose to manually control the running led if the leds are combined,
+     * so we don't need to check here, and can just do a simple toggle */
+    gpio_pin_toggle_dt(&config->led_running_gpio);
+}
+
 sys_slist_t dap_devlist;
 
 static int32_t dap_init(const struct device *dev) {
     struct dap_data *data = dev->data;
+    const struct dap_config *config = dev->config;
 
     data->dev = dev;
     sys_slist_append(&dap_devlist, &data->devlist_node);
+
+    /* determine whether we have shared or independent status led */
+    int32_t ret;
+    if (config->led_connect_gpio.port == config->led_running_gpio.port &&
+        config->led_connect_gpio.pin == config->led_running_gpio.pin) {
+        data->led_state = DAP_STATUS_LEDS_COMBINED;
+    } else {
+        data->led_state = 0;
+    }
+    /* if combined, the second call will have no affect */
+    ret = gpio_pin_configure_dt(&config->led_connect_gpio, GPIO_OUTPUT_INACTIVE);
+    if (ret < 0) {
+        LOG_ERR("connect status led configure failed with error %d", ret);
+        return -EIO;
+    }
+    ret = gpio_pin_configure_dt(&config->led_running_gpio, GPIO_OUTPUT_INACTIVE);
+    if (ret < 0) {
+        LOG_ERR("running status led configure failed with error %d", ret);
+        return -EIO;
+    }
+    /* the running led will blink when in use, set up a timer to control this blinking */
+    k_timer_init(&data->running_led_timer, handle_running_led_timer, NULL);
+    k_timer_user_data_set(&data->running_led_timer, (void*) dev);
 
     return dap_reset(dev);
 }
 
 #define DT_DRV_COMPAT rice_dap
 
-#define DAP_DT_DEVICE_DEFINE(idx)                                   \
-                                                                    \
-    RING_BUF_DECLARE(dap_request_buf_##idx, DAP_RING_BUF_SIZE);     \
-    RING_BUF_DECLARE(dap_respones_buf_##idx, DAP_BULK_EP_MPS);      \
-                                                                    \
-    DAP_USB_CONFIG_DEFINE(dap_usb_config_##idx, idx);               \
-                                                                    \
-    struct dap_data dap_data_##idx;                                 \
-    const struct dap_config dap_config_##idx = {                    \
-        .request_buf = &dap_request_buf_##idx,                      \
-        .response_buf = &dap_respones_buf_##idx,                    \
-        .usb_config = &dap_usb_config_##idx,                        \
-    };                                                              \
-                                                                    \
-    DEVICE_DT_INST_DEFINE(                                          \
-        idx,                                                        \
-        dap_init,                                                   \
-        NULL,                                                       \
-        &dap_data_##idx,                                            \
-        &dap_config_##idx,                                          \
-        APPLICATION,                                                \
-        40,                                                         \
-        NULL,                                                       \
+#define DAP_DT_DEVICE_DEFINE(idx)                                           \
+                                                                            \
+    RING_BUF_DECLARE(dap_request_buf_##idx, DAP_RING_BUF_SIZE);             \
+    RING_BUF_DECLARE(dap_respones_buf_##idx, DAP_BULK_EP_MPS);              \
+                                                                            \
+    DAP_USB_CONFIG_DEFINE(dap_usb_config_##idx, idx);                       \
+                                                                            \
+    struct dap_data dap_data_##idx;                                         \
+    const struct dap_config dap_config_##idx = {                            \
+        .request_buf = &dap_request_buf_##idx,                              \
+        .response_buf = &dap_respones_buf_##idx,                            \
+        .usb_config = &dap_usb_config_##idx,                                \
+        .led_connect_gpio = GPIO_DT_SPEC_INST_GET(idx, led_connect_gpios),  \
+        .led_running_gpio = GPIO_DT_SPEC_INST_GET(idx, led_running_gpios),  \
+    };                                                                      \
+                                                                            \
+    DEVICE_DT_INST_DEFINE(                                                  \
+        idx,                                                                \
+        dap_init,                                                           \
+        NULL,                                                               \
+        &dap_data_##idx,                                                    \
+        &dap_config_##idx,                                                  \
+        APPLICATION,                                                        \
+        40,                                                                 \
+        NULL,                                                               \
     );
 
 DT_INST_FOREACH_STATUS_OKAY(DAP_DT_DEVICE_DEFINE);

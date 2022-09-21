@@ -1,6 +1,7 @@
 #ifndef __DAP_PRIV_H__
 #define __DAP_PRIV_H__
 
+#include <drivers/gpio.h>
 #include <sys/ring_buffer.h>
 #include <usb/usb_device.h>
 #include <zephyr.h>
@@ -10,11 +11,21 @@
 /* size of the internal buffers in bytes */
 #define DAP_RING_BUF_SIZE (1024)
 
+/* set if connected led should be enabled */
+#define DAP_STATUS_LED_CONNECTED BIT(0)
+/* set if running led should be enabled */
+#define DAP_STATUS_LED_RUNNING BIT(1)
+/* set if both connected and running status share an led */
+#define DAP_STATUS_LEDS_COMBINED BIT(7)
+
 struct dap_data {
     bool configured;
 
     const struct device *dev;
     sys_snode_t devlist_node;
+
+    uint8_t led_state;
+    struct k_timer running_led_timer;
 };
 
 struct dap_config {
@@ -22,6 +33,9 @@ struct dap_config {
     struct ring_buf *response_buf;
 
     struct usb_cfg_data *usb_config;
+
+    struct gpio_dt_spec led_connect_gpio;
+    struct gpio_dt_spec led_running_gpio;
 };
 
 extern sys_slist_t dap_devlist;

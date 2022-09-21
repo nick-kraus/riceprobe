@@ -1,4 +1,4 @@
-#include <drivers/hwinfo.h>
+#include <drivers/gpio.h>
 #include <logging/log.h>
 #include <sys/byteorder.h>
 #include <sys/ring_buffer.h>
@@ -159,7 +159,47 @@ int32_t dap_handle_command_info(const struct device *dev) {
 }
 
 int32_t dap_handle_command_host_status(const struct device *dev) {
-    return -ENOTSUP; /* TODO */
+    struct dap_data *data = dev->data;
+    const struct dap_config *config = dev->config;
+
+    uint8_t type = 0, status = 0;
+    ring_buf_get(config->request_buf, &type, 1);
+    ring_buf_get(config->request_buf, &status, 1);
+
+    uint8_t response_status = DAP_COMMAND_RESPONSE_OK;
+    if (type > 1 || status > 1) {
+        response_status = DAP_COMMAND_RESPONSE_ERROR;
+    } else if (type == 0) {
+        /* 'connect' status, but use the running led if combined */
+        const struct gpio_dt_spec *led_gpio = data->led_state & DAP_STATUS_LEDS_COMBINED ?
+            &config->led_running_gpio : &config->led_connect_gpio;
+        if (status == 0) {
+            data->led_state &= ~DAP_STATUS_LED_CONNECTED;
+            gpio_pin_set_dt(led_gpio, 0);
+        } else {
+            data->led_state |= DAP_STATUS_LED_CONNECTED;
+            gpio_pin_set_dt(led_gpio, 1);
+        }
+    } else {
+        /* 'running' status */
+        if (status == 0) {
+            k_timer_stop(&data->running_led_timer);
+            /* if combined and still connected, make sure to leave led enabled */
+            if (data->led_state & DAP_STATUS_LEDS_COMBINED && data->led_state & DAP_STATUS_LED_CONNECTED) {
+                data->led_state &= ~DAP_STATUS_LED_RUNNING;
+                gpio_pin_set_dt(&config->led_running_gpio, 1);
+            } else if (data->led_state & DAP_STATUS_LEDS_COMBINED) {
+                data->led_state |= DAP_STATUS_LED_RUNNING;
+                gpio_pin_set_dt(&config->led_running_gpio, 0);
+            }
+        } else {
+            k_timer_start(&data->running_led_timer, K_NO_WAIT, K_MSEC(500));
+        }
+    }
+
+    uint8_t response[] = {DAP_COMMAND_HOST_STATUS, response_status};
+    ring_buf_put(config->response_buf, response, ARRAY_SIZE(response));
+    return ring_buf_size_get(config->response_buf);
 }
 
 int32_t dap_handle_command_connect(const struct device *dev) {

@@ -9,14 +9,14 @@ properties:
     
     led_connect_gpios:
       type: phandle-array
-      required: false
+      required: true
       description: Connect LED GPIO Pin.
 
         Outputs the connection status of the debug probe.
       
     led_running_gpios:
       type: phandle-array
-      required: false
+      required: true
       description: Connect LED GPIO Pin.
 
         Outputs the running status of the debug probe.

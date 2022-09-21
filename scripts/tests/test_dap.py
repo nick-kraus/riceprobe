@@ -116,6 +116,34 @@ def test_usb_dap_info_command(dap_ep):
     assert(len(data) == 1)
     assert(data.tobytes() == b'\xff')
 
+def test_usb_dap_host_status_command(dap_ep):
+    (dap_out_ep, dap_in_ep) = dap_ep
+
+    # enable connected led
+    dap_out_ep.write(b'\x01\x00\x01')
+    data = dap_in_ep.read(512)
+    assert(data.tobytes() == b'\x01\x00')
+    # enable running led
+    dap_out_ep.write(b'\x01\x01\x01')
+    data = dap_in_ep.read(512)
+    assert(data.tobytes() == b'\x01\x00')
+    # disable running led
+    dap_out_ep.write(b'\x01\x01\x00')
+    data = dap_in_ep.read(512)
+    assert(data.tobytes() == b'\x01\x00')
+    # disable connected led
+    dap_out_ep.write(b'\x01\x00\x00')
+    data = dap_in_ep.read(512)
+    assert(data.tobytes() == b'\x01\x00')
+
+    # make sure that an unsupported led type or status value produces an error
+    dap_out_ep.write(b'\x01\x02\x00')
+    data = dap_in_ep.read(512)
+    assert(data.tobytes() == b'\x01\xff')
+    dap_out_ep.write(b'\x01\x00\x02')
+    data = dap_in_ep.read(512)
+    assert(data.tobytes() == b'\x01\xff')
+
 def test_usb_dap_delay_command(dap_ep):
     (dap_out_ep, dap_in_ep) = dap_ep
 

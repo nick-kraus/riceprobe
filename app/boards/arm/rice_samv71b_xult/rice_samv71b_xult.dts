@@ -17,6 +17,9 @@
     dap: dap {
         label = "dap";
         compatible = "rice,dap";
+
+		led_connect_gpios = <&pioa 23 GPIO_ACTIVE_LOW>;
+		led_running_gpios = <&pioa 23 GPIO_ACTIVE_LOW>;
     };
 
     io: io {
