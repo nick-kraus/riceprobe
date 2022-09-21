@@ -43,7 +43,6 @@ int32_t dap_reset(const struct device *dev) {
     __ASSERT(gpio_pin_configure_dt(&config->tdo_gpio, GPIO_INPUT) >= 0, "tdo config failed");
     __ASSERT(gpio_pin_configure_dt(&config->tdi_gpio, GPIO_INPUT) >= 0, "tdi config failed");
     __ASSERT(gpio_pin_configure_dt(&config->nreset_gpio, GPIO_INPUT) >= 0, "nreset config failed");
-    __ASSERT(gpio_pin_configure_dt(&config->vtref_gpio, GPIO_INPUT) >= 0, "vtref config failed");
 
     ring_buf_reset(config->request_buf);
     ring_buf_reset(config->response_buf);
@@ -118,6 +117,9 @@ static int32_t dap_init(const struct device *dev) {
     /* the running led will blink when in use, set up a timer to control this blinking */
     k_timer_init(&data->running_led_timer, handle_running_led_timer, NULL);
     k_timer_user_data_set(&data->running_led_timer, (void*) dev);
+
+    /* vtref is only ever an input, doesn't need reconfiguration in dap_reset */
+    __ASSERT(gpio_pin_configure_dt(&config->vtref_gpio, GPIO_INPUT) >= 0, "vtref config failed");
 
     return dap_reset(dev);
 }

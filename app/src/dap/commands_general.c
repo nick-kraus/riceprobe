@@ -203,7 +203,43 @@ int32_t dap_handle_command_host_status(const struct device *dev) {
 }
 
 int32_t dap_handle_command_connect(const struct device *dev) {
-    return -ENOTSUP; /* TODO */
+    struct dap_data *data = dev->data;
+    const struct dap_config *config = dev->config;
+
+    uint8_t port = 0;
+    ring_buf_get(config->request_buf, &port, 1);
+
+    /* signifies a failed port initialization */
+    uint8_t response_port = 0;
+    if (gpio_pin_get_dt(&config->vtref_gpio) != 1) {
+        LOG_ERR("cannot configure dap port with no target voltage");
+        goto end;
+    }
+
+    /* port == 0 means default mode, for this device jtag */
+    if (port == 0 || port == 2) {
+        __ASSERT(gpio_pin_configure_dt(&config->tck_swclk_gpio, GPIO_OUTPUT_ACTIVE) >= 0, "tck swclk config failed");
+        __ASSERT(gpio_pin_configure_dt(&config->tms_swdio_gpio, GPIO_OUTPUT_ACTIVE) >= 0, "tms swdio config failed");
+        __ASSERT(gpio_pin_configure_dt(&config->tdi_gpio, GPIO_OUTPUT_ACTIVE) >= 0, "tdi config failed");
+        __ASSERT(gpio_pin_configure_dt(&config->nreset_gpio, GPIO_OUTPUT_ACTIVE) >= 0, "nreset config failed");
+        __ASSERT(gpio_pin_configure_dt(&config->tdo_gpio, GPIO_INPUT) >= 0, "tdo config failed");
+        data->port_state = DAP_PORT_JTAG;
+        response_port = 2;
+    } else if (port == 1) {
+        __ASSERT(gpio_pin_configure_dt(&config->tck_swclk_gpio, GPIO_OUTPUT_ACTIVE) >= 0, "tck swclk config failed");
+        __ASSERT(gpio_pin_configure_dt(&config->tms_swdio_gpio, GPIO_OUTPUT_ACTIVE) >= 0, "tms swdio config failed");
+        __ASSERT(gpio_pin_configure_dt(&config->nreset_gpio, GPIO_OUTPUT_ACTIVE) >= 0, "nreset config failed");
+        /* tdo and tdi unused in swd mode */
+        __ASSERT(gpio_pin_configure_dt(&config->tdo_gpio, GPIO_INPUT) >= 0, "tdo config failed");
+        __ASSERT(gpio_pin_configure_dt(&config->tdi_gpio, GPIO_INPUT) >= 0, "tdi config failed");
+        data->port_state = DAP_PORT_SWD;
+        response_port = 1;
+    }
+
+end: ;
+    uint8_t response[] = {DAP_COMMAND_CONNECT, response_port};
+    ring_buf_put(config->response_buf, response, ARRAY_SIZE(response));
+    return ring_buf_size_get(config->response_buf);
 }
 
 int32_t dap_handle_command_disconnect(const struct device *dev) {
@@ -216,7 +252,6 @@ int32_t dap_handle_command_disconnect(const struct device *dev) {
     __ASSERT(gpio_pin_configure_dt(&config->tdo_gpio, GPIO_INPUT) >= 0, "tdo config failed");
     __ASSERT(gpio_pin_configure_dt(&config->tdi_gpio, GPIO_INPUT) >= 0, "tdi config failed");
     __ASSERT(gpio_pin_configure_dt(&config->nreset_gpio, GPIO_INPUT) >= 0, "nreset config failed");
-    __ASSERT(gpio_pin_configure_dt(&config->vtref_gpio, GPIO_INPUT) >= 0, "vtref config failed");
 
     uint8_t response[] = {DAP_COMMAND_DISCONNECT, DAP_COMMAND_RESPONSE_OK};
     ring_buf_put(config->response_buf, response, ARRAY_SIZE(response));
