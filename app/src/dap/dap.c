@@ -36,6 +36,43 @@ int32_t dap_reset(const struct device *dev) {
 
     data->configured = false;
 
+    /* jtag / swd gpios must be in a safe state on reset */
+    ret = gpio_pin_configure_dt(&config->tck_swclk_gpio, GPIO_INPUT);
+    if (ret < 0) {
+        LOG_ERR("tck swclk gpio configure failed with error %d", ret);
+        return -EIO;
+    }
+    ret = gpio_pin_configure_dt(&config->tms_swdio_gpio, GPIO_INPUT);
+    if (ret < 0) {
+        LOG_ERR("tms swdio gpio configure failed with error %d", ret);
+        return -EIO;
+    }
+    ret = gpio_pin_configure_dt(&config->tck_swclk_gpio, GPIO_INPUT);
+    if (ret < 0) {
+        LOG_ERR("tck swclk gpio configure failed with error %d", ret);
+        return -EIO;
+    }
+    ret = gpio_pin_configure_dt(&config->tdo_gpio, GPIO_INPUT);
+    if (ret < 0) {
+        LOG_ERR("tdo gpio configure failed with error %d", ret);
+        return -EIO;
+    }
+    ret = gpio_pin_configure_dt(&config->tdi_gpio, GPIO_INPUT);
+    if (ret < 0) {
+        LOG_ERR("tdi gpio configure failed with error %d", ret);
+        return -EIO;
+    }
+    ret = gpio_pin_configure_dt(&config->nreset_gpio, GPIO_INPUT);
+    if (ret < 0) {
+        LOG_ERR("nreset gpio gpio configure failed with error %d", ret);
+        return -EIO;
+    }
+    ret = gpio_pin_configure_dt(&config->vtref_gpio, GPIO_INPUT);
+    if (ret < 0) {
+        LOG_ERR("vtref gpio configure failed with error %d", ret);
+        return -EIO;
+    }
+
     ring_buf_reset(config->request_buf);
     ring_buf_reset(config->response_buf);
 
@@ -136,6 +173,12 @@ static int32_t dap_init(const struct device *dev) {
         .request_buf = &dap_request_buf_##idx,                              \
         .response_buf = &dap_respones_buf_##idx,                            \
         .usb_config = &dap_usb_config_##idx,                                \
+        .tck_swclk_gpio = GPIO_DT_SPEC_INST_GET(idx, tck_swclk_gpios),      \
+        .tms_swdio_gpio = GPIO_DT_SPEC_INST_GET(idx, tms_swdio_gpios),      \
+        .tdo_gpio = GPIO_DT_SPEC_INST_GET(idx, tdo_gpios),                  \
+        .tdi_gpio = GPIO_DT_SPEC_INST_GET(idx, tdi_gpios),                  \
+        .nreset_gpio = GPIO_DT_SPEC_INST_GET(idx, nreset_gpios),            \
+        .vtref_gpio = GPIO_DT_SPEC_INST_GET(idx, vtref_gpios),              \
         .led_connect_gpio = GPIO_DT_SPEC_INST_GET(idx, led_connect_gpios),  \
         .led_running_gpio = GPIO_DT_SPEC_INST_GET(idx, led_running_gpios),  \
     };                                                                      \

@@ -34,6 +34,12 @@ struct dap_config {
 
     struct usb_cfg_data *usb_config;
 
+    struct gpio_dt_spec tck_swclk_gpio;
+    struct gpio_dt_spec tms_swdio_gpio;
+    struct gpio_dt_spec tdo_gpio;
+    struct gpio_dt_spec tdi_gpio;
+    struct gpio_dt_spec nreset_gpio;
+    struct gpio_dt_spec vtref_gpio;
     struct gpio_dt_spec led_connect_gpio;
     struct gpio_dt_spec led_running_gpio;
 };

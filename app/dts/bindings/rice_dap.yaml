@@ -6,14 +6,44 @@ properties:
     label:
       type: string
       required: true
+
+    tck_swclk_gpios:
+      type: phandle-array
+      required: true
+      description: JTAG TCK or SWD SWCLK GPIO Pin.
+
+    tms_swdio_gpios:
+      type: phandle-array
+      required: true
+      description: JTAG TMS or SWD SWDIO GPIO Pin.
+
+    tdo_gpios:
+      type: phandle-array
+      required: true
+      description: JTAG TDO GPIO Pin.
+
+    tdi_gpios:
+      type: phandle-array
+      required: true
+      description: JTAG TDI GPIO Pin.
+
+    nreset_gpios:
+      type: phandle-array
+      required: true
+      description: Active-low Reset GPIO Pin.
     
+    vtref_gpios:
+      type: phandle-array
+      required: true
+      description: Target IO Voltage Reference.
+
     led_connect_gpios:
       type: phandle-array
       required: true
       description: Connect LED GPIO Pin.
 
         Outputs the connection status of the debug probe.
-      
+
     led_running_gpios:
       type: phandle-array
       required: true
