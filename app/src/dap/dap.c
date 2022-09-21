@@ -37,41 +37,12 @@ int32_t dap_reset(const struct device *dev) {
     data->configured = false;
 
     /* jtag / swd gpios must be in a safe state on reset */
-    ret = gpio_pin_configure_dt(&config->tck_swclk_gpio, GPIO_INPUT);
-    if (ret < 0) {
-        LOG_ERR("tck swclk gpio configure failed with error %d", ret);
-        return -EIO;
-    }
-    ret = gpio_pin_configure_dt(&config->tms_swdio_gpio, GPIO_INPUT);
-    if (ret < 0) {
-        LOG_ERR("tms swdio gpio configure failed with error %d", ret);
-        return -EIO;
-    }
-    ret = gpio_pin_configure_dt(&config->tck_swclk_gpio, GPIO_INPUT);
-    if (ret < 0) {
-        LOG_ERR("tck swclk gpio configure failed with error %d", ret);
-        return -EIO;
-    }
-    ret = gpio_pin_configure_dt(&config->tdo_gpio, GPIO_INPUT);
-    if (ret < 0) {
-        LOG_ERR("tdo gpio configure failed with error %d", ret);
-        return -EIO;
-    }
-    ret = gpio_pin_configure_dt(&config->tdi_gpio, GPIO_INPUT);
-    if (ret < 0) {
-        LOG_ERR("tdi gpio configure failed with error %d", ret);
-        return -EIO;
-    }
-    ret = gpio_pin_configure_dt(&config->nreset_gpio, GPIO_INPUT);
-    if (ret < 0) {
-        LOG_ERR("nreset gpio gpio configure failed with error %d", ret);
-        return -EIO;
-    }
-    ret = gpio_pin_configure_dt(&config->vtref_gpio, GPIO_INPUT);
-    if (ret < 0) {
-        LOG_ERR("vtref gpio configure failed with error %d", ret);
-        return -EIO;
-    }
+    __ASSERT(gpio_pin_configure_dt(&config->tck_swclk_gpio, GPIO_INPUT) >= 0, "tck swclk config failed");
+    __ASSERT(gpio_pin_configure_dt(&config->tms_swdio_gpio, GPIO_INPUT) >= 0, "tms swdio config failed");
+    __ASSERT(gpio_pin_configure_dt(&config->tdo_gpio, GPIO_INPUT) >= 0, "tdo config failed");
+    __ASSERT(gpio_pin_configure_dt(&config->tdi_gpio, GPIO_INPUT) >= 0, "tdi config failed");
+    __ASSERT(gpio_pin_configure_dt(&config->nreset_gpio, GPIO_INPUT) >= 0, "nreset config failed");
+    __ASSERT(gpio_pin_configure_dt(&config->vtref_gpio, GPIO_INPUT) >= 0, "vtref config failed");
 
     ring_buf_reset(config->request_buf);
     ring_buf_reset(config->response_buf);
@@ -134,7 +105,6 @@ static int32_t dap_init(const struct device *dev) {
     sys_slist_append(&dap_devlist, &data->devlist_node);
 
     /* determine whether we have shared or independent status led */
-    int32_t ret;
     if (config->led_connect_gpio.port == config->led_running_gpio.port &&
         config->led_connect_gpio.pin == config->led_running_gpio.pin) {
         data->led_state = DAP_STATUS_LEDS_COMBINED;
@@ -142,16 +112,8 @@ static int32_t dap_init(const struct device *dev) {
         data->led_state = 0;
     }
     /* if combined, the second call will have no affect */
-    ret = gpio_pin_configure_dt(&config->led_connect_gpio, GPIO_OUTPUT_INACTIVE);
-    if (ret < 0) {
-        LOG_ERR("connect status led configure failed with error %d", ret);
-        return -EIO;
-    }
-    ret = gpio_pin_configure_dt(&config->led_running_gpio, GPIO_OUTPUT_INACTIVE);
-    if (ret < 0) {
-        LOG_ERR("running status led configure failed with error %d", ret);
-        return -EIO;
-    }
+    __ASSERT(gpio_pin_configure_dt(&config->led_connect_gpio, GPIO_OUTPUT_INACTIVE) >= 0, "led config failed");
+    __ASSERT(gpio_pin_configure_dt(&config->led_running_gpio, GPIO_OUTPUT_INACTIVE) >= 0, "led config failed");
     /* the running led will blink when in use, set up a timer to control this blinking */
     k_timer_init(&data->running_led_timer, handle_running_led_timer, NULL);
     k_timer_user_data_set(&data->running_led_timer, (void*) dev);
