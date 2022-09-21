@@ -228,5 +228,10 @@ int32_t dap_handle_command_delay(const struct device *dev) {
 }
 
 int32_t dap_handle_command_reset_target(const struct device *dev) {
-    return -ENOTSUP; /* TODO */
+    const struct dap_config *config = dev->config;
+
+    /* device specific target reset sequence is not implemented for this debug unit */
+    uint8_t response[] = {DAP_COMMAND_RESET_TARGET, DAP_COMMAND_RESPONSE_OK, 0x00};
+    ring_buf_put(config->response_buf, response, ARRAY_SIZE(response));
+    return ring_buf_size_get(config->response_buf);
 }

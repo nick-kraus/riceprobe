@@ -160,3 +160,10 @@ def test_usb_dap_delay_command(dap_ep):
     # not looking for much accuracy with such a small delay time, just something within reason
     delta = (end - start) * 1000000
     assert(delta > (0.5 * delay) and delta < (1.5 * delay))
+
+def test_usb_dap_reset_target(dap_ep):
+    (dap_out_ep, dap_in_ep) = dap_ep
+
+    dap_out_ep.write(b'\x0a')
+    data = dap_in_ep.read(512)
+    assert(data.tobytes() == b'\x0a\x00\x00')
