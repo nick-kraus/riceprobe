@@ -4,6 +4,7 @@ target_sources(app PRIVATE
     "src/usb.c"
     "src/dap/dap.c"
     "src/dap/commands_general.c"
+    "src/dap/commands_jtag_swd.c"
     "src/dap/usb.c"
     "src/io/io.c"
     "src/io/usb.c"

@@ -80,6 +80,22 @@ int32_t dap_handle_request(const struct device *dev) {
         return dap_handle_command_delay(dev);
     case DAP_COMMAND_RESET_TARGET:
         return dap_handle_command_reset_target(dev);
+    case DAP_COMMAND_SWJ_PINS:
+        return dap_handle_command_swj_pins(dev);
+    case DAP_COMMAND_SWJ_CLOCK:
+        return dap_handle_command_swj_clock(dev);
+    case DAP_COMMAND_SWJ_SEQUENCE:
+        return dap_handle_command_swj_sequence(dev);
+    case DAP_COMMAND_SWD_CONFIGURE:
+        return dap_handle_command_jtag_configure(dev);
+    case DAP_COMMAND_JTAG_SEQUENCE:
+        return dap_handle_command_jtag_sequence(dev);
+    case DAP_COMMAND_JTAG_CONFIGURE:
+        return dap_handle_command_jtag_idcode(dev);
+    case DAP_COMMAND_JTAG_IDCODE:
+        return dap_handle_command_swd_configure(dev);
+    case DAP_COMMAND_SWD_SEQUENCE:
+        return dap_handle_command_swd_sequence(dev);
     default:
         LOG_ERR("unsupported command 0x%x", command);
         return -ENOTSUP;
