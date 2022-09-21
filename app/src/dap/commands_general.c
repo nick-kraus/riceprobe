@@ -207,7 +207,20 @@ int32_t dap_handle_command_connect(const struct device *dev) {
 }
 
 int32_t dap_handle_command_disconnect(const struct device *dev) {
-    return -ENOTSUP; /* TODO */
+    struct dap_data *data = dev->data;
+    const struct dap_config *config = dev->config;
+
+    data->port_state = DAP_PORT_DISABLED;
+    __ASSERT(gpio_pin_configure_dt(&config->tck_swclk_gpio, GPIO_INPUT) >= 0, "tck swclk config failed");
+    __ASSERT(gpio_pin_configure_dt(&config->tms_swdio_gpio, GPIO_INPUT) >= 0, "tms swdio config failed");
+    __ASSERT(gpio_pin_configure_dt(&config->tdo_gpio, GPIO_INPUT) >= 0, "tdo config failed");
+    __ASSERT(gpio_pin_configure_dt(&config->tdi_gpio, GPIO_INPUT) >= 0, "tdi config failed");
+    __ASSERT(gpio_pin_configure_dt(&config->nreset_gpio, GPIO_INPUT) >= 0, "nreset config failed");
+    __ASSERT(gpio_pin_configure_dt(&config->vtref_gpio, GPIO_INPUT) >= 0, "vtref config failed");
+
+    uint8_t response[] = {DAP_COMMAND_DISCONNECT, DAP_COMMAND_RESPONSE_OK};
+    ring_buf_put(config->response_buf, response, ARRAY_SIZE(response));
+    return ring_buf_size_get(config->response_buf);
 }
 
 int32_t dap_handle_command_write_abort(const struct device *dev) {

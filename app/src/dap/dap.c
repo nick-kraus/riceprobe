@@ -36,6 +36,7 @@ int32_t dap_reset(const struct device *dev) {
 
     data->configured = false;
 
+    data->port_state = DAP_PORT_DISABLED;
     /* jtag / swd gpios must be in a safe state on reset */
     __ASSERT(gpio_pin_configure_dt(&config->tck_swclk_gpio, GPIO_INPUT) >= 0, "tck swclk config failed");
     __ASSERT(gpio_pin_configure_dt(&config->tms_swdio_gpio, GPIO_INPUT) >= 0, "tms swdio config failed");

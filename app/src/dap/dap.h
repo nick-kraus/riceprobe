@@ -7,19 +7,26 @@
 #include <zephyr.h>
 
 /* supported version of the DAP protocol */
-#define DAP_PROTOCOL_VERSION "2.1.1"
+#define DAP_PROTOCOL_VERSION    "2.1.1"
+
 /* size of the internal buffers in bytes */
-#define DAP_RING_BUF_SIZE (1024)
+#define DAP_RING_BUF_SIZE       (1024)
 
 /* set if connected led should be enabled */
-#define DAP_STATUS_LED_CONNECTED BIT(0)
+#define DAP_STATUS_LED_CONNECTED    BIT(0)
 /* set if running led should be enabled */
-#define DAP_STATUS_LED_RUNNING BIT(1)
+#define DAP_STATUS_LED_RUNNING      BIT(1)
 /* set if both connected and running status share an led */
-#define DAP_STATUS_LEDS_COMBINED BIT(7)
+#define DAP_STATUS_LEDS_COMBINED    BIT(7)
+
+/* current configured state of the dap io port */
+#define DAP_PORT_DISABLED   0
+#define DAP_PORT_JTAG       1
+#define DAP_PORT_SWD        2
 
 struct dap_data {
     bool configured;
+    uint8_t port_state;
 
     const struct device *dev;
     sys_snode_t devlist_node;
