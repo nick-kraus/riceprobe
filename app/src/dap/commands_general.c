@@ -219,19 +219,40 @@ int32_t dap_handle_command_connect(const struct device *dev) {
 
     /* port == 0 means default mode, for this device jtag */
     if (port == 0 || port == 2) {
-        FATAL_CHECK(gpio_pin_configure_dt(&config->tck_swclk_gpio, GPIO_OUTPUT_ACTIVE) >= 0, "tck swclk config failed");
-        FATAL_CHECK(gpio_pin_configure_dt(&config->tms_swdio_gpio, GPIO_OUTPUT_ACTIVE) >= 0, "tms swdio config failed");
-        FATAL_CHECK(gpio_pin_configure_dt(&config->tdi_gpio, GPIO_OUTPUT_ACTIVE) >= 0, "tdi config failed");
-        FATAL_CHECK(gpio_pin_configure_dt(&config->nreset_gpio, GPIO_OUTPUT_ACTIVE) >= 0, "nreset config failed");
-        FATAL_CHECK(gpio_pin_configure_dt(&config->tdo_gpio, GPIO_INPUT) >= 0, "tdo config failed");
+        FATAL_CHECK(
+            gpio_pin_configure_dt(&config->tck_swclk_gpio, GPIO_INPUT | GPIO_OUTPUT_ACTIVE) >= 0,
+            "tck swclk config failed"
+        );
+        FATAL_CHECK(
+            gpio_pin_configure_dt(&config->tms_swdio_gpio, GPIO_INPUT | GPIO_OUTPUT_ACTIVE) >= 0,
+            "tms swdio config failed"
+        );
+        FATAL_CHECK(
+            gpio_pin_configure_dt(&config->tdi_gpio, GPIO_INPUT | GPIO_OUTPUT_ACTIVE) >= 0,
+            "tdi config failed"
+        );
+        /* need to be able to read nreset while output to ensure pin stabilizes */
+        FATAL_CHECK(
+            gpio_pin_configure_dt(&config->nreset_gpio, GPIO_INPUT | GPIO_OUTPUT_ACTIVE) >= 0,
+            "nreset config failed"
+        );
         data->port_state = DAP_PORT_JTAG;
         response_port = 2;
     } else if (port == 1) {
-        FATAL_CHECK(gpio_pin_configure_dt(&config->tck_swclk_gpio, GPIO_OUTPUT_ACTIVE) >= 0, "tck swclk config failed");
-        FATAL_CHECK(gpio_pin_configure_dt(&config->tms_swdio_gpio, GPIO_OUTPUT_ACTIVE) >= 0, "tms swdio config failed");
-        FATAL_CHECK(gpio_pin_configure_dt(&config->nreset_gpio, GPIO_OUTPUT_ACTIVE) >= 0, "nreset config failed");
-        /* tdo and tdi unused in swd mode */
-        FATAL_CHECK(gpio_pin_configure_dt(&config->tdo_gpio, GPIO_INPUT) >= 0, "tdo config failed");
+        FATAL_CHECK(
+            gpio_pin_configure_dt(&config->tck_swclk_gpio, GPIO_INPUT | GPIO_OUTPUT_ACTIVE) >= 0,
+            "tck swclk config failed"
+        );
+        FATAL_CHECK(
+            gpio_pin_configure_dt(&config->tms_swdio_gpio, GPIO_INPUT | GPIO_OUTPUT_ACTIVE) >= 0,
+            "tms swdio config failed"
+        );
+        /* need to be able to read nreset while output to ensure pin stabilizes */
+        FATAL_CHECK(
+            gpio_pin_configure_dt(&config->nreset_gpio, GPIO_INPUT | GPIO_OUTPUT_ACTIVE) >= 0,
+            "nreset config failed"
+        );
+        /* tdi unused in swd mode, tdo is always input */
         FATAL_CHECK(gpio_pin_configure_dt(&config->tdi_gpio, GPIO_INPUT) >= 0, "tdi config failed");
         data->port_state = DAP_PORT_SWD;
         response_port = 1;
@@ -250,7 +271,6 @@ int32_t dap_handle_command_disconnect(const struct device *dev) {
     data->port_state = DAP_PORT_DISABLED;
     FATAL_CHECK(gpio_pin_configure_dt(&config->tck_swclk_gpio, GPIO_INPUT) >= 0, "tck swclk config failed");
     FATAL_CHECK(gpio_pin_configure_dt(&config->tms_swdio_gpio, GPIO_INPUT) >= 0, "tms swdio config failed");
-    FATAL_CHECK(gpio_pin_configure_dt(&config->tdo_gpio, GPIO_INPUT) >= 0, "tdo config failed");
     FATAL_CHECK(gpio_pin_configure_dt(&config->tdi_gpio, GPIO_INPUT) >= 0, "tdi config failed");
     FATAL_CHECK(gpio_pin_configure_dt(&config->nreset_gpio, GPIO_INPUT) >= 0, "nreset config failed");
 
