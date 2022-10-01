@@ -8,6 +8,7 @@
 #include "dap/commands.h"
 #include "dap/usb.h"
 #include "nvs.h"
+#include "util.h"
 #include "vcp/vcp.h"
 
 LOG_MODULE_DECLARE(dap);
@@ -218,20 +219,20 @@ int32_t dap_handle_command_connect(const struct device *dev) {
 
     /* port == 0 means default mode, for this device jtag */
     if (port == 0 || port == 2) {
-        __ASSERT(gpio_pin_configure_dt(&config->tck_swclk_gpio, GPIO_OUTPUT_ACTIVE) >= 0, "tck swclk config failed");
-        __ASSERT(gpio_pin_configure_dt(&config->tms_swdio_gpio, GPIO_OUTPUT_ACTIVE) >= 0, "tms swdio config failed");
-        __ASSERT(gpio_pin_configure_dt(&config->tdi_gpio, GPIO_OUTPUT_ACTIVE) >= 0, "tdi config failed");
-        __ASSERT(gpio_pin_configure_dt(&config->nreset_gpio, GPIO_OUTPUT_ACTIVE) >= 0, "nreset config failed");
-        __ASSERT(gpio_pin_configure_dt(&config->tdo_gpio, GPIO_INPUT) >= 0, "tdo config failed");
+        FATAL_CHECK(gpio_pin_configure_dt(&config->tck_swclk_gpio, GPIO_OUTPUT_ACTIVE) >= 0, "tck swclk config failed");
+        FATAL_CHECK(gpio_pin_configure_dt(&config->tms_swdio_gpio, GPIO_OUTPUT_ACTIVE) >= 0, "tms swdio config failed");
+        FATAL_CHECK(gpio_pin_configure_dt(&config->tdi_gpio, GPIO_OUTPUT_ACTIVE) >= 0, "tdi config failed");
+        FATAL_CHECK(gpio_pin_configure_dt(&config->nreset_gpio, GPIO_OUTPUT_ACTIVE) >= 0, "nreset config failed");
+        FATAL_CHECK(gpio_pin_configure_dt(&config->tdo_gpio, GPIO_INPUT) >= 0, "tdo config failed");
         data->port_state = DAP_PORT_JTAG;
         response_port = 2;
     } else if (port == 1) {
-        __ASSERT(gpio_pin_configure_dt(&config->tck_swclk_gpio, GPIO_OUTPUT_ACTIVE) >= 0, "tck swclk config failed");
-        __ASSERT(gpio_pin_configure_dt(&config->tms_swdio_gpio, GPIO_OUTPUT_ACTIVE) >= 0, "tms swdio config failed");
-        __ASSERT(gpio_pin_configure_dt(&config->nreset_gpio, GPIO_OUTPUT_ACTIVE) >= 0, "nreset config failed");
+        FATAL_CHECK(gpio_pin_configure_dt(&config->tck_swclk_gpio, GPIO_OUTPUT_ACTIVE) >= 0, "tck swclk config failed");
+        FATAL_CHECK(gpio_pin_configure_dt(&config->tms_swdio_gpio, GPIO_OUTPUT_ACTIVE) >= 0, "tms swdio config failed");
+        FATAL_CHECK(gpio_pin_configure_dt(&config->nreset_gpio, GPIO_OUTPUT_ACTIVE) >= 0, "nreset config failed");
         /* tdo and tdi unused in swd mode */
-        __ASSERT(gpio_pin_configure_dt(&config->tdo_gpio, GPIO_INPUT) >= 0, "tdo config failed");
-        __ASSERT(gpio_pin_configure_dt(&config->tdi_gpio, GPIO_INPUT) >= 0, "tdi config failed");
+        FATAL_CHECK(gpio_pin_configure_dt(&config->tdo_gpio, GPIO_INPUT) >= 0, "tdo config failed");
+        FATAL_CHECK(gpio_pin_configure_dt(&config->tdi_gpio, GPIO_INPUT) >= 0, "tdi config failed");
         data->port_state = DAP_PORT_SWD;
         response_port = 1;
     }
@@ -247,11 +248,11 @@ int32_t dap_handle_command_disconnect(const struct device *dev) {
     const struct dap_config *config = dev->config;
 
     data->port_state = DAP_PORT_DISABLED;
-    __ASSERT(gpio_pin_configure_dt(&config->tck_swclk_gpio, GPIO_INPUT) >= 0, "tck swclk config failed");
-    __ASSERT(gpio_pin_configure_dt(&config->tms_swdio_gpio, GPIO_INPUT) >= 0, "tms swdio config failed");
-    __ASSERT(gpio_pin_configure_dt(&config->tdo_gpio, GPIO_INPUT) >= 0, "tdo config failed");
-    __ASSERT(gpio_pin_configure_dt(&config->tdi_gpio, GPIO_INPUT) >= 0, "tdi config failed");
-    __ASSERT(gpio_pin_configure_dt(&config->nreset_gpio, GPIO_INPUT) >= 0, "nreset config failed");
+    FATAL_CHECK(gpio_pin_configure_dt(&config->tck_swclk_gpio, GPIO_INPUT) >= 0, "tck swclk config failed");
+    FATAL_CHECK(gpio_pin_configure_dt(&config->tms_swdio_gpio, GPIO_INPUT) >= 0, "tms swdio config failed");
+    FATAL_CHECK(gpio_pin_configure_dt(&config->tdo_gpio, GPIO_INPUT) >= 0, "tdo config failed");
+    FATAL_CHECK(gpio_pin_configure_dt(&config->tdi_gpio, GPIO_INPUT) >= 0, "tdi config failed");
+    FATAL_CHECK(gpio_pin_configure_dt(&config->nreset_gpio, GPIO_INPUT) >= 0, "nreset config failed");
 
     uint8_t response[] = {DAP_COMMAND_DISCONNECT, DAP_COMMAND_RESPONSE_OK};
     ring_buf_put(config->response_buf, response, ARRAY_SIZE(response));
