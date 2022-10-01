@@ -1,12 +1,16 @@
-import pytest
 import re
 import usb.util
 
-# used by usb.util.find_descriptor to find the first endpoint of a certain direction from an interface
-EP_FROM_DIR_MATCH = lambda d : lambda e : usb.util.endpoint_direction(e.bEndpointAddress) == d
-
 # makes sure that we can read all the expected values back from the device descriptor
-def test_usb_descriptor(usb_device, usb_dap_intf, usb_io_intf, usb_vcp_intf):
+def test_usb_descriptor(
+    usb_device,
+    usb_dap_intf,
+    usb_dap_eps,
+    usb_io_intf,
+    usb_io_eps,
+    usb_vcp_intf,
+    usb_vcp_eps
+):
     # USB composite device
     assert(usb_device.bDeviceClass == 0xEF)
     assert(usb_device.bDeviceSubClass == 0x02)
@@ -29,13 +33,12 @@ def test_usb_descriptor(usb_device, usb_dap_intf, usb_io_intf, usb_vcp_intf):
     assert(usb_dap_intf.bInterfaceSubClass == 0x00)
     assert(usb_dap_intf.bInterfaceProtocol == 0x00)
     # endpoints must be configured in the correct order
-    dap_out_ep = usb_dap_intf.endpoints()[0]
-    assert(dap_out_ep is not None)
+    (dap_out_ep, dap_in_ep) = usb_dap_eps
     # bulk out endpoint
+    assert(dap_out_ep is not None)
     assert((dap_out_ep.bEndpointAddress & 0x80 == 0) and (dap_out_ep.bmAttributes == 0x02))
-    dap_in_ep = usb_dap_intf.endpoints()[1]
-    assert(dap_in_ep is not None)
     # bulk in endpoint
+    assert(dap_in_ep is not None)
     assert((dap_in_ep.bEndpointAddress & 0x80 == 0x80) and (dap_in_ep.bmAttributes == 0x02))
     
     assert(usb_io_intf is not None)
@@ -45,35 +48,27 @@ def test_usb_descriptor(usb_device, usb_dap_intf, usb_io_intf, usb_vcp_intf):
     assert(usb_io_intf.bInterfaceSubClass == 0x00)
     assert(usb_io_intf.bInterfaceProtocol == 0x00)
     # endpoints must be configured in the correct order
-    io_out_ep = usb_io_intf.endpoints()[0]
-    assert(io_out_ep is not None)
+    (io_out_ep, io_in_ep) = usb_io_eps
     # bulk out endpoint
+    assert(io_out_ep is not None)
     assert((io_out_ep.bEndpointAddress & 0x80 == 0) and (io_out_ep.bmAttributes == 0x02))
-    io_in_ep = usb_io_intf.endpoints()[1]
-    assert(io_in_ep is not None)
     # bulk in endpoint
+    assert(io_in_ep is not None)
     assert((io_in_ep.bEndpointAddress & 0x80 == 0x80) and (io_in_ep.bmAttributes == 0x02))
 
-    assert(usb_vcp_intf is not None)
-    assert(usb_vcp_intf.bNumEndpoints == 0x01)
-    vcp_int_ep = usb_vcp_intf.endpoints()[0]
-    assert(vcp_int_ep is not None)
-    # in interrupt endpoint
-    assert((vcp_int_ep.bEndpointAddress & 0x80 == 0x80) and (vcp_int_ep.bmAttributes == 0x03))
-    
-    cfg = usb_device.get_active_configuration()
-    vcp_data_intf = usb.util.find_descriptor(cfg, bInterfaceClass=0x0A, bInterfaceSubClass=0x02)
+    (vcp_comm_intf, vcp_data_intf) = usb_vcp_intf
+    (vcp_intp_ep, vcp_out_ep, vcp_in_ep) = usb_vcp_eps
+    assert(vcp_comm_intf is not None)
+    assert(vcp_comm_intf.bNumEndpoints == 0x01)
+    # interrupt in endpoint
+    assert(vcp_intp_ep is not None)
+    assert((vcp_intp_ep.bEndpointAddress & 0x80 == 0x80) and (vcp_intp_ep.bmAttributes == 0x03))
+
     assert(vcp_data_intf is not None)
     assert(vcp_data_intf.bNumEndpoints == 0x02)
-    vcp_out_ep = usb.util.find_descriptor(
-        vcp_data_intf,
-        custom_match=EP_FROM_DIR_MATCH(usb.util.ENDPOINT_OUT)
-    )
+    # bulk out endpoint
     assert(vcp_out_ep is not None)
     assert(vcp_out_ep.bmAttributes == 0x02)
-    vcp_in_ep = usb.util.find_descriptor(
-        vcp_data_intf,
-        custom_match=EP_FROM_DIR_MATCH(usb.util.ENDPOINT_IN)
-    )
+    # bulk in endpoint
     assert(vcp_in_ep is not None)
     assert(vcp_in_ep.bmAttributes == 0x02)

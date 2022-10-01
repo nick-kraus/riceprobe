@@ -1,4 +1,3 @@
-import pytest
 import serial
 
 from conftest import RICEPROBE_VID, RICEPROBE_PID
