@@ -11,7 +11,6 @@
 		zephyr,sram = &sram0;
 		zephyr,flash = &flash0;
 		zephyr,code-partition = &slot0_partition;
-		zephyr,canbus = &can1;
 	};
 
     dap: dap {
@@ -36,7 +35,7 @@
     vcp: vcp {
         label = "vcp";
         compatible = "rice,vcp";
-        uart = <&uart1>;
+        uart = <&usart1>;
     };
 };
 
@@ -88,10 +87,10 @@
 };
 
 &pinctrl {
-    uart1_pinctrl: uart1_pinctrl {
+	usart1_pinctrl: usart1_pinctrl {
 		group1 {
-			pinmux = <PA5C_UART1_RXD>,
-					 <PA4C_UART1_TXD>;
+			pinmux = <PA21A_USART1_RXD>,
+					 <PB4D_USART1_TXD>;
 		};
 	};
 };
@@ -116,10 +115,10 @@
 	status = "okay";
 };
 
-&uart1 {
+&usart1 {
     status = "okay";
 	current-speed = <115200>;
-    pinctrl-0 = <&uart1_pinctrl>;
+    pinctrl-0 = <&usart1_pinctrl>;
 	pinctrl-names = "default";
 };
 

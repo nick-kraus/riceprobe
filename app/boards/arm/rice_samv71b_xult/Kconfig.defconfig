@@ -39,7 +39,7 @@ endif # NETWORKING
 
 if SERIAL
 
-config UART_SAM
+config USART_SAM
 	default y
 
 endif # SERIAL
