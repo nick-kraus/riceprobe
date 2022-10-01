@@ -22,7 +22,7 @@
 		tms_swdio_gpios = <&pioa 6 GPIO_ACTIVE_HIGH>;
 		tdo_gpios = <&piod 28 GPIO_ACTIVE_HIGH>;
 		tdi_gpios = <&piod 27 GPIO_ACTIVE_HIGH>;
-		nreset_gpios = <&piod 11 GPIO_ACTIVE_HIGH>;
+		nreset_gpios = <&pioc 19 GPIO_ACTIVE_HIGH>;
 		vtref_gpios = <&piod 30 GPIO_ACTIVE_HIGH>;
 		led_connect_gpios = <&pioa 23 GPIO_ACTIVE_LOW>;
 		led_running_gpios = <&pioa 23 GPIO_ACTIVE_LOW>;
