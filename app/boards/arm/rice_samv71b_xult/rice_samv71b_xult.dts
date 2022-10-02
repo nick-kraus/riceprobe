@@ -17,11 +17,11 @@
         label = "dap";
         compatible = "rice,dap";
 
-		tck_swclk_gpios = <&pioa 0 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>;
-		tms_swdio_gpios = <&pioa 6 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>;
-		tdo_gpios = <&piod 28 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>;
-		tdi_gpios = <&piod 27 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>;
-		nreset_gpios = <&pioc 19 (GPIO_ACTIVE_HIGH | GPIO_PULL_UP | GPIO_OPEN_DRAIN)>;
+		tck_swclk_gpios = <&pioa 0 GPIO_ACTIVE_HIGH>;
+		tms_swdio_gpios = <&pioa 6 GPIO_ACTIVE_HIGH>;
+		tdo_gpios = <&piod 28 GPIO_ACTIVE_HIGH>;
+		tdi_gpios = <&piod 27 GPIO_ACTIVE_HIGH>;
+		nreset_gpios = <&pioc 19 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 		vtref_gpios = <&piod 30 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>;
 		led_connect_gpios = <&pioa 23 GPIO_ACTIVE_LOW>;
 		led_running_gpios = <&pioa 23 GPIO_ACTIVE_LOW>;

@@ -1,30 +1,22 @@
 import re
 import time
 
-def test_usb_dap_unsupported(usb_dap_eps):
+def test_unsupported(usb_dap_eps):
     (out_ep, in_ep) = usb_dap_eps
 
     # unsupported writes should return the single hex byte 0xff
     out_ep.write(b'\xf0')
-    data = in_ep.read(512)
-    assert(len(data) == 1)
-    assert(data.tobytes() == b'\xff')
+    assert(in_ep.read(512).tobytes() == b'\xff')
 
-def test_usb_dap_info_command(usb_dap_eps):
+def test_info_command(usb_dap_eps):
     (out_ep, in_ep) = usb_dap_eps
 
     # vendor name from info should match USB vendor string
     out_ep.write(b'\x00\x01')
-    data = in_ep.read(512)
-    assert(len(data) == 13)
-    assert(data.tobytes() == b'\x00\x0bNick Kraus\x00')
-
+    assert(in_ep.read(512).tobytes() == b'\x00\x0bNick Kraus\x00')
     # product name from info should match USB product string
     out_ep.write(b'\x00\x02')
-    data = in_ep.read(512)
-    assert(len(data) == 12)
-    assert(data.tobytes() == b'\x00\x0aRICEProbe\x00')
-
+    assert(in_ep.read(512).tobytes() == b'\x00\x0aRICEProbe\x00')
     # serial number from info should match USB serial number
     out_ep.write(b'\x00\x03')
     data = in_ep.read(512)
@@ -34,30 +26,21 @@ def test_usb_dap_info_command(usb_dap_eps):
 
     # protocol version should match known string
     out_ep.write(b'\x00\x04')
-    data = in_ep.read(512)
-    assert(len(data) == 8)
-    assert(data.tobytes() == b'\x00\x062.1.1\x00')
+    assert(in_ep.read(512).tobytes() == b'\x00\x062.1.1\x00')
 
     # all of target device vendor, target device name, target board vendor, and
     # target board name should return an empty string
     out_ep.write(b'\x00\x05')
-    data = in_ep.read(512)
-    assert(len(data) == 2)
-    assert(data.tobytes() == b'\x00\x00')
+    assert(in_ep.read(512).tobytes() == b'\x00\x00')
     out_ep.write(b'\x00\x06')
-    data = in_ep.read(512)
-    assert(len(data) == 2)
-    assert(data.tobytes() == b'\x00\x00')
+    assert(in_ep.read(512).tobytes() == b'\x00\x00')
     out_ep.write(b'\x00\x07')
-    data = in_ep.read(512)
-    assert(len(data) == 2)
-    assert(data.tobytes() == b'\x00\x00')
+    assert(in_ep.read(512).tobytes() == b'\x00\x00')
     out_ep.write(b'\x00\x08')
-    data = in_ep.read(512)
-    assert(len(data) == 2)
-    assert(data.tobytes() == b'\x00\x00')
+    assert(in_ep.read(512).tobytes() == b'\x00\x00')
 
     # firmware version should match a known pattern
+    # assert(False)
     out_ep.write(b'\x00\x09')
     data = in_ep.read(512)
     assert(len(data) >= 20)
@@ -67,79 +50,52 @@ def test_usb_dap_info_command(usb_dap_eps):
 
     # capabilities should match a known value
     out_ep.write(b'\x00\xf0')
-    data = in_ep.read(512)
-    assert(len(data) == 4)
-    assert(data.tobytes() == b'\x00\x02\x00\x01')
-
+    assert(in_ep.read(512).tobytes() == b'\x00\x02\x00\x01')
     # test domain timer should return the default unused value
     out_ep.write(b'\x00\xf1')
-    data = in_ep.read(512)
-    assert(len(data) == 6)
-    assert(data.tobytes() == b'\x00\x08\x00\x00\x00\x00')
-
+    assert(in_ep.read(512).tobytes() == b'\x00\x08\x00\x00\x00\x00')
     # uart rx and tx buffer size should match a known value
     out_ep.write(b'\x00\xfb')
-    data = in_ep.read(512)
-    assert(len(data) == 6)
-    assert(data.tobytes() == b'\x00\x04\x00\x04\x00\x00')
+    assert(in_ep.read(512).tobytes() == b'\x00\x04\x00\x04\x00\x00')
     out_ep.write(b'\x00\xfc')
-    data = in_ep.read(512)
-    assert(len(data) == 6)
-    assert(data.tobytes() == b'\x00\x04\x00\x04\x00\x00')
-
+    assert(in_ep.read(512).tobytes() == b'\x00\x04\x00\x04\x00\x00')
     # swo trace buffer size should return 0 while unsupported
     out_ep.write(b'\x00\xfd')
-    data = in_ep.read(512)
-    assert(len(data) == 6)
-    assert(data.tobytes() == b'\x00\x04\x00\x00\x00\x00')
-
+    assert(in_ep.read(512).tobytes() == b'\x00\x04\x00\x00\x00\x00')
     # usb packet count should match a known value
     out_ep.write(b'\x00\xfe')
-    data = in_ep.read(512)
-    assert(len(data) == 3)
-    assert(data.tobytes() == b'\x00\x01\x02')
-
+    assert(in_ep.read(512).tobytes() == b'\x00\x01\x02')
     # usb packet size should match a known value
     out_ep.write(b'\x00\xff')
-    data = in_ep.read(512)
-    assert(len(data) == 4)
-    assert(data.tobytes() == b'\x00\x02\x00\x02')
+    assert(in_ep.read(512).tobytes() == b'\x00\x02\x00\x02')
 
     # unsupported info id
     out_ep.write(b'\x00\xbb')
-    data = in_ep.read(512)
-    assert(len(data) == 1)
-    assert(data.tobytes() == b'\xff')
+    assert(in_ep.read(512).tobytes() == b'\xff')
 
-def test_usb_dap_host_status_command(usb_dap_eps):
+def test_host_status_command(usb_dap_eps):
     (out_ep, in_ep) = usb_dap_eps
 
     # enable connected led
     out_ep.write(b'\x01\x00\x01')
-    data = in_ep.read(512)
-    assert(data.tobytes() == b'\x01\x00')
+    assert(in_ep.read(512).tobytes() == b'\x01\x00')
     # enable running led
     out_ep.write(b'\x01\x01\x01')
-    data = in_ep.read(512)
-    assert(data.tobytes() == b'\x01\x00')
+    assert(in_ep.read(512).tobytes() == b'\x01\x00')
     # disable running led
     out_ep.write(b'\x01\x01\x00')
-    data = in_ep.read(512)
-    assert(data.tobytes() == b'\x01\x00')
+    assert(in_ep.read(512).tobytes() == b'\x01\x00')
     # disable connected led
     out_ep.write(b'\x01\x00\x00')
-    data = in_ep.read(512)
-    assert(data.tobytes() == b'\x01\x00')
+    assert(in_ep.read(512).tobytes() == b'\x01\x00')
 
     # make sure that an unsupported led type or status value produces an error
     out_ep.write(b'\x01\x02\x00')
-    data = in_ep.read(512)
-    assert(data.tobytes() == b'\x01\xff')
+    assert(in_ep.read(512).tobytes() == b'\x01\xff')
     out_ep.write(b'\x01\x00\x02')
-    data = in_ep.read(512)
-    assert(data.tobytes() == b'\x01\xff')
+    assert(in_ep.read(512).tobytes() == b'\x01\xff')
 
-def test_usb_dap_delay_command(usb_dap_eps):
+def test_delay_command(usb_dap_eps):
     (out_ep, in_ep) = usb_dap_eps
 
     delay = 65535
@@ -148,17 +104,75 @@ def test_usb_dap_delay_command(usb_dap_eps):
 
     start = time.time()
     out_ep.write(command)
-    data = in_ep.read(512)
+    assert(in_ep.read(512).tobytes() == b'\x09\x00')
     end = time.time()
 
-    assert(data.tobytes() == b'\x09\x00')
     # not looking for much accuracy with such a small delay time, just something within reason
     delta = (end - start) * 1000000
     assert(delta > (0.5 * delay) and delta < (1.5 * delay))
 
-def test_usb_dap_reset_target(usb_dap_eps):
+def test_disconnect_connect_swj_pins_commands(usb_dap_eps):
+    (out_ep, in_ep) = usb_dap_eps
+    
+    # put the target into reset, to start from a known state and not mess with its TAP
+    # need to configure swj before performing the reset, configure as jtag
+    out_ep.write(b'\x02\x02')
+    assert(in_ep.read(512).tobytes() == b'\x02\x02')
+    out_ep.write(b'\x10\x00\x80\xff\xff\x00\x00')
+    data = in_ep.read(512).tobytes()
+    # don't presume to know the state of all the other pins, but make sure it is reset
+    assert(data[0] == 0x10)
+    assert(data[1] & 0x80 == 0x00)
+
+    # set all outputs low, make sure they read low, tdo will read high
+    out_ep.write(b'\x10\x00\x0f\xff\xff\x00\x00')
+    assert(in_ep.read(512).tobytes() == b'\x10\x08')
+
+    # set each output high one-by-one
+    out_ep.write(b'\x10\x01\x01\xff\xff\x00\x00')
+    assert(in_ep.read(512).tobytes() == b'\x10\x09')
+    out_ep.write(b'\x10\x02\x02\xff\xff\x00\x00')
+    assert(in_ep.read(512).tobytes() == b'\x10\x0b')
+    out_ep.write(b'\x10\x04\x04\xff\xff\x00\x00')
+    assert(in_ep.read(512).tobytes() == b'\x10\x0f')
+
+    # set all outputs low again, then exit reset
+    out_ep.write(b'\x10\x00\x0f\xff\xff\x00\x00')
+    assert(in_ep.read(512).tobytes() == b'\x10\x08')
+    out_ep.write(b'\x10\x80\x80\xff\xff\x00\x00')
+    assert(in_ep.read(512).tobytes() == b'\x10\x88')
+
+    # ensure that configuring as 'default' sets jtag as the configuration, will set outputs high
+    out_ep.write(b'\x02\x00')
+    assert(in_ep.read(512).tobytes() == b'\x02\x02')
+    out_ep.write(b'\x10\x00\x00\xff\xff\x00\x00')
+    assert(in_ep.read(512).tobytes() == b'\x10\x8f')
+
+    # disconnect dap; tms, tdo, tdi should go high
+    out_ep.write(b'\x03')
+    assert(in_ep.read(512).tobytes() == b'\x03\x00')
+    # make sure outputs can't change when disconnected
+    out_ep.write(b'\x10\x00\x8f\xff\xff\x00\x00')
+    assert(in_ep.read(512).tobytes() == b'\x10\x8e')
+
+    # reconfigure as swd, swclk, swdio, and reset should be high
+    out_ep.write(b'\x02\x01')
+    assert(in_ep.read(512).tobytes() == b'\x02\x01')
+    out_ep.write(b'\x10\x00\x00\xff\xff\x00\x00')
+    assert(in_ep.read(512).tobytes() == b'\x10\x8f')
+
+    # should only be able to set swclk, swdio, and reset low
+    out_ep.write(b'\x10\x00\x8f\xff\xff\x00\x00')
+    assert(in_ep.read(512).tobytes() == b'\x10\x0c')
+
+    # finish reset and disconnect to go back to known state
+    out_ep.write(b'\x10\x80\x80\xff\xff\x00\x00')
+    assert(in_ep.read(512).tobytes() == b'\x10\x8c')
+    out_ep.write(b'\x03')
+    assert(in_ep.read(512).tobytes() == b'\x03\x00')
+
+def test_reset_target_command(usb_dap_eps):
     (out_ep, in_ep) = usb_dap_eps
 
     out_ep.write(b'\x0a')
-    data = in_ep.read(512)
-    assert(data.tobytes() == b'\x0a\x00\x00')
+    assert(in_ep.read(512).tobytes() == b'\x0a\x00\x00')

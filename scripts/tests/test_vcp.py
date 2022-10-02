@@ -5,7 +5,7 @@ from conftest import RICEPROBE_VID, RICEPROBE_PID
 EDBG_VID = 0x03EB
 EDBG_PID = 0x2111
 
-def test_usb_vcp_loopback():
+def test_loopback():
     # use the embedded debugger VCP as the interface to the RICEProbe VCP
     edbg_ser = serial.serial_for_url(f'hwgrep://{EDBG_VID:x}:{EDBG_PID:x}', baudrate=115200, timeout=0.1)
     # using pyserial will ensure that all of actions an OS takes while connecting to a CDC ACM device are also working
