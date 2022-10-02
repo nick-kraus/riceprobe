@@ -50,6 +50,7 @@ int32_t dap_reset(const struct device *dev) {
 
     /* clear current led state, leave combined flag */
     data->led_state &= DAP_STATUS_LEDS_COMBINED;
+    k_timer_stop(&data->running_led_timer);
     gpio_pin_set_dt(&config->led_connect_gpio, 0);
     gpio_pin_set_dt(&config->led_running_gpio, 0);
 
