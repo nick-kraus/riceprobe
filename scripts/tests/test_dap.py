@@ -111,6 +111,12 @@ def test_delay_command(usb_dap_eps):
     delta = (end - start) * 1000000
     assert(delta > (0.5 * delay) and delta < (1.5 * delay))
 
+def test_reset_target_command(usb_dap_eps):
+    (out_ep, in_ep) = usb_dap_eps
+
+    out_ep.write(b'\x0a')
+    assert(in_ep.read(512).tobytes() == b'\x0a\x00\x00')
+
 def test_disconnect_connect_swj_pins_commands(usb_dap_eps):
     (out_ep, in_ep) = usb_dap_eps
     
@@ -171,8 +177,13 @@ def test_disconnect_connect_swj_pins_commands(usb_dap_eps):
     out_ep.write(b'\x03')
     assert(in_ep.read(512).tobytes() == b'\x03\x00')
 
-def test_reset_target_command(usb_dap_eps):
+def test_swj_clock_command(usb_dap_eps):
     (out_ep, in_ep) = usb_dap_eps
 
-    out_ep.write(b'\x0a')
-    assert(in_ep.read(512).tobytes() == b'\x0a\x00\x00')
+    # clock rate of 0 should produce an error
+    out_ep.write(b'\x11\x00\x00\x00\x00')
+    assert(in_ep.read(512).tobytes() == b'\x11\xff')
+
+    # anything else should succeed
+    out_ep.write(b'\x11\x87\xd6\x12\x00')
+    assert(in_ep.read(512).tobytes() == b'\x11\x00')

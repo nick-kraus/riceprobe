@@ -19,6 +19,10 @@
 /* set if both connected and running status share an led */
 #define DAP_STATUS_LEDS_COMBINED    BIT(7)
 
+/* default SWD/JTAG clock rate in Hz */
+/* TODO: set to 1 MHz */
+#define DAP_DEFAULT_SWJ_CLK_RATE    (1000)
+
 /* current configured state of the dap io port */
 #define DAP_PORT_DISABLED   0
 #define DAP_PORT_JTAG       1
@@ -27,6 +31,7 @@
 struct dap_data {
     bool configured;
     uint8_t port_state;
+    uint32_t clk_rate;
 
     const struct device *dev;
     sys_snode_t devlist_node;
