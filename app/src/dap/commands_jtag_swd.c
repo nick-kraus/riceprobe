@@ -7,7 +7,7 @@
 #include "dap/dap.h"
 #include "dap/commands.h"
 
-LOG_MODULE_DECLARE(dap);
+LOG_MODULE_DECLARE(dap, CONFIG_DAP_LOG_LEVEL);
 
 #define PIN_SWCLK_TCK_SHIFT  (0)
 #define PIN_SWDIO_TMS_SHIFT  (1)

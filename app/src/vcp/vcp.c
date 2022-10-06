@@ -8,7 +8,7 @@
 #include "vcp/usb.h"
 #include "vcp/vcp.h"
 
-LOG_MODULE_REGISTER(vcp);
+LOG_MODULE_REGISTER(vcp, CONFIG_VCP_LOG_LEVEL);
 
 bool vcp_is_configured(const struct device *dev) {
     struct vcp_data *data = dev->data;
@@ -22,6 +22,7 @@ int32_t vcp_configure(const struct device *dev, k_work_handler_t handler) {
     if (data->configured) {
         return 0;
     }
+    LOG_INF("configuring driver");
 
     ring_buf_reset(config->rx_rbuf);
     ring_buf_reset(config->tx_rbuf);
@@ -36,6 +37,7 @@ int32_t vcp_reset(const struct device *dev) {
     struct vcp_data *data = dev->data;
     const struct vcp_config *config = dev->config;
 
+    LOG_INF("resetting driver state");
     data->configured = false;
 
     uart_irq_rx_disable(config->uart_dev);

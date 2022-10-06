@@ -9,7 +9,7 @@
 #include "dap/dap.h"
 #include "dap/usb.h"
 
-LOG_MODULE_DECLARE(dap);
+LOG_MODULE_DECLARE(dap, CONFIG_DAP_LOG_LEVEL);
 
 #define DAP_USB_INTERFACE_STRING	"Rice CMSIS-DAP v2"
 #define DAP_USB_OUT_EP_IDX			0
@@ -130,7 +130,7 @@ void dap_usb_status_cb(struct usb_cfg_data *cfg, enum usb_dc_status_code status,
 		}
         break;
     case USB_DC_CONFIGURED:
-        LOG_INF("usb device configured");
+        LOG_DBG("usb device configured");
 		if (!dap_is_configured(dev)) {
 			ret = dap_configure(dev);
 			if (ret < 0) {
@@ -146,7 +146,7 @@ void dap_usb_status_cb(struct usb_cfg_data *cfg, enum usb_dc_status_code status,
 		}
         break;
     case USB_DC_DISCONNECTED:
-        LOG_INF("usb device disconnected");
+        LOG_DBG("usb device disconnected");
 		ret = dap_reset(dev);
 		if (ret < 0) {
 			LOG_ERR("device reset failed with error %d", ret);

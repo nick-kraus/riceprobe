@@ -6,7 +6,7 @@
 #include "io/io.h"
 #include "io/usb.h"
 
-LOG_MODULE_REGISTER(io);
+LOG_MODULE_REGISTER(io, CONFIG_IO_LOG_LEVEL);
 
 bool io_is_configured(const struct device *dev) {
     struct io_data *data = dev->data;
@@ -20,6 +20,7 @@ int32_t io_configure(const struct device *dev) {
     if (data->configured) {
         return 0;
     }
+    LOG_INF("configuring driver");
 
     ring_buf_reset(config->rbuf);
     data->configured = true;
@@ -30,6 +31,7 @@ int32_t io_reset(const struct device *dev) {
     struct io_data *data = dev->data;
     const struct io_config *config = dev->config;
 
+    LOG_INF("resetting driver state");
     data->configured = false;
 
     ring_buf_reset(config->rbuf);

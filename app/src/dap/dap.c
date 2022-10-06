@@ -9,7 +9,7 @@
 #include "dap/usb.h"
 #include "util.h"
 
-LOG_MODULE_REGISTER(dap);
+LOG_MODULE_REGISTER(dap, CONFIG_DAP_LOG_LEVEL);
 
 bool dap_is_configured(const struct device *dev) {
     struct dap_data *data = dev->data;
@@ -23,6 +23,7 @@ int32_t dap_configure(const struct device *dev) {
     if (data->configured) {
         return 0;
     }
+    LOG_INF("configuring driver");
 
     ring_buf_reset(config->request_buf);
     ring_buf_reset(config->response_buf);
@@ -35,6 +36,7 @@ int32_t dap_reset(const struct device *dev) {
     struct dap_data *data = dev->data;
     const struct dap_config *config = dev->config;
 
+    LOG_INF("resetting driver state");
     data->configured = false;
 
     data->port_state = DAP_PORT_DISABLED;

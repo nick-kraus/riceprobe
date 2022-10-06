@@ -10,7 +10,7 @@
 #include "vcp/usb.h"
 #include "vcp/vcp.h"
 
-LOG_MODULE_DECLARE(vcp);
+LOG_MODULE_DECLARE(vcp, CONFIG_VCP_LOG_LEVEL);
 
 #define VCP_USB_INTERFACE_STRING    "Rice VCP"
 #define VCP_USB_INT_EP_IDX			0
@@ -268,7 +268,7 @@ void vcp_usb_status_cb(
         }
         break;
     case USB_DC_CONFIGURED:
-        LOG_INF("usb device configured");
+        LOG_DBG("usb device configured");
         if (!vcp_is_configured(dev)) {
             ret = vcp_configure(dev, usb_work_handler);
             if (ret < 0) {
@@ -284,7 +284,7 @@ void vcp_usb_status_cb(
         }
         break;
     case USB_DC_DISCONNECTED:
-        LOG_INF("usb device disconnected");
+        LOG_DBG("usb device disconnected");
         ret = vcp_reset(dev);
         if (ret < 0) {
             LOG_ERR("device reset failed with error %d", ret);

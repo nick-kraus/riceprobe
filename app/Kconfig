@@ -10,4 +10,16 @@ config REPO_VERSION_MINOR
 config REPO_VERSION_PATCH
     int "Repository semver-compatible patch version number"
 
+module = DAP
+module-str = dap
+source "subsys/logging/Kconfig.template.log_config"
+
+module = IO
+module-str = io
+source "subsys/logging/Kconfig.template.log_config"
+
+module = VCP
+module-str = vcp
+source "subsys/logging/Kconfig.template.log_config"
+
 source "Kconfig.zephyr"
