@@ -12,16 +12,8 @@
 /* size of the internal buffers in bytes */
 #define DAP_RING_BUF_SIZE       (1024)
 
-/* set if connected led should be enabled */
-#define DAP_STATUS_LED_CONNECTED    BIT(0)
-/* set if running led should be enabled */
-#define DAP_STATUS_LED_RUNNING      BIT(1)
-/* set if both connected and running status share an led */
-#define DAP_STATUS_LEDS_COMBINED    BIT(7)
-
 /* default SWD/JTAG clock rate in Hz */
-/* TODO: set to 1 MHz */
-#define DAP_DEFAULT_SWJ_CLK_RATE    (1000)
+#define DAP_DEFAULT_SWJ_CLOCK_RATE    (1000000)
 
 /* current configured state of the dap io port */
 #define DAP_PORT_DISABLED   0
@@ -29,15 +21,23 @@
 #define DAP_PORT_SWD        2
 
 struct dap_data {
-    bool configured;
-    uint8_t port_state;
-    uint32_t clk_rate;
+    /* shared swd and jtag state */
+    struct {
+        /* current configuration state of the port */
+        uint8_t port;
+        /* nominal output clock rate in hz */
+        uint32_t clock;
+    } swj;
+
+    struct {
+        bool combined : 1;
+        bool connected : 1;
+        bool running : 1;
+        struct k_timer timer;
+    } led;
 
     const struct device *dev;
     sys_snode_t devlist_node;
-
-    uint8_t led_state;
-    struct k_timer running_led_timer;
 };
 
 struct dap_config {
@@ -58,7 +58,6 @@ struct dap_config {
 
 extern sys_slist_t dap_devlist;
 
-bool dap_is_configured(const struct device *dev);
 int32_t dap_configure(const struct device *dev);
 int32_t dap_reset(const struct device *dev);
 int32_t dap_handle_request(const struct device *dev);

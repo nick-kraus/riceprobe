@@ -172,29 +172,29 @@ int32_t dap_handle_command_host_status(const struct device *dev) {
         response_status = DAP_COMMAND_RESPONSE_ERROR;
     } else if (type == 0) {
         /* 'connect' status, but use the running led if combined */
-        const struct gpio_dt_spec *led_gpio = data->led_state & DAP_STATUS_LEDS_COMBINED ?
+        const struct gpio_dt_spec *led_gpio = data->led.combined ?
             &config->led_running_gpio : &config->led_connect_gpio;
         if (status == 0) {
-            data->led_state &= ~DAP_STATUS_LED_CONNECTED;
+            data->led.connected = false;
             gpio_pin_set_dt(led_gpio, 0);
         } else {
-            data->led_state |= DAP_STATUS_LED_CONNECTED;
+            data->led.connected = true;
             gpio_pin_set_dt(led_gpio, 1);
         }
     } else {
         /* 'running' status */
         if (status == 0) {
-            k_timer_stop(&data->running_led_timer);
+            data->led.running = false;
+            k_timer_stop(&data->led.timer);
             /* if combined and still connected, make sure to leave led enabled */
-            if (data->led_state & DAP_STATUS_LEDS_COMBINED && data->led_state & DAP_STATUS_LED_CONNECTED) {
-                data->led_state &= ~DAP_STATUS_LED_RUNNING;
+            if (data->led.combined && data->led.connected) {
                 gpio_pin_set_dt(&config->led_running_gpio, 1);
-            } else if (data->led_state & DAP_STATUS_LEDS_COMBINED) {
-                data->led_state |= DAP_STATUS_LED_RUNNING;
+            } else {
                 gpio_pin_set_dt(&config->led_running_gpio, 0);
             }
         } else {
-            k_timer_start(&data->running_led_timer, K_NO_WAIT, K_MSEC(500));
+            data->led.running = true;
+            k_timer_start(&data->led.timer, K_NO_WAIT, K_MSEC(500));
         }
     }
 
@@ -234,7 +234,7 @@ int32_t dap_handle_command_connect(const struct device *dev) {
         /* tdi and tdo unused in swd mode */
         FATAL_CHECK(gpio_pin_configure_dt(&config->tdo_gpio, GPIO_INPUT) >= 0, "tdo config failed");
         FATAL_CHECK(gpio_pin_configure_dt(&config->tdi_gpio, GPIO_INPUT) >= 0, "tdi config failed");
-        data->port_state = DAP_PORT_SWD;
+        data->swj.port = DAP_PORT_SWD;
         response_port = 1;
     } else {
         FATAL_CHECK(
@@ -255,7 +255,7 @@ int32_t dap_handle_command_connect(const struct device *dev) {
             "nreset config failed"
         );
         FATAL_CHECK(gpio_pin_configure_dt(&config->tdo_gpio, GPIO_INPUT | GPIO_PULL_UP) >= 0, "tdo config failed");
-        data->port_state = DAP_PORT_JTAG;
+        data->swj.port = DAP_PORT_JTAG;
         response_port = 2;
     }
     LOG_INF("configured port io as %s", port == 1 ? "SWD" : "JTAG");
@@ -270,7 +270,7 @@ int32_t dap_handle_command_disconnect(const struct device *dev) {
     struct dap_data *data = dev->data;
     const struct dap_config *config = dev->config;
 
-    data->port_state = DAP_PORT_DISABLED;
+    data->swj.port = DAP_PORT_DISABLED;
     FATAL_CHECK(gpio_pin_configure_dt(&config->tck_swclk_gpio, GPIO_INPUT) >= 0, "tck swclk config failed");
     FATAL_CHECK(gpio_pin_configure_dt(&config->tms_swdio_gpio, GPIO_INPUT) >= 0, "tms swdio config failed");
     FATAL_CHECK(gpio_pin_configure_dt(&config->tdo_gpio, GPIO_INPUT) >= 0, "tdo config failed");

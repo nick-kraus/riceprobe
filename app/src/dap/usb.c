@@ -131,19 +131,11 @@ void dap_usb_status_cb(struct usb_cfg_data *cfg, enum usb_dc_status_code status,
         break;
     case USB_DC_CONFIGURED:
         LOG_DBG("usb device configured");
-		if (!dap_is_configured(dev)) {
-			ret = dap_configure(dev);
-			if (ret < 0) {
-				LOG_ERR("device configuration failed with error %d", ret);
-				return;
-			}
-
-			dap_usb_read_cb(
-				cfg->endpoint[DAP_USB_OUT_EP_IDX].ep_addr,
-				0,
-				(void*) dev
-			);
-		}
+		dap_usb_read_cb(
+			cfg->endpoint[DAP_USB_OUT_EP_IDX].ep_addr,
+			0,
+			(void*) dev
+		);
         break;
     case USB_DC_DISCONNECTED:
         LOG_DBG("usb device disconnected");

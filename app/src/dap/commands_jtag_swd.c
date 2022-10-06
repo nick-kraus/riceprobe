@@ -76,13 +76,13 @@ int32_t dap_handle_command_swj_clock(const struct device *dev) {
     struct dap_data *data = dev->data;
     const struct dap_config *config = dev->config;
 
-    uint32_t clk_rate = DAP_DEFAULT_SWJ_CLK_RATE;
-    ring_buf_get(config->request_buf, (uint8_t*) &clk_rate, 4);
-    if (clk_rate != 0) {
-        data->clk_rate = sys_le32_to_cpu(clk_rate);
+    uint32_t clock = DAP_DEFAULT_SWJ_CLOCK_RATE;
+    ring_buf_get(config->request_buf, (uint8_t*) &clock, 4);
+    if (clock != 0) {
+        data->swj.clock = sys_le32_to_cpu(clock);
     }
 
-    uint8_t status = clk_rate == 0 ? DAP_COMMAND_RESPONSE_ERROR : DAP_COMMAND_RESPONSE_OK;
+    uint8_t status = clock == 0 ? DAP_COMMAND_RESPONSE_ERROR : DAP_COMMAND_RESPONSE_OK;
     uint8_t response[] = {DAP_COMMAND_SWJ_CLOCK, status};
     ring_buf_put(config->response_buf, response, ARRAY_SIZE(response));
 
