@@ -94,7 +94,30 @@ int32_t dap_handle_command_swj_sequence(const struct device *dev) {
 }
 
 int32_t dap_handle_command_jtag_configure(const struct device *dev) {
-    return -ENOTSUP; /* TODO */
+    struct dap_data *data = dev->data;
+    const struct dap_config *config = dev->config;
+    uint8_t status = DAP_COMMAND_RESPONSE_OK;
+
+    uint8_t count = 0;
+    ring_buf_get(config->request_buf, &count, 1);
+    if (count > DAP_JTAG_MAX_DEVICE_COUNT ||
+        ring_buf_size_get(config->request_buf) < count) {
+        status = DAP_COMMAND_RESPONSE_ERROR;
+        goto end;
+    }
+
+    data->jtag.count = count;
+    for (int i = 0; i < data->jtag.count; i++) {
+        uint8_t len = 0;
+        ring_buf_get(config->request_buf, &len, 1);
+        data->jtag.ir_length[i] = len;
+    }
+
+end: ;
+    uint8_t response[] = {DAP_COMMAND_JTAG_CONFIGURE, status};
+    ring_buf_put(config->response_buf, response, ARRAY_SIZE(response));
+
+    return ring_buf_size_get(config->response_buf);
 }
 
 int32_t dap_handle_command_jtag_sequence(const struct device *dev) {

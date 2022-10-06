@@ -20,6 +20,9 @@
 #define DAP_PORT_JTAG       1
 #define DAP_PORT_SWD        2
 
+/* maximum number of devices supported on the JTAG chain */
+#define DAP_JTAG_MAX_DEVICE_COUNT   4
+
 struct dap_data {
     /* shared swd and jtag state */
     struct {
@@ -28,6 +31,14 @@ struct dap_data {
         /* nominal output clock rate in hz */
         uint32_t clock;
     } swj;
+    struct {
+        /* number of devices in chain */
+        uint8_t count;
+        /* index of target device */
+        uint8_t index;
+        /* ir length of each device in the chain */
+        uint8_t ir_length[DAP_JTAG_MAX_DEVICE_COUNT];
+    } jtag;
 
     struct {
         bool combined : 1;
