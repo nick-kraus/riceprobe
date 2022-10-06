@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.20.0)
 
 # must be set before importing the zephyr package
 set(CONF_FILE "${CMAKE_CURRENT_SOURCE_DIR}/app/app.conf")
+list(APPEND KCONFIG_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/app/Kconfig")
 list(APPEND BOARD_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/app")
 list(APPEND DTS_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/app")
 
@@ -22,6 +23,10 @@ else()
     string(REGEX REPLACE "v([0-9]+).([0-9]+).([0-9]+).+" "\\2" REPO_VERSION_MINOR ${REPO_VERSION_STRING})
     string(REGEX REPLACE "v([0-9]+).([0-9]+).([0-9]+).+" "\\3" REPO_VERSION_PATCH ${REPO_VERSION_STRING})
     message(STATUS "Repository version: ${REPO_VERSION_STRING}")
+    set(CONFIG_REPO_VERSION_STRING "\"${REPO_VERSION_STRING}\"" CACHE STRING "repository version full string")
+    set(CONFIG_REPO_VERSION_MAJOR ${REPO_VERSION_MAJOR} CACHE STRING "repository version major integer")
+    set(CONFIG_REPO_VERSION_MINOR ${REPO_VERSION_MINOR} CACHE STRING "repository version minor integer")
+    set(CONFIG_REPO_VERSION_PATCH ${REPO_VERSION_PATCH} CACHE STRING "repository version patch integer")
 endif()
 
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
