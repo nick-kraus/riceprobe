@@ -9,14 +9,15 @@
 
 LOG_MODULE_DECLARE(dap, CONFIG_DAP_LOG_LEVEL);
 
-#define PIN_SWCLK_TCK_SHIFT  (0)
-#define PIN_SWDIO_TMS_SHIFT  (1)
-#define PIN_TDI_SHIFT        (2)
-#define PIN_TDO_SHIFT        (3)
-#define PIN_NRESET_SHIFT     (7)
-
 int32_t dap_handle_command_swj_pins(const struct device *dev) {
     const struct dap_config *config = dev->config;
+
+    /* command pin bitfields */
+    const uint8_t pin_swclk_tck_shift = 0;
+    const uint8_t pin_swdio_tms_shift = 1;
+    const uint8_t pin_tdi_shift = 2;
+    const uint8_t pin_tdo_shift = 3;
+    const uint8_t pin_nreset_shift = 7;
 
     uint8_t pin_output = 0;
     uint8_t pin_mask = 0;
@@ -26,20 +27,20 @@ int32_t dap_handle_command_swj_pins(const struct device *dev) {
     ring_buf_get(config->request_buf, (uint8_t*) &delay_us, 4);
     delay_us = sys_le32_to_cpu(delay_us);
 
-    if ((pin_mask & BIT(PIN_SWCLK_TCK_SHIFT)) != 0) {
-        gpio_pin_set_dt(&config->tck_swclk_gpio, (pin_output & BIT(PIN_SWCLK_TCK_SHIFT)) == 0 ? 0 : 1);
+    if ((pin_mask & BIT(pin_swclk_tck_shift)) != 0) {
+        gpio_pin_set_dt(&config->tck_swclk_gpio, (pin_output & BIT(pin_swclk_tck_shift)) == 0 ? 0 : 1);
     }
-    if ((pin_mask & BIT(PIN_SWDIO_TMS_SHIFT)) != 0) {
-        gpio_pin_set_dt(&config->tms_swdio_gpio, (pin_output & BIT(PIN_SWDIO_TMS_SHIFT)) == 0 ? 0 : 1);
+    if ((pin_mask & BIT(pin_swdio_tms_shift)) != 0) {
+        gpio_pin_set_dt(&config->tms_swdio_gpio, (pin_output & BIT(pin_swdio_tms_shift)) == 0 ? 0 : 1);
     }
-    if ((pin_mask & BIT(PIN_TDI_SHIFT)) != 0) {
-        gpio_pin_set_dt(&config->tdi_gpio, (pin_output & BIT(PIN_TDI_SHIFT)) == 0 ? 0 : 1);
+    if ((pin_mask & BIT(pin_tdi_shift)) != 0) {
+        gpio_pin_set_dt(&config->tdi_gpio, (pin_output & BIT(pin_tdi_shift)) == 0 ? 0 : 1);
     }
-    if ((pin_mask & BIT(PIN_TDO_SHIFT)) != 0) {
-        gpio_pin_set_dt(&config->tdo_gpio, (pin_output & BIT(PIN_TDO_SHIFT)) == 0 ? 0 : 1);
+    if ((pin_mask & BIT(pin_tdo_shift)) != 0) {
+        gpio_pin_set_dt(&config->tdo_gpio, (pin_output & BIT(pin_tdo_shift)) == 0 ? 0 : 1);
     }
-    if ((pin_mask & BIT(PIN_NRESET_SHIFT)) != 0) {
-        gpio_pin_set_dt(&config->nreset_gpio, (pin_output & BIT(PIN_NRESET_SHIFT)) == 0 ? 0 : 1);
+    if ((pin_mask & BIT(pin_nreset_shift)) != 0) {
+        gpio_pin_set_dt(&config->nreset_gpio, (pin_output & BIT(pin_nreset_shift)) == 0 ? 0 : 1);
     }
     /* ignore nTRST, this debug probe doesn't support it */
 
@@ -48,11 +49,11 @@ int32_t dap_handle_command_swj_pins(const struct device *dev) {
         delay_us = 3000000;
     }
     /* all pins expect nreset are push-pull, don't wait on those */
-    if ((delay_us > 0) && (pin_mask & BIT(PIN_NRESET_SHIFT))) {
+    if ((delay_us > 0) && (pin_mask & BIT(pin_nreset_shift))) {
         uint64_t delay_end = sys_clock_timeout_end_calc(K_USEC(delay_us));
         do {
             uint32_t nreset_val = gpio_pin_get_dt(&config->nreset_gpio);
-            if ((pin_output & BIT(PIN_NRESET_SHIFT)) ^ (nreset_val << PIN_NRESET_SHIFT)) {
+            if ((pin_output & BIT(pin_nreset_shift)) ^ (nreset_val << pin_nreset_shift)) {
                 k_busy_wait(1);
             } else {
                 break;
@@ -61,11 +62,11 @@ int32_t dap_handle_command_swj_pins(const struct device *dev) {
     }
 
     uint8_t pin_input =
-        (gpio_pin_get_dt(&config->tck_swclk_gpio) << PIN_SWCLK_TCK_SHIFT) |
-        (gpio_pin_get_dt(&config->tms_swdio_gpio) << PIN_SWDIO_TMS_SHIFT) |
-        (gpio_pin_get_dt(&config->tdi_gpio) << PIN_TDI_SHIFT) |
-        (gpio_pin_get_dt(&config->tdo_gpio) << PIN_TDO_SHIFT) |
-        (gpio_pin_get_dt(&config->nreset_gpio) << PIN_NRESET_SHIFT);
+        (gpio_pin_get_dt(&config->tck_swclk_gpio) << pin_swclk_tck_shift) |
+        (gpio_pin_get_dt(&config->tms_swdio_gpio) << pin_swdio_tms_shift) |
+        (gpio_pin_get_dt(&config->tdi_gpio) << pin_tdi_shift) |
+        (gpio_pin_get_dt(&config->tdo_gpio) << pin_tdo_shift) |
+        (gpio_pin_get_dt(&config->nreset_gpio) << pin_nreset_shift);
     uint8_t response[] = {DAP_COMMAND_SWJ_PINS, pin_input};
     ring_buf_put(config->response_buf, response, ARRAY_SIZE(response));
 
