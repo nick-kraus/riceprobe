@@ -45,6 +45,8 @@ LOG_MODULE_DECLARE(dap, CONFIG_DAP_LOG_LEVEL);
 int32_t dap_handle_command_info(const struct device *dev) {
     const struct dap_config *config = dev->config;
 
+    if (ring_buf_size_get(config->request_buf) < 1) { return -EMSGSIZE; }
+
     uint8_t id = 0;
     ring_buf_get(config->request_buf, &id, 1);
     ring_buf_put(config->response_buf, &((uint8_t) {DAP_COMMAND_INFO}), 1);
@@ -163,6 +165,8 @@ int32_t dap_handle_command_host_status(const struct device *dev) {
     struct dap_data *data = dev->data;
     const struct dap_config *config = dev->config;
 
+    if (ring_buf_size_get(config->request_buf) < 2) { return -EMSGSIZE; }
+
     uint8_t type = 0, status = 0;
     ring_buf_get(config->request_buf, &type, 1);
     ring_buf_get(config->request_buf, &status, 1);
@@ -206,6 +210,8 @@ int32_t dap_handle_command_host_status(const struct device *dev) {
 int32_t dap_handle_command_connect(const struct device *dev) {
     struct dap_data *data = dev->data;
     const struct dap_config *config = dev->config;
+
+    if (ring_buf_size_get(config->request_buf) < 1) { return -EMSGSIZE; }
 
     uint8_t port = 0;
     ring_buf_get(config->request_buf, &port, 1);
@@ -289,6 +295,8 @@ int32_t dap_handle_command_write_abort(const struct device *dev) {
 
 int32_t dap_handle_command_delay(const struct device *dev) {
     const struct dap_config *config = dev->config;
+
+    if (ring_buf_size_get(config->request_buf) < 1) { return -EMSGSIZE; }
 
     uint16_t delay_us = 0;
     ring_buf_get(config->request_buf, (uint8_t*) &delay_us, 2);

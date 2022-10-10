@@ -61,7 +61,9 @@ static void dap_usb_read_cb(uint8_t ep, int32_t size, void *priv) {
 	if (ret < 0) {
 		LOG_ERR("dap handle request failed with error %d", ret);
 
-		/* commands that failed or aren't implemented get a simple 0xff response byte */
+		/* commands that failed or aren't implemented get a simple 0xff response byte,
+		 * and we also reset the request buffer since it is probably in a known bad state */
+		ring_buf_reset(config->request_buf);
 		ring_buf_reset(config->response_buf);
 		uint8_t response = DAP_COMMAND_RESPONSE_ERROR;
         ring_buf_put(config->response_buf, &response, 1);

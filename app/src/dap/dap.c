@@ -26,6 +26,7 @@ int32_t dap_reset(const struct device *dev) {
 
     data->swj.port = DAP_PORT_DISABLED;
     data->swj.clock = DAP_DEFAULT_SWJ_CLOCK_RATE;
+    data->swj.delay_ns = 1000000000 / DAP_DEFAULT_SWJ_CLOCK_RATE / 2;
     data->jtag.count = 0;
     data->jtag.index = 0;
     memset(data->jtag.ir_length, 0, sizeof(data->jtag.ir_length));

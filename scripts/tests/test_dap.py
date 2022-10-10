@@ -187,3 +187,62 @@ def test_swj_clock_command(usb_dap_eps):
     # anything else should succeed
     out_ep.write(b'\x11\x87\xd6\x12\x00')
     assert(in_ep.read(512).tobytes() == b'\x11\x00')
+
+def test_jtag_sequence(usb_dap_eps):
+    (out_ep, in_ep) = usb_dap_eps
+
+    # configure dap port as jtag
+    out_ep.write(b'\x02\x02')
+    assert(in_ep.read(512).tobytes() == b'\x02\x02')
+
+    # set a reasonable clock rate (about 1MHz)
+    out_ep.write(b'\x11\x00\x0a\x0f\x00')
+    assert(in_ep.read(512).tobytes() == b'\x11\x00')
+
+    # jtag state: test-logic-reset
+    out_ep.write(b'\x14\x01\x45\x00')
+    assert(in_ep.read(512).tobytes() == b'\x14\x00')
+    # jtag state: run-test-idle
+    out_ep.write(b'\x14\x01\x01\x00')
+    assert(in_ep.read(512).tobytes() == b'\x14\x00')
+
+    # here we set the jtag ir to the idcode instruction (0b1110), the target is an stm32l4r5zi
+    # which has a boundary scan tap (5-bit ir) followed by a debug tap (4-bit ir)
+
+    # jtag state: select-dr-scan, select-ir-scan
+    out_ep.write(b'\x14\x01\x42\x00')
+    assert(in_ep.read(512).tobytes() == b'\x14\x00')
+    # jtag state: capture-ir, shift-ir
+    out_ep.write(b'\x14\x01\x02\x00')
+    assert(in_ep.read(512).tobytes() == b'\x14\x00')
+    # shift the 4-bit idcode (0b1110)
+    out_ep.write(b'\x14\x01\x04\x0e')
+    assert(in_ep.read(512).tobytes() == b'\x14\x00')
+    # shift the first 4 bits of boundary scan tap bypass
+    out_ep.write(b'\x14\x01\x04\x0f')
+    assert(in_ep.read(512).tobytes() == b'\x14\x00')
+    # shift the last bit of bypass; jtag state: exit-1-ir, update-ir
+    out_ep.write(b'\x14\x01\x42\x01')
+    assert(in_ep.read(512).tobytes() == b'\x14\x00')
+    # jtag state: idle
+    out_ep.write(b'\x14\x01\x01\x00')
+    assert(in_ep.read(512).tobytes() == b'\x14\x00')
+
+    # we now get the 32-bit idcode from the data register, which will be from the cortex-m4
+    # core, r0p1 (0x4ba00477)
+
+    # jtag state: select-dr-scan
+    out_ep.write(b'\x14\x01\x41\x00')
+    assert(in_ep.read(512).tobytes() == b'\x14\x00')
+    # jtag state: capture-dr, shift-dr
+    out_ep.write(b'\x14\x01\x02\x00')
+    assert(in_ep.read(512).tobytes() == b'\x14\x00')
+    # clock out the 32-bit idcode onto tdo
+    out_ep.write(b'\x14\x01\xA0\x00\x00\x00\x00')
+    assert(in_ep.read(512).tobytes() == b'\x14\x00\x77\x04\xa0\x4b')
+    # jtag state: exit-1-dr, update-dr
+    out_ep.write(b'\x14\x01\x42\x00')
+    assert(in_ep.read(512).tobytes() == b'\x14\x00')
+    # jtag state: idle
+    out_ep.write(b'\x14\x01\x01\x00')
+    assert(in_ep.read(512).tobytes() == b'\x14\x00')

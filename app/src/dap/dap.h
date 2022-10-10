@@ -30,6 +30,8 @@ struct dap_data {
         uint8_t port;
         /* nominal output clock rate in hz */
         uint32_t clock;
+        /* nanosecond pin delay based off above clock rate */
+        uint32_t delay_ns;
     } swj;
     struct {
         /* number of devices in chain */
