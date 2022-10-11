@@ -13,37 +13,37 @@
 
 LOG_MODULE_DECLARE(dap, CONFIG_DAP_LOG_LEVEL);
 
-#define INFO_COMMAND_VENDOR_NAME                ((uint8_t) 0x01)
-#define INFO_COMMAND_PRODUCT_NAME               ((uint8_t) 0x02)
-#define INFO_COMMAND_SERIAL_NUMBER              ((uint8_t) 0x03)
-#define INFO_COMMAND_DAP_PROTOCOL_VERSION       ((uint8_t) 0x04)
-#define INFO_COMMAND_TARGET_DEVICE_VENDOR       ((uint8_t) 0x05)
-#define INFO_COMMAND_TARGET_DEVICE_NAME         ((uint8_t) 0x06)
-#define INFO_COMMAND_TARGET_BOARD_VENDOR        ((uint8_t) 0x07)
-#define INFO_COMMAND_TARGET_BOARD_NAME          ((uint8_t) 0x08)
-#define INFO_COMMAND_PRODUCT_FIRMWARE_VERSION   ((uint8_t) 0x09)
-#define INFO_COMMAND_CAPABILITIES               ((uint8_t) 0xf0)
-#define INFO_COMMAND_TEST_DOMAIN_TIMER          ((uint8_t) 0xf1)
-#define INFO_COMMAND_UART_RX_BUFFER_SIZE        ((uint8_t) 0xfb)
-#define INFO_COMMAND_UART_TX_BUFFER_SIZE        ((uint8_t) 0xfc)
-#define INFO_COMMAND_SWO_BUFFER_SIZE            ((uint8_t) 0xfd)
-#define INFO_COMMAND_MAX_PACKET_COUNT           ((uint8_t) 0xfe)
-#define INFO_COMMAND_MAX_PACKET_SIZE            ((uint8_t) 0xff)
-
-/* capabilities byte 0 */
-#define CAPS_NO_SWD_SUPPORT                     ((uint8_t) 0x00)
-#define CAPS_NO_JTAG_SUPPORT                    ((uint8_t) 0x00)
-#define CAPS_NO_SWO_UART_SUPPORT                ((uint8_t) 0x00)
-#define CAPS_NO_SWO_MANCHESTER_SUPPORT          ((uint8_t) 0x00)
-#define CAPS_NO_ATOMIC_CMDS_SUPPORT             ((uint8_t) 0x00)
-#define CAPS_NO_TEST_DOMAIN_TIMER_SUPPORT       ((uint8_t) 0x00)
-#define CAPS_NO_SWO_TRACE_SUPPORT               ((uint8_t) 0x00)
-#define CAPS_NO_UART_DAP_PORT_SUPPORT           ((uint8_t) 0x00)
-/* capabilities byte 1 */
-#define CAPS_SUPPORT_UART_VCP                   ((uint8_t) 0x01)
-
 int32_t dap_handle_command_info(const struct device *dev) {
     const struct dap_config *config = dev->config;
+
+    /* info subcommands */
+    const uint8_t info_vendor_name = 0x01;
+    const uint8_t info_product_name = 0x02;
+    const uint8_t info_serial_number = 0x03;
+    const uint8_t info_dap_protocol_version = 0x04;
+    const uint8_t info_target_device_vendor = 0x05;
+    const uint8_t info_target_device_name = 0x06;
+    const uint8_t info_target_board_vendor = 0x07;
+    const uint8_t info_target_board_name = 0x08;
+    const uint8_t info_product_firmware_version = 0x09;
+    const uint8_t info_capabilities = 0xf0;
+    const uint8_t info_test_domain_timer = 0xf1;
+    const uint8_t info_uart_rx_buffer_size = 0xfb;
+    const uint8_t info_uart_tx_buffer_size = 0xfc;
+    const uint8_t info_swo_buffer_size = 0xfd;
+    const uint8_t info_max_packet_count = 0xfe;
+    const uint8_t info_max_packet_size = 0xff;
+    /* capabilities byte 0 */
+    const uint8_t caps_no_swd_support = 0x00;
+    const uint8_t caps_no_jtag_support = 0x00;
+    const uint8_t caps_no_swo_uart_support = 0x00;
+    const uint8_t caps_no_swo_manchester_support = 0x00;
+    const uint8_t caps_no_atomic_cmds_support = 0x00;
+    const uint8_t caps_no_test_domain_timer_support = 0x00;
+    const uint8_t caps_no_swo_trace_support = 0x00;
+    const uint8_t caps_no_uart_dap_port_support = 0x00;
+    /* capabilities byte 1 */
+    const uint8_t caps_support_uart_vcp = 0x01;
 
     if (ring_buf_size_get(config->request_buf) < 1) { return -EMSGSIZE; }
 
@@ -52,7 +52,7 @@ int32_t dap_handle_command_info(const struct device *dev) {
     ring_buf_put(config->response_buf, &((uint8_t) {DAP_COMMAND_INFO}), 1);
 
     uint8_t *ptr;
-    if (id == INFO_COMMAND_VENDOR_NAME) {
+    if (id == info_vendor_name) {
         const char *vendor_name = CONFIG_USB_DEVICE_MANUFACTURER;
         const uint8_t vendor_name_len = sizeof(CONFIG_USB_DEVICE_MANUFACTURER);
         ring_buf_put(config->response_buf, &vendor_name_len, 1);
@@ -62,7 +62,7 @@ int32_t dap_handle_command_info(const struct device *dev) {
             return -ENOBUFS;
         }
         return ring_buf_size_get(config->response_buf);
-    } else if (id == INFO_COMMAND_PRODUCT_NAME) {
+    } else if (id == info_product_name) {
         const char *product_name = CONFIG_USB_DEVICE_PRODUCT;
         const uint8_t product_name_len = sizeof(CONFIG_USB_DEVICE_PRODUCT);
         ring_buf_put(config->response_buf, &product_name_len, 1);
@@ -72,7 +72,7 @@ int32_t dap_handle_command_info(const struct device *dev) {
             return -ENOBUFS;
         }
         return ring_buf_size_get(config->response_buf);
-    } else if (id == INFO_COMMAND_SERIAL_NUMBER) {
+    } else if (id == info_serial_number) {
         char serial[sizeof(CONFIG_USB_DEVICE_SN)];
         if (nvs_get_serial_number(serial, sizeof(serial)) < 0) {
             return -ENOBUFS;
@@ -85,7 +85,7 @@ int32_t dap_handle_command_info(const struct device *dev) {
             return -ENOBUFS;
         }
         return ring_buf_size_get(config->response_buf);
-    } else if (id == INFO_COMMAND_DAP_PROTOCOL_VERSION) {
+    } else if (id == info_dap_protocol_version) {
         const char *protocol_version = DAP_PROTOCOL_VERSION;
         const uint8_t protocol_version_len = sizeof(DAP_PROTOCOL_VERSION);
         ring_buf_put(config->response_buf, &protocol_version_len, 1);
@@ -95,15 +95,15 @@ int32_t dap_handle_command_info(const struct device *dev) {
             return -ENOBUFS;
         }
         return ring_buf_size_get(config->response_buf);
-    } else if (id == INFO_COMMAND_TARGET_DEVICE_VENDOR ||
-               id == INFO_COMMAND_TARGET_DEVICE_NAME ||
-               id == INFO_COMMAND_TARGET_BOARD_VENDOR ||
-               id == INFO_COMMAND_TARGET_BOARD_NAME) {
+    } else if (id == info_target_device_vendor ||
+               id == info_target_device_name ||
+               id == info_target_board_vendor ||
+               id == info_target_board_name) {
         /* not an on-board debug unit, just return no string */
         const uint8_t response = 0;
         ring_buf_put(config->response_buf, &response, 1);
         return ring_buf_size_get(config->response_buf);
-    } else if (id == INFO_COMMAND_PRODUCT_FIRMWARE_VERSION) {
+    } else if (id == info_product_firmware_version) {
         const char *firmware_version = CONFIG_REPO_VERSION_STRING;
         const uint8_t firmware_version_len = sizeof(CONFIG_REPO_VERSION_STRING);
         ring_buf_put(config->response_buf, &firmware_version_len, 1);
@@ -113,44 +113,44 @@ int32_t dap_handle_command_info(const struct device *dev) {
             return -ENOBUFS;
         }
         return ring_buf_size_get(config->response_buf);
-    } else if (id == INFO_COMMAND_CAPABILITIES) {
+    } else if (id == info_capabilities) {
         /* TODO: this all needs to be changed as we support new capabilities */
         const uint8_t capabilities_len = 2;
-        const uint8_t capabilities_info0 = CAPS_NO_SWD_SUPPORT |
-                                           CAPS_NO_JTAG_SUPPORT |
-                                           CAPS_NO_SWO_UART_SUPPORT |
-                                           CAPS_NO_SWO_MANCHESTER_SUPPORT |
-                                           CAPS_NO_ATOMIC_CMDS_SUPPORT |
-                                           CAPS_NO_TEST_DOMAIN_TIMER_SUPPORT |
-                                           CAPS_NO_SWO_TRACE_SUPPORT |
-                                           CAPS_NO_UART_DAP_PORT_SUPPORT;
-        const uint8_t capabilities_info1 = CAPS_SUPPORT_UART_VCP;
+        const uint8_t capabilities_info0 = caps_no_swd_support |
+                                           caps_no_jtag_support |
+                                           caps_no_swo_uart_support |
+                                           caps_no_swo_manchester_support |
+                                           caps_no_atomic_cmds_support |
+                                           caps_no_test_domain_timer_support |
+                                           caps_no_swo_trace_support |
+                                           caps_no_uart_dap_port_support;
+        const uint8_t capabilities_info1 = caps_support_uart_vcp;
         const uint8_t response[3] = { capabilities_len, capabilities_info0, capabilities_info1 };
         ring_buf_put(config->response_buf, response, 3);
         return ring_buf_size_get(config->response_buf);
-    } else if (id == INFO_COMMAND_TEST_DOMAIN_TIMER) {
+    } else if (id == info_test_domain_timer) {
         /* not supported by this debug unit, just return a reasonable default */
         const uint8_t response[5] = { 0x08, 0x00, 0x00, 0x00, 0x00 };
         ring_buf_put(config->response_buf, response, 5);
         return ring_buf_size_get(config->response_buf);
-    } else if (id == INFO_COMMAND_UART_RX_BUFFER_SIZE ||
-               id == INFO_COMMAND_UART_TX_BUFFER_SIZE) {
+    } else if (id == info_uart_rx_buffer_size ||
+               id == info_uart_tx_buffer_size) {
         const uint32_t rx_buf_size = sys_cpu_to_le32(VCP_RING_BUF_SIZE);
         uint8_t response[5] = { 0x04, 0x00, 0x00, 0x00, 0x00 };
         bytecpy(response + 1, &rx_buf_size, sizeof(rx_buf_size));
         ring_buf_put(config->response_buf, response, 5);
         return ring_buf_size_get(config->response_buf);
-    } else if (id == INFO_COMMAND_SWO_BUFFER_SIZE) {
+    } else if (id == info_swo_buffer_size) {
         /* TODO: change this when functionality is supported */
         const uint8_t response[5] = { 0x04, 0x00, 0x00, 0x00, 0x00 };
         ring_buf_put(config->response_buf, response, 5);
         return ring_buf_size_get(config->response_buf);
-    } else if (id == INFO_COMMAND_MAX_PACKET_COUNT) {
+    } else if (id == info_max_packet_count) {
         const uint8_t max_packets = (uint8_t) (DAP_RING_BUF_SIZE / DAP_BULK_EP_MPS);
         uint8_t response[2] = { 0x01, max_packets };
         ring_buf_put(config->response_buf, response, 2);
         return ring_buf_size_get(config->response_buf);
-    } else if (id == INFO_COMMAND_MAX_PACKET_SIZE) {
+    } else if (id == info_max_packet_size) {
         const uint16_t packet_size = sys_cpu_to_le16(DAP_BULK_EP_MPS);
         uint8_t response[3] = { 0x02, 0x00, 0x00 };
         bytecpy(response + 1, &packet_size, sizeof(packet_size));
