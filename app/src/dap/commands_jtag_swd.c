@@ -6,20 +6,10 @@
 
 #include "dap/dap.h"
 #include "dap/commands.h"
+#include "dap/jtag.h"
 #include "util.h"
 
 LOG_MODULE_DECLARE(dap, CONFIG_DAP_LOG_LEVEL);
-
-/* statement statements may not work in non gcc or clang compilers */
-#define JTAG_TDIO_CYCLE(_tdi) ({                        \
-    gpio_pin_set_dt(&config->tdi_gpio, _tdi & 0x01);    \
-    gpio_pin_set_dt(&config->tck_swclk_gpio, 0);        \
-    busy_wait_nanos(data->swj.delay_ns);                \
-    uint8_t _tdo = gpio_pin_get_dt(&config->tdo_gpio);  \
-    gpio_pin_set_dt(&config->tck_swclk_gpio, 1);        \
-    busy_wait_nanos(data->swj.delay_ns);                \
-    _tdo;                                               \
-})
 
 int32_t dap_handle_command_swj_pins(const struct device *dev) {
     const struct dap_config *config = dev->config;
@@ -127,11 +117,18 @@ int32_t dap_handle_command_jtag_configure(const struct device *dev) {
         goto end;
     }
 
+    uint16_t ir_length_sum = 0;
     data->jtag.count = count;
     for (int i = 0; i < data->jtag.count; i++) {
         uint8_t len = 0;
         ring_buf_get(config->request_buf, &len, 1);
+        data->jtag.ir_before[i] = ir_length_sum;
+        ir_length_sum += len;
         data->jtag.ir_length[i] = len;
+    }
+    for (int i = 0; i < data->jtag.count; i++) {
+        ir_length_sum -= data->jtag.ir_length[i];
+        data->jtag.ir_after[i] = ir_length_sum;
     }
 
 end: ;
@@ -187,7 +184,7 @@ int32_t dap_handle_command_jtag_sequence(const struct device *dev) {
 
             uint8_t bits = 8;
             while (bits > 0 && tck_cycles > 0) {
-                uint8_t tdo_bit = JTAG_TDIO_CYCLE(tdi);
+                uint8_t tdo_bit = jtag_tdio_cycle(dev, tdi);
                 tdi >>= 1;
                 tdo >>= 1;
                 tdo |= tdo_bit << 7;
@@ -203,13 +200,37 @@ int32_t dap_handle_command_jtag_sequence(const struct device *dev) {
         }
     }
 
-end: ;
+end:
     *command_status = status;
     return ring_buf_size_get(config->response_buf);
 }
 
 int32_t dap_handle_command_jtag_idcode(const struct device *dev) {
-    return -ENOTSUP; /* TODO */
+    struct dap_data *data = dev->data;
+    const struct dap_config *config = dev->config;
+    uint8_t status = DAP_COMMAND_RESPONSE_OK;
+    uint32_t idcode = 0;
+
+    const uint8_t jtag_ir_idcode = 0x0e;
+
+    if (ring_buf_size_get(config->request_buf) < 1) { return -EMSGSIZE; }
+
+    uint8_t index = 0;
+    ring_buf_get(config->request_buf, &index, 1);
+    if ((data->swj.port != DAP_PORT_JTAG) ||
+        (index >= data->jtag.count)) {
+        status = DAP_COMMAND_RESPONSE_ERROR;
+        goto end;
+    }
+
+    jtag_set_ir(dev, index, jtag_ir_idcode);
+    idcode = jtag_get_dr_le32(dev, index);
+
+end: ;
+    uint8_t response[] = {DAP_COMMAND_JTAG_IDCODE, status, 0, 0, 0, 0};
+    memcpy(&response[2], (uint8_t*) &idcode, sizeof(idcode));
+    ring_buf_put(config->response_buf, response, ARRAY_SIZE(response));
+    return ring_buf_size_get(config->response_buf);
 }
 
 int32_t dap_handle_command_swd_configure(const struct device *dev) {

@@ -36,10 +36,12 @@ struct dap_data {
     struct {
         /* number of devices in chain */
         uint8_t count;
-        /* index of target device */
-        uint8_t index;
         /* ir length of each device in the chain */
         uint8_t ir_length[DAP_JTAG_MAX_DEVICE_COUNT];
+        /* ir length before each device in the chain */
+        uint16_t ir_before[DAP_JTAG_MAX_DEVICE_COUNT];
+        /* ir length after each device in the chain */
+        uint16_t ir_after[DAP_JTAG_MAX_DEVICE_COUNT];
     } jtag;
 
     struct {

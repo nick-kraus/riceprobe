@@ -28,8 +28,9 @@ int32_t dap_reset(const struct device *dev) {
     data->swj.clock = DAP_DEFAULT_SWJ_CLOCK_RATE;
     data->swj.delay_ns = 1000000000 / DAP_DEFAULT_SWJ_CLOCK_RATE / 2;
     data->jtag.count = 0;
-    data->jtag.index = 0;
     memset(data->jtag.ir_length, 0, sizeof(data->jtag.ir_length));
+    memset(data->jtag.ir_before, 0, sizeof(data->jtag.ir_before));
+    memset(data->jtag.ir_after, 0, sizeof(data->jtag.ir_after));
 
     ring_buf_reset(config->request_buf);
     ring_buf_reset(config->response_buf);
@@ -74,13 +75,13 @@ int32_t dap_handle_request(const struct device *dev) {
         return dap_handle_command_swj_clock(dev);
     case DAP_COMMAND_SWJ_SEQUENCE:
         return dap_handle_command_swj_sequence(dev);
-    case DAP_COMMAND_SWD_CONFIGURE:
+    case DAP_COMMAND_JTAG_CONFIGURE:
         return dap_handle_command_jtag_configure(dev);
     case DAP_COMMAND_JTAG_SEQUENCE:
         return dap_handle_command_jtag_sequence(dev);
-    case DAP_COMMAND_JTAG_CONFIGURE:
-        return dap_handle_command_jtag_idcode(dev);
     case DAP_COMMAND_JTAG_IDCODE:
+        return dap_handle_command_jtag_idcode(dev);
+    case DAP_COMMAND_SWD_CONFIGURE:
         return dap_handle_command_swd_configure(dev);
     case DAP_COMMAND_SWD_SEQUENCE:
         return dap_handle_command_swd_sequence(dev);

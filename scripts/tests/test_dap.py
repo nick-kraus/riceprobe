@@ -188,7 +188,7 @@ def test_swj_clock_command(usb_dap_eps):
     out_ep.write(b'\x11\x87\xd6\x12\x00')
     assert(in_ep.read(512).tobytes() == b'\x11\x00')
 
-def test_jtag_sequence(usb_dap_eps):
+def test_jtag_sequence_configure_idcode_command(usb_dap_eps):
     (out_ep, in_ep) = usb_dap_eps
 
     # configure dap port as jtag
@@ -246,3 +246,11 @@ def test_jtag_sequence(usb_dap_eps):
     # jtag state: idle
     out_ep.write(b'\x14\x01\x01\x00')
     assert(in_ep.read(512).tobytes() == b'\x14\x00')
+
+    # configure the jtag tap details
+    out_ep.write(b'\x15\x02\x04\x05')
+    assert(in_ep.read(512).tobytes() == b'\x15\x00')
+
+    # now configure run the idcode command and make sure we get the same result
+    out_ep.write(b'\x16\x00')
+    assert(in_ep.read(512).tobytes() == b'\x16\x00\x77\x04\xa0\x4b')
