@@ -6,99 +6,137 @@
 
 #include "dap/dap.h"
 #include "dap/commands.h"
-#include "dap/jtag.h"
 #include "util.h"
 
 LOG_MODULE_DECLARE(dap, CONFIG_DAP_LOG_LEVEL);
 
-int32_t dap_handle_command_swj_pins(const struct device *dev) {
-    const struct dap_config *config = dev->config;
-
-    /* command pin bitfields */
-    const uint8_t pin_swclk_tck_shift = 0;
-    const uint8_t pin_swdio_tms_shift = 1;
-    const uint8_t pin_tdi_shift = 2;
-    const uint8_t pin_tdo_shift = 3;
-    const uint8_t pin_nreset_shift = 7;
-
-    if (ring_buf_size_get(config->request_buf) < 6) { return -EMSGSIZE; }
-
-    uint8_t pin_output = 0;
-    uint8_t pin_mask = 0;
-    uint32_t delay_us = 0;
-    ring_buf_get(config->request_buf, &pin_output, 1);
-    ring_buf_get(config->request_buf, &pin_mask, 1);
-    ring_buf_get(config->request_buf, (uint8_t*) &delay_us, 4);
-    delay_us = sys_le32_to_cpu(delay_us);
-
-    if ((pin_mask & BIT(pin_swclk_tck_shift)) != 0) {
-        gpio_pin_set_dt(&config->tck_swclk_gpio, (pin_output & BIT(pin_swclk_tck_shift)) == 0 ? 0 : 1);
-    }
-    if ((pin_mask & BIT(pin_swdio_tms_shift)) != 0) {
-        gpio_pin_set_dt(&config->tms_swdio_gpio, (pin_output & BIT(pin_swdio_tms_shift)) == 0 ? 0 : 1);
-    }
-    if ((pin_mask & BIT(pin_tdi_shift)) != 0) {
-        gpio_pin_set_dt(&config->tdi_gpio, (pin_output & BIT(pin_tdi_shift)) == 0 ? 0 : 1);
-    }
-    if ((pin_mask & BIT(pin_tdo_shift)) != 0) {
-        gpio_pin_set_dt(&config->tdo_gpio, (pin_output & BIT(pin_tdo_shift)) == 0 ? 0 : 1);
-    }
-    if ((pin_mask & BIT(pin_nreset_shift)) != 0) {
-        gpio_pin_set_dt(&config->nreset_gpio, (pin_output & BIT(pin_nreset_shift)) == 0 ? 0 : 1);
-    }
-    /* ignore nTRST, this debug probe doesn't support it */
-
-    /* maximum wait time allowed by command */
-    if (delay_us > 3000000) {
-        delay_us = 3000000;
-    }
-    /* all pins expect nreset are push-pull, don't wait on those */
-    if ((delay_us > 0) && (pin_mask & BIT(pin_nreset_shift))) {
-        uint64_t delay_end = sys_clock_timeout_end_calc(K_USEC(delay_us));
-        do {
-            uint32_t nreset_val = gpio_pin_get_dt(&config->nreset_gpio);
-            if ((pin_output & BIT(pin_nreset_shift)) ^ (nreset_val << pin_nreset_shift)) {
-                k_busy_wait(1);
-            } else {
-                break;
-            }
-        } while (delay_end > k_uptime_ticks());
-    }
-
-    uint8_t pin_input =
-        (gpio_pin_get_dt(&config->tck_swclk_gpio) << pin_swclk_tck_shift) |
-        (gpio_pin_get_dt(&config->tms_swdio_gpio) << pin_swdio_tms_shift) |
-        (gpio_pin_get_dt(&config->tdi_gpio) << pin_tdi_shift) |
-        (gpio_pin_get_dt(&config->tdo_gpio) << pin_tdo_shift) |
-        (gpio_pin_get_dt(&config->nreset_gpio) << pin_nreset_shift);
-    uint8_t response[] = {DAP_COMMAND_SWJ_PINS, pin_input};
-    ring_buf_put(config->response_buf, response, ARRAY_SIZE(response));
-
-    return ring_buf_size_get(config->response_buf);
-}
-
-int32_t dap_handle_command_swj_clock(const struct device *dev) {
+static inline void jtag_tck_cycle(const struct device *dev) {
     struct dap_data *data = dev->data;
     const struct dap_config *config = dev->config;
 
-    if (ring_buf_size_get(config->request_buf) < 4) { return -EMSGSIZE; }
-
-    uint32_t clock = DAP_DEFAULT_SWJ_CLOCK_RATE;
-    ring_buf_get(config->request_buf, (uint8_t*) &clock, 4);
-    if (clock != 0) {
-        data->swj.clock = sys_le32_to_cpu(clock);
-        data->swj.delay_ns = 1000000000 / clock / 2;
-    }
-
-    uint8_t status = clock == 0 ? DAP_COMMAND_RESPONSE_ERROR : DAP_COMMAND_RESPONSE_OK;
-    uint8_t response[] = {DAP_COMMAND_SWJ_CLOCK, status};
-    ring_buf_put(config->response_buf, response, ARRAY_SIZE(response));
-
-    return ring_buf_size_get(config->response_buf);
+    gpio_pin_set_dt(&config->tck_swclk_gpio, 0);
+    busy_wait_nanos(data->swj.delay_ns);
+    gpio_pin_set_dt(&config->tck_swclk_gpio, 1);
+    busy_wait_nanos(data->swj.delay_ns);
 }
 
-int32_t dap_handle_command_swj_sequence(const struct device *dev) {
-    return -ENOTSUP; /* TODO */
+static inline void jtag_tdi_cycle(const struct device *dev, uint8_t tdi) {
+    struct dap_data *data = dev->data;
+    const struct dap_config *config = dev->config;
+
+    gpio_pin_set_dt(&config->tdi_gpio, tdi & 0x01);
+    gpio_pin_set_dt(&config->tck_swclk_gpio, 0);
+    busy_wait_nanos(data->swj.delay_ns);
+    gpio_pin_set_dt(&config->tck_swclk_gpio, 1);
+    busy_wait_nanos(data->swj.delay_ns);
+}
+
+static inline uint8_t jtag_tdo_cycle(const struct device *dev) {
+    struct dap_data *data = dev->data;
+    const struct dap_config *config = dev->config;
+
+    gpio_pin_set_dt(&config->tck_swclk_gpio, 0);
+    busy_wait_nanos(data->swj.delay_ns);
+    uint8_t tdo = gpio_pin_get_dt(&config->tdo_gpio);
+    gpio_pin_set_dt(&config->tck_swclk_gpio, 1);
+    busy_wait_nanos(data->swj.delay_ns);
+    return tdo;
+}
+
+static inline uint8_t jtag_tdio_cycle(const struct device *dev, uint8_t tdi) {
+    struct dap_data *data = dev->data;
+    const struct dap_config *config = dev->config;
+
+    gpio_pin_set_dt(&config->tdi_gpio, tdi & 0x01);
+    gpio_pin_set_dt(&config->tck_swclk_gpio, 0);
+    busy_wait_nanos(data->swj.delay_ns);
+    uint8_t tdo = gpio_pin_get_dt(&config->tdo_gpio);
+    gpio_pin_set_dt(&config->tck_swclk_gpio, 1);
+    busy_wait_nanos(data->swj.delay_ns);
+    return tdo;
+}
+
+static void jtag_set_ir(const struct device *dev, uint8_t index, uint32_t ir) {
+    struct dap_data *data = dev->data;
+    const struct dap_config *config = dev->config;
+
+    /* assumes we are starting in idle tap state, move to select-dr-scan then select-ir-scan */
+    gpio_pin_set_dt(&config->tms_swdio_gpio, 1);
+    jtag_tck_cycle(dev);
+    jtag_tck_cycle(dev);
+
+    /* capture-ir, then shift-ir */
+    gpio_pin_set_dt(&config->tms_swdio_gpio, 0);
+    jtag_tck_cycle(dev);
+    jtag_tck_cycle(dev);
+
+    /* bypass all tap bits before index */
+    gpio_pin_set_dt(&config->tdi_gpio, 1);
+    for (int i = 0; i < data->jtag.ir_before[index]; i++) {
+        jtag_tck_cycle(dev);
+    }
+    /* set all ir bits except the last */
+    for (int i = 0; i < data->jtag.ir_length[index] - 1; i++) {
+        jtag_tdi_cycle(dev, ir);
+        ir >>= 1;
+    }
+    /* set last ir bit and bypass all remaining ir bits */
+    if (data->jtag.ir_after[index] == 0) {
+        /* set last ir bit, then exit-1-ir */
+        gpio_pin_set_dt(&config->tms_swdio_gpio, 1);
+        jtag_tdi_cycle(dev, ir);
+    } else {
+        jtag_tdi_cycle(dev, ir);
+        gpio_pin_set_dt(&config->tdi_gpio, 1);
+        for (int i = 0; i < data->jtag.ir_after[index] - 1; i++) {
+            jtag_tck_cycle(dev);
+        }
+        /* set last bypass bit, then exit-1-ir */
+        gpio_pin_set_dt(&config->tms_swdio_gpio, 1);
+        jtag_tck_cycle(dev);
+    }
+
+    /* update-ir then idle */
+    jtag_tck_cycle(dev);
+    gpio_pin_set_dt(&config->tms_swdio_gpio, 0);
+    jtag_tck_cycle(dev);
+    gpio_pin_set_dt(&config->tdi_gpio, 1);
+
+    return;
+}
+
+static uint32_t jtag_get_dr_le32(const struct device *dev, uint8_t index) {
+    const struct dap_config *config = dev->config;
+
+    /* assumes we are starting in idle tap state, move to select-dr-scan */
+    gpio_pin_set_dt(&config->tms_swdio_gpio, 1);
+    jtag_tck_cycle(dev);
+
+    /* capture-dr, then shift-dr */
+    gpio_pin_set_dt(&config->tms_swdio_gpio, 0);
+    jtag_tck_cycle(dev);
+    jtag_tck_cycle(dev);
+
+    /* bypass for every tap before the current index */
+    for (int i = 0; i < index; i++) {
+        jtag_tck_cycle(dev);
+    }
+
+    /* tdo bits 0..30 */
+    uint32_t word = 0;
+    for (int i = 0; i < 31; i++) {
+        word |= jtag_tdo_cycle(dev) << i;
+    }
+    /* last tdo bit and exit-1-dr*/
+    gpio_pin_set_dt(&config->tms_swdio_gpio, 1);
+    word |= jtag_tdo_cycle(dev) << 31;
+
+    /* update-dr, then idle */
+    jtag_tck_cycle(dev);
+    gpio_pin_set_dt(&config->tms_swdio_gpio, 0);
+    jtag_tck_cycle(dev);
+
+    return sys_le32_to_cpu(word);
 }
 
 int32_t dap_handle_command_jtag_configure(const struct device *dev) {
@@ -231,12 +269,4 @@ end: ;
     memcpy(&response[2], (uint8_t*) &idcode, sizeof(idcode));
     ring_buf_put(config->response_buf, response, ARRAY_SIZE(response));
     return ring_buf_size_get(config->response_buf);
-}
-
-int32_t dap_handle_command_swd_configure(const struct device *dev) {
-    return -ENOTSUP; /* TODO */
-}
-
-int32_t dap_handle_command_swd_sequence(const struct device *dev) {
-    return -ENOTSUP; /* TODO */
 }

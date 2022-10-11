@@ -63,8 +63,16 @@ int32_t dap_handle_request(const struct device *dev) {
         return dap_handle_command_connect(dev);
     case DAP_COMMAND_DISCONNECT:
         return dap_handle_command_disconnect(dev);
+    case DAP_COMMAND_TRANSFER_CONFIGURE:
+        return -ENOTSUP; /* TODO */
+    case DAP_COMMAND_TRANSFER:
+        return -ENOTSUP; /* TODO */
+    case DAP_COMMAND_TRANSFER_BLOCK:
+        return -ENOTSUP; /* TODO */
+    case DAP_COMMAND_TRANSFER_ABORT:
+        return -ENOTSUP; /* TODO */
     case DAP_COMMAND_WRITE_ABORT:
-        return dap_handle_command_write_abort(dev);
+        return -ENOTSUP; /* TODO */
     case DAP_COMMAND_DELAY:
         return dap_handle_command_delay(dev);
     case DAP_COMMAND_RESET_TARGET:
@@ -74,17 +82,45 @@ int32_t dap_handle_request(const struct device *dev) {
     case DAP_COMMAND_SWJ_CLOCK:
         return dap_handle_command_swj_clock(dev);
     case DAP_COMMAND_SWJ_SEQUENCE:
-        return dap_handle_command_swj_sequence(dev);
-    case DAP_COMMAND_JTAG_CONFIGURE:
-        return dap_handle_command_jtag_configure(dev);
+        return -ENOTSUP; /* TODO */
+    case DAP_COMMAND_SWD_CONFIGURE:
+        return -ENOTSUP; /* TODO */
     case DAP_COMMAND_JTAG_SEQUENCE:
         return dap_handle_command_jtag_sequence(dev);
+    case DAP_COMMAND_JTAG_CONFIGURE:
+        return dap_handle_command_jtag_configure(dev);
     case DAP_COMMAND_JTAG_IDCODE:
         return dap_handle_command_jtag_idcode(dev);
-    case DAP_COMMAND_SWD_CONFIGURE:
-        return dap_handle_command_swd_configure(dev);
+    case DAP_COMMAND_SWO_TRANSPORT:
+        return -ENOTSUP; /* TODO */
+    case DAP_COMMAND_SWO_MODE:
+        return -ENOTSUP; /* TODO */
+    case DAP_COMMAND_SWO_BAUDRATE:
+        return -ENOTSUP; /* TODO */
+    case DAP_COMMAND_SWO_CONTROL:
+        return -ENOTSUP; /* TODO */
+    case DAP_COMMAND_SWO_STATUS:
+        return -ENOTSUP; /* TODO */
+    case DAP_COMMAND_SWO_DATA:
+        return -ENOTSUP; /* TODO */
     case DAP_COMMAND_SWD_SEQUENCE:
-        return dap_handle_command_swd_sequence(dev);
+        return -ENOTSUP; /* TODO */
+    case DAP_COMMAND_SWO_EXTENDED_STATUS:
+        return -ENOTSUP; /* TODO */
+    case DAP_COMMAND_UART_TRANSPORT:
+        return -ENOTSUP; /* TODO */
+    case DAP_COMMAND_UART_CONFIGURE:
+        return -ENOTSUP; /* TODO */
+    case DAP_COMMAND_UART_TRANSFER:
+        return -ENOTSUP; /* TODO */
+    case DAP_COMMAND_UART_CONTROL:
+        return -ENOTSUP; /* TODO */
+    case DAP_COMMAND_UART_STATUS:
+        return -ENOTSUP; /* TODO */
+    case DAP_COMMAND_QUEUE_COMMANDS:
+        return -ENOTSUP; /* TODO */
+    case DAP_COMMAND_EXECUTE_COMMANDS:
+        return -ENOTSUP; /* TODO */
     default:
         LOG_ERR("unsupported command 0x%x", command);
         return -ENOTSUP;
