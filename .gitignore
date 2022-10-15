@@ -71,3 +71,6 @@ Makefile
 .vscode
 *.swp
 *~
+
+# Miscellaneous local files
+/*.ignore.*
