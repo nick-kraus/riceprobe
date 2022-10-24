@@ -24,13 +24,19 @@ int32_t dap_reset(const struct device *dev) {
     FATAL_CHECK(gpio_pin_configure_dt(&config->tdi_gpio, GPIO_INPUT) >= 0, "tdi config failed");
     FATAL_CHECK(gpio_pin_configure_dt(&config->nreset_gpio, GPIO_INPUT) >= 0, "nreset config failed");
 
+    /* set all internal state to sane defaults */
     data->swj.port = DAP_PORT_DISABLED;
     data->swj.clock = DAP_DEFAULT_SWJ_CLOCK_RATE;
     data->swj.delay_ns = 1000000000 / DAP_DEFAULT_SWJ_CLOCK_RATE / 2;
     data->jtag.count = 0;
+    data->jtag.index = 0;
     memset(data->jtag.ir_length, 0, sizeof(data->jtag.ir_length));
     memset(data->jtag.ir_before, 0, sizeof(data->jtag.ir_before));
     memset(data->jtag.ir_after, 0, sizeof(data->jtag.ir_after));
+    data->transfer.idle_cycles = 0;
+    data->transfer.wait_retries = 100;
+    data->transfer.match_retries = 0;
+    data->transfer.match_mask = 0;
 
     ring_buf_reset(config->request_buf);
     ring_buf_reset(config->response_buf);
@@ -64,9 +70,9 @@ int32_t dap_handle_request(const struct device *dev) {
     case DAP_COMMAND_DISCONNECT:
         return dap_handle_command_disconnect(dev);
     case DAP_COMMAND_TRANSFER_CONFIGURE:
-        return -ENOTSUP; /* TODO */
+        return dap_handle_command_transfer_configure(dev);
     case DAP_COMMAND_TRANSFER:
-        return -ENOTSUP; /* TODO */
+        return dap_handle_command_transfer(dev);
     case DAP_COMMAND_TRANSFER_BLOCK:
         return -ENOTSUP; /* TODO */
     case DAP_COMMAND_TRANSFER_ABORT:

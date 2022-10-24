@@ -17,6 +17,7 @@ target_sources(app PRIVATE
     "app/src/dap/dap.c"
     "app/src/dap/commands_general.c"
     "app/src/dap/commands_jtag.c"
+    "app/src/dap/commands_transfer.c"
     "app/src/dap/usb.c"
     "app/src/io/io.c"
     "app/src/io/usb.c"

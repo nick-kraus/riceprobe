@@ -40,17 +40,44 @@
 #define DAP_COMMAND_QUEUE_COMMANDS          ((uint8_t) 0x7e)
 #define DAP_COMMAND_EXECUTE_COMMANDS        ((uint8_t) 0x7f)
 
+/* jtag ir instructions */
+#define JTAG_IR_DPACC                       ((uint8_t) 0x0a)
+#define JTAG_IR_APACC                       ((uint8_t) 0x0b)
+#define JTAG_IR_IDCODE                      ((uint8_t) 0x0e)
+
+/* dap transfer request bits */
+#define TRANSFER_REQUEST_APnDP              ((uint8_t) 0x01)
+#define TRANSFER_REQUEST_RnW                ((uint8_t) 0x02)
+#define TRANSFER_REQUEST_MATCH_VALUE        ((uint8_t) 0x10)
+#define TRANSFER_REQUEST_MATCH_MASK         ((uint8_t) 0x20)
+
+#define TRANSFER_REQUEST_RnW_SHIFT          ((uint8_t) 0x01)
+#define TRANSFER_REQUEST_A2_SHIFT           ((uint8_t) 0x02)
+#define TRANSFER_REQUEST_A3_SHIFT           ((uint8_t) 0x03)
+
+/* debug port addresses */
+#define DP_ADDR_RDBUFF                      ((uint8_t) 0x0c)
+
+/* dap transfer response bits */
+#define TRANSFER_RESPONSE_ACK_OK            ((uint8_t) 0x01)
+#define TRANSFER_RESPONSE_ACK_WAIT          ((uint8_t) 0x02)
+#define TRANSFER_RESPONSE_VALUE_MISMATCH    ((uint8_t) 0x10)
+
+void jtag_set_ir(const struct device *dev, uint32_t ir);
+uint8_t jtag_transfer(const struct device *dev, uint8_t request, uint32_t *transfer_data);
+
 int32_t dap_handle_command_info(const struct device *dev);
 int32_t dap_handle_command_host_status(const struct device *dev);
 int32_t dap_handle_command_connect(const struct device *dev);
 int32_t dap_handle_command_disconnect(const struct device *dev);
-int32_t dap_handle_command_write_abort(const struct device *dev);
+int32_t dap_handle_command_transfer_configure(const struct device *dev);
+int32_t dap_handle_command_transfer(const struct device *dev);
 int32_t dap_handle_command_delay(const struct device *dev);
 int32_t dap_handle_command_reset_target(const struct device *dev);
 int32_t dap_handle_command_swj_pins(const struct device *dev);
 int32_t dap_handle_command_swj_clock(const struct device *dev);
-int32_t dap_handle_command_jtag_configure(const struct device *dev);
 int32_t dap_handle_command_jtag_sequence(const struct device *dev);
+int32_t dap_handle_command_jtag_configure(const struct device *dev);
 int32_t dap_handle_command_jtag_idcode(const struct device *dev);
 
 #endif /* __DAP_COMMANDS_PRIV_H__ */

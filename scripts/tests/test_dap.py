@@ -254,3 +254,66 @@ def test_jtag_sequence_configure_idcode_command(usb_dap_eps):
     # now configure run the idcode command and make sure we get the same result
     out_ep.write(b'\x16\x00')
     assert(in_ep.read(512).tobytes() == b'\x16\x00\x77\x04\xa0\x4b')
+
+def test_jtag_transfer_configure_command(usb_dap_eps):
+    (out_ep, in_ep) = usb_dap_eps
+
+    # configure dap port as jtag, and jtag tag details
+    out_ep.write(b'\x02\x02')
+    assert(in_ep.read(512).tobytes() == b'\x02\x02')
+    # configure the jtag tap details
+    out_ep.write(b'\x15\x02\x04\x05')
+    assert(in_ep.read(512).tobytes() == b'\x15\x00')
+
+    # reset target
+    out_ep.write(b'\x10\x00\x80\xff\xff\x00\x00')
+    assert(in_ep.read(512).tobytes()[0] == 0x10)
+    time.sleep(0.1)
+    out_ep.write(b'\x10\x80\x80\xff\xff\x00\x00')
+    assert(in_ep.read(512).tobytes()[0] == 0x10)
+
+    # set a reasonable clock rate (about 1MHz), then reset jtag state to idle
+    out_ep.write(b'\x11\x00\x0a\x0f\x00')
+    assert(in_ep.read(512).tobytes() == b'\x11\x00')
+    out_ep.write(b'\x14\x02\x48\x00\x01\x00')
+    assert(in_ep.read(512).tobytes() == b'\x14\x00')
+
+    # write to DP, CTRL/STAT register (0x4)
+    # clear the register fully to return to an expected default state
+    out_ep.write(b'\x05\x00\x01\x04\x00\x00\x00\x00')
+    assert(in_ep.read(512).tobytes() == b'\x05\x01\x01')
+    # read from DP, CTRL/STAT register (0x4), verify previous write
+    out_ep.write(b'\x05\x00\x01\x06')
+    # the value never fully clears for the given target, but most bits do
+    assert(in_ep.read(512).tobytes() == b'\x05\x01\x01\x00\x00\x00\x20')
+    # write to DP, CTRL/STAT register (0x4)
+    # set the CSYSPWRUPREQ and CDBGPWRUPREQ bits to enable debug power-up, and clear
+    # the STICKYERR flag in case is was previously set
+    out_ep.write(b'\x05\x00\x01\x04\x10\x00\x00\x50')
+    assert(in_ep.read(512).tobytes() == b'\x05\x01\x01')
+    # read from DP, CTRL/STAT register (0x4), verify previous write
+    out_ep.write(b'\x05\x00\x01\x06')
+    assert(in_ep.read(512).tobytes() == b'\x05\x01\x01\x00\x00\x00\xf0')
+
+    # write to DP, SELECT register (0x8)
+    # set APSEL to 0 and APBANKSEL to the AP register bank containing the ID register (0xf)
+    out_ep.write(b'\x05\x00\x01\x08\xf0\x00\x00\x00')
+    assert(in_ep.read(512).tobytes() == b'\x05\x01\x01')
+    # read from DP, SELECT register (0x8), verify previous write
+    out_ep.write(b'\x05\x00\x01\x0a')
+    assert(in_ep.read(512).tobytes() == b'\x05\x01\x01\xf0\x00\x00\x00')
+
+    # DAP AP 0 should be a MEM-AP for the given target, designed by ARM Limited, with a 
+    # JEP-106 identity code of 0x3b
+
+    # write match mask, for JEP-106 identity code bits
+    out_ep.write(b'\x05\x00\x01\x20\x00\x00\xfe\x00')
+    assert(in_ep.read(512).tobytes() == b'\x05\x01\x01')
+    # read match value from AP, ID register (0xc)
+    out_ep.write(b'\x05\x00\x01\x1f\x00\x00\x76\x00')
+    assert(in_ep.read(512).tobytes() == b'\x05\x01\x01')
+
+    # read match value from AP, ID register (0xc)
+    # wrong value on purpose, to verify a value mismatch error is created
+    out_ep.write(b'\x05\x00\x01\x1f\x00\x00\x76\x01')
+    assert(in_ep.read(512).tobytes() == b'\x05\x00\x11')

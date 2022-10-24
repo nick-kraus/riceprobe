@@ -40,7 +40,7 @@ static inline uint8_t jtag_tdo_cycle(const struct device *dev) {
     uint8_t tdo = gpio_pin_get_dt(&config->tdo_gpio);
     gpio_pin_set_dt(&config->tck_swclk_gpio, 1);
     busy_wait_nanos(data->swj.delay_ns);
-    return tdo;
+    return tdo & 0x01;
 }
 
 static inline uint8_t jtag_tdio_cycle(const struct device *dev, uint8_t tdi) {
@@ -53,10 +53,10 @@ static inline uint8_t jtag_tdio_cycle(const struct device *dev, uint8_t tdi) {
     uint8_t tdo = gpio_pin_get_dt(&config->tdo_gpio);
     gpio_pin_set_dt(&config->tck_swclk_gpio, 1);
     busy_wait_nanos(data->swj.delay_ns);
-    return tdo;
+    return tdo & 0x01;
 }
 
-static void jtag_set_ir(const struct device *dev, uint8_t index, uint32_t ir) {
+void jtag_set_ir(const struct device *dev, uint32_t ir) {
     struct dap_data *data = dev->data;
     const struct dap_config *config = dev->config;
 
@@ -72,23 +72,23 @@ static void jtag_set_ir(const struct device *dev, uint8_t index, uint32_t ir) {
 
     /* bypass all tap bits before index */
     gpio_pin_set_dt(&config->tdi_gpio, 1);
-    for (int i = 0; i < data->jtag.ir_before[index]; i++) {
+    for (int i = 0; i < data->jtag.ir_before[data->jtag.index]; i++) {
         jtag_tck_cycle(dev);
     }
     /* set all ir bits except the last */
-    for (int i = 0; i < data->jtag.ir_length[index] - 1; i++) {
+    for (int i = 0; i < data->jtag.ir_length[data->jtag.index] - 1; i++) {
         jtag_tdi_cycle(dev, ir);
         ir >>= 1;
     }
     /* set last ir bit and bypass all remaining ir bits */
-    if (data->jtag.ir_after[index] == 0) {
+    if (data->jtag.ir_after[data->jtag.index] == 0) {
         /* set last ir bit, then exit-1-ir */
         gpio_pin_set_dt(&config->tms_swdio_gpio, 1);
         jtag_tdi_cycle(dev, ir);
     } else {
         jtag_tdi_cycle(dev, ir);
         gpio_pin_set_dt(&config->tdi_gpio, 1);
-        for (int i = 0; i < data->jtag.ir_after[index] - 1; i++) {
+        for (int i = 0; i < data->jtag.ir_after[data->jtag.index] - 1; i++) {
             jtag_tck_cycle(dev);
         }
         /* set last bypass bit, then exit-1-ir */
@@ -105,8 +105,10 @@ static void jtag_set_ir(const struct device *dev, uint8_t index, uint32_t ir) {
     return;
 }
 
-static uint32_t jtag_get_dr_le32(const struct device *dev, uint8_t index) {
+uint8_t jtag_transfer(const struct device *dev, uint8_t request, uint32_t *transfer_data) {
+    struct dap_data *data = dev->data;
     const struct dap_config *config = dev->config;
+    uint8_t ack = 0;
 
     /* assumes we are starting in idle tap state, move to select-dr-scan */
     gpio_pin_set_dt(&config->tms_swdio_gpio, 1);
@@ -118,25 +120,89 @@ static uint32_t jtag_get_dr_le32(const struct device *dev, uint8_t index) {
     jtag_tck_cycle(dev);
 
     /* bypass for every tap before the current index */
-    for (int i = 0; i < index; i++) {
+    for (int i = 0; i < data->jtag.index; i++) {
         jtag_tck_cycle(dev);
     }
 
-    /* tdo bits 0..30 */
-    uint32_t word = 0;
-    for (int i = 0; i < 31; i++) {
-        word |= jtag_tdo_cycle(dev) << i;
-    }
-    /* last tdo bit and exit-1-dr*/
-    gpio_pin_set_dt(&config->tms_swdio_gpio, 1);
-    word |= jtag_tdo_cycle(dev) << 31;
+    /* set RnW, A2, and A3, and get previous ack[0..2]. ack[0] and ack[1] are swapped here
+     * because the bottom two bits of the JTAG ack response are flipped from the dap transfer
+     * ack response (i.e. jtag ack ok/fault = 0x2, dap ack ok/fault = 0x1) */
+    ack |= jtag_tdio_cycle(dev, request >> TRANSFER_REQUEST_RnW_SHIFT) << 1;
+    ack |= jtag_tdio_cycle(dev, request >> TRANSFER_REQUEST_A2_SHIFT) << 0;
+    ack |= jtag_tdio_cycle(dev, request >> TRANSFER_REQUEST_A3_SHIFT) << 2;
 
+    if (ack != TRANSFER_RESPONSE_ACK_OK) {
+        /* exit-1-dr */
+        gpio_pin_set_dt(&config->tms_swdio_gpio, 1);
+        jtag_tck_cycle(dev);
+        goto end;
+    }
+
+    uint32_t dr = 0;
+    if ((request & TRANSFER_REQUEST_RnW) != 0) {
+        /* get bits 0..30 */
+        for (int i = 0; i < 31; i++) {
+            dr |= jtag_tdo_cycle(dev) << i;
+        }
+
+        uint8_t after_index = data->jtag.count - data->jtag.index - 1;
+        if (after_index > 0) {
+            /* get bit 31, then bypass after index */
+            dr |= jtag_tdo_cycle(dev) << 31;
+            for (int i = 0; i < after_index - 1; i++) {
+                jtag_tck_cycle(dev);
+            }
+            /* bypass, then exit-1-dr */
+            gpio_pin_set_dt(&config->tms_swdio_gpio, 1);
+            jtag_tck_cycle(dev);
+        } else {
+            /* get bit 31, then exit-1-dr */
+            gpio_pin_set_dt(&config->tms_swdio_gpio, 1);
+            dr |= jtag_tdo_cycle(dev) << 31;
+        }
+
+        *transfer_data = dr;
+    } else {
+        dr = *transfer_data;
+
+        /* set bits 0..30 */
+        for (int i = 0; i < 31; i++) {
+            jtag_tdi_cycle(dev, dr);
+            dr >>= 1;
+        }
+
+        uint8_t after_index = data->jtag.count - data->jtag.index - 1;
+        if (after_index > 0) {
+            /* set bit 31, then bypass after index */
+            jtag_tdi_cycle(dev, dr);
+            for (int i = 0; i < after_index - 1; i++) {
+                jtag_tck_cycle(dev);
+            }
+            /* bypass, then exit-1-dr */
+            gpio_pin_set_dt(&config->tms_swdio_gpio, 1);
+            jtag_tck_cycle(dev);
+        } else {
+            /* set bit 31, then exit-1-dr */
+            gpio_pin_set_dt(&config->tms_swdio_gpio, 1);
+            jtag_tdi_cycle(dev, dr);
+        }
+    }
+
+end:
     /* update-dr, then idle */
     jtag_tck_cycle(dev);
     gpio_pin_set_dt(&config->tms_swdio_gpio, 0);
     jtag_tck_cycle(dev);
+    gpio_pin_set_dt(&config->tdi_gpio, 1);
 
-    return sys_le32_to_cpu(word);
+    /* TODO: grab timestamp here when supported */
+
+    /* idle for configured cycles */
+    for (int i = 0; i < data->transfer.idle_cycles; i++) {
+        jtag_tck_cycle(dev);
+    }
+
+    return ack;
 }
 
 int32_t dap_handle_command_jtag_configure(const struct device *dev) {
@@ -249,8 +315,6 @@ int32_t dap_handle_command_jtag_idcode(const struct device *dev) {
     uint8_t status = DAP_COMMAND_RESPONSE_OK;
     uint32_t idcode = 0;
 
-    const uint8_t jtag_ir_idcode = 0x0e;
-
     if (ring_buf_size_get(config->request_buf) < 1) { return -EMSGSIZE; }
 
     uint8_t index = 0;
@@ -259,10 +323,37 @@ int32_t dap_handle_command_jtag_idcode(const struct device *dev) {
         (index >= data->jtag.count)) {
         status = DAP_COMMAND_RESPONSE_ERROR;
         goto end;
+    } else {
+        data->jtag.index = index;
     }
 
-    jtag_set_ir(dev, index, jtag_ir_idcode);
-    idcode = jtag_get_dr_le32(dev, index);
+    jtag_set_ir(dev, JTAG_IR_IDCODE);
+
+    /* select-dr-scan */
+    gpio_pin_set_dt(&config->tms_swdio_gpio, 1);
+    jtag_tck_cycle(dev);
+    /* capture-dr, then shift-dr */
+    gpio_pin_set_dt(&config->tms_swdio_gpio, 0);
+    jtag_tck_cycle(dev);
+    jtag_tck_cycle(dev);
+
+    /* bypass for every tap before the current index */
+    for (int i = 0; i < data->jtag.index; i++) {
+        jtag_tck_cycle(dev);
+    }
+    /* tdo bits 0..30 */
+    for (int i = 0; i < 31; i++) {
+        idcode |= jtag_tdo_cycle(dev) << i;
+    }
+    /* last tdo bit and exit-1-dr*/
+    gpio_pin_set_dt(&config->tms_swdio_gpio, 1);
+    idcode |= jtag_tdo_cycle(dev) << 31;
+    idcode = sys_le32_to_cpu(idcode);
+
+    /* update-dr, then idle */
+    jtag_tck_cycle(dev);
+    gpio_pin_set_dt(&config->tms_swdio_gpio, 0);
+    jtag_tck_cycle(dev);
 
 end: ;
     uint8_t response[] = {DAP_COMMAND_JTAG_IDCODE, status, 0, 0, 0, 0};

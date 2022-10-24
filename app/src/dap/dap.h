@@ -36,6 +36,8 @@ struct dap_data {
     struct {
         /* number of devices in chain */
         uint8_t count;
+        /* current transaction index in chain */
+        uint8_t index;
         /* ir length of each device in the chain */
         uint8_t ir_length[DAP_JTAG_MAX_DEVICE_COUNT];
         /* ir length before each device in the chain */
@@ -43,6 +45,16 @@ struct dap_data {
         /* ir length after each device in the chain */
         uint16_t ir_after[DAP_JTAG_MAX_DEVICE_COUNT];
     } jtag;
+    struct {
+        /* number of extra idle cycles after each transfer */
+        uint8_t idle_cycles;
+        /* number of transfer retries after WAIT response */
+        uint16_t wait_retries;
+        /* number of retries on reads with value match */
+        uint16_t match_retries;
+        /* read match mask */
+        uint32_t match_mask;
+    } transfer;
 
     struct {
         bool combined : 1;
