@@ -1,6 +1,5 @@
 #include <drivers/gpio.h>
 #include <logging/log.h>
-#include <sys/byteorder.h>
 #include <sys/ring_buffer.h>
 #include <zephyr.h>
 
@@ -135,7 +134,7 @@ int32_t dap_handle_command_info(const struct device *dev) {
         return ring_buf_size_get(config->response_buf);
     } else if (id == info_uart_rx_buffer_size ||
                id == info_uart_tx_buffer_size) {
-        const uint32_t rx_buf_size = sys_cpu_to_le32(VCP_RING_BUF_SIZE);
+        const uint32_t rx_buf_size = VCP_RING_BUF_SIZE;
         uint8_t response[5] = { 0x04, 0x00, 0x00, 0x00, 0x00 };
         bytecpy(response + 1, &rx_buf_size, sizeof(rx_buf_size));
         ring_buf_put(config->response_buf, response, 5);
@@ -151,7 +150,7 @@ int32_t dap_handle_command_info(const struct device *dev) {
         ring_buf_put(config->response_buf, response, 2);
         return ring_buf_size_get(config->response_buf);
     } else if (id == info_max_packet_size) {
-        const uint16_t packet_size = sys_cpu_to_le16(DAP_BULK_EP_MPS);
+        const uint16_t packet_size = DAP_BULK_EP_MPS;
         uint8_t response[3] = { 0x02, 0x00, 0x00 };
         bytecpy(response + 1, &packet_size, sizeof(packet_size));
         ring_buf_put(config->response_buf, response, 3);
@@ -296,7 +295,7 @@ int32_t dap_handle_command_delay(const struct device *dev) {
 
     uint16_t delay_us = 0;
     ring_buf_get(config->request_buf, (uint8_t*) &delay_us, 2);
-    k_busy_wait(sys_le16_to_cpu(delay_us));
+    k_busy_wait(delay_us);
 
     uint8_t response[] = {DAP_COMMAND_DELAY, DAP_COMMAND_RESPONSE_OK};
     ring_buf_put(config->response_buf, response, ARRAY_SIZE(response));
@@ -331,7 +330,6 @@ int32_t dap_handle_command_swj_pins(const struct device *dev) {
     ring_buf_get(config->request_buf, &pin_output, 1);
     ring_buf_get(config->request_buf, &pin_mask, 1);
     ring_buf_get(config->request_buf, (uint8_t*) &delay_us, 4);
-    delay_us = sys_le32_to_cpu(delay_us);
 
     if ((pin_mask & BIT(pin_swclk_tck_shift)) != 0) {
         gpio_pin_set_dt(&config->tck_swclk_gpio, (pin_output & BIT(pin_swclk_tck_shift)) == 0 ? 0 : 1);
@@ -388,7 +386,7 @@ int32_t dap_handle_command_swj_clock(const struct device *dev) {
     uint32_t clock = DAP_DEFAULT_SWJ_CLOCK_RATE;
     ring_buf_get(config->request_buf, (uint8_t*) &clock, 4);
     if (clock != 0) {
-        data->swj.clock = sys_le32_to_cpu(clock);
+        data->swj.clock = clock;
         data->swj.delay_ns = 1000000000 / clock / 2;
     }
 

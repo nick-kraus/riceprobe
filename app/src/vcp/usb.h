@@ -1,7 +1,6 @@
 #ifndef __VCP_USB_PRIV_H__
 #define __VCP_USB_PRIV_H__
 
-#include <sys/byteorder.h>
 #include <usb/usb_device.h>
 #include <usb/class/usb_cdc.h>
 #include <usb_descriptor.h>
@@ -59,7 +58,7 @@ void vcp_usb_status_cb(struct usb_cfg_data *cfg, enum usb_dc_status_code status,
             .bFunctionLength = sizeof(struct cdc_header_descriptor),                                \
             .bDescriptorType = USB_DESC_CS_INTERFACE,                                               \
             .bDescriptorSubtype = HEADER_FUNC_DESC,                                                 \
-            .bcdCDC = sys_cpu_to_le16(USB_SRN_1_1),                                                 \
+            .bcdCDC = USB_SRN_1_1,                                                                  \
         },                                                                                          \
         .if0_cm = {                                                                                 \
             .bFunctionLength = sizeof(struct cdc_cm_descriptor),                                    \
@@ -86,7 +85,7 @@ void vcp_usb_status_cb(struct usb_cfg_data *cfg, enum usb_dc_status_code status,
             .bDescriptorType = USB_DESC_ENDPOINT,                                                   \
             .bEndpointAddress = AUTO_EP_IN,                                                         \
             .bmAttributes = USB_DC_EP_INTERRUPT,                                                    \
-            .wMaxPacketSize = sys_cpu_to_le16(USB_MAX_FS_INT_MPS),                                  \
+            .wMaxPacketSize = USB_MAX_FS_INT_MPS,                                                   \
             .bInterval = 10,                                                                        \
         },                                                                                          \
         .if1 = {                                                                                    \
@@ -105,7 +104,7 @@ void vcp_usb_status_cb(struct usb_cfg_data *cfg, enum usb_dc_status_code status,
             .bDescriptorType = USB_DESC_ENDPOINT,                                                   \
             .bEndpointAddress = AUTO_EP_IN,                                                         \
             .bmAttributes = USB_DC_EP_BULK,                                                         \
-            .wMaxPacketSize = sys_cpu_to_le16(VCP_BULK_EP_MPS),                                     \
+            .wMaxPacketSize = VCP_BULK_EP_MPS,                                                      \
             .bInterval = 0,                                                                         \
         },                                                                                          \
         .if1_out_ep = {                                                                             \
@@ -113,7 +112,7 @@ void vcp_usb_status_cb(struct usb_cfg_data *cfg, enum usb_dc_status_code status,
             .bDescriptorType = USB_DESC_ENDPOINT,                                                   \
             .bEndpointAddress = AUTO_EP_OUT,                                                        \
             .bmAttributes = USB_DC_EP_BULK,                                                         \
-            .wMaxPacketSize = sys_cpu_to_le16(VCP_BULK_EP_MPS),                                     \
+            .wMaxPacketSize = VCP_BULK_EP_MPS,                                                      \
             .bInterval = 0,                                                                         \
         },                                                                                          \
     };                                                                                              \

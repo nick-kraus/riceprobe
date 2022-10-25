@@ -1,7 +1,6 @@
 #include <device.h>
 #include <logging/log.h>
 #include <storage/flash_map.h>
-#include <sys/byteorder.h>
 #include <zephyr.h>
 
 LOG_MODULE_REGISTER(nvs);
@@ -57,7 +56,7 @@ int32_t nvs_init(const struct device *dev) {
         LOG_ERR("flash area read failed with error %d", ret);
         nvs_init_status = -EIO;
         return nvs_init_status;
-    } else if (sys_cpu_to_le16(mfg_tag) != NVS_MFG_TAG) {
+    } else if (mfg_tag != NVS_MFG_TAG) {
         LOG_ERR("found incorrect manufacturing tag %u", mfg_tag);
         nvs_init_status = -EINVAL;
         return nvs_init_status;
@@ -69,7 +68,7 @@ int32_t nvs_init(const struct device *dev) {
         LOG_ERR("flash area read failed with error %d", ret);
         nvs_init_status = -EIO;
         return nvs_init_status;
-    } else if (sys_cpu_to_le16(mfg_version) != NVS_MFG_VERSION) {
+    } else if (mfg_version != NVS_MFG_VERSION) {
         LOG_ERR("found unsupported manufacturing version %u", mfg_version);
         nvs_init_status = -ENOTSUP;
         return nvs_init_status;

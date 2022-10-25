@@ -1,6 +1,5 @@
 #include <drivers/gpio.h>
 #include <logging/log.h>
-#include <sys/byteorder.h>
 #include <sys/ring_buffer.h>
 #include <zephyr.h>
 
@@ -348,7 +347,6 @@ int32_t dap_handle_command_jtag_idcode(const struct device *dev) {
     /* last tdo bit and exit-1-dr*/
     gpio_pin_set_dt(&config->tms_swdio_gpio, 1);
     idcode |= jtag_tdo_cycle(dev) << 31;
-    idcode = sys_le32_to_cpu(idcode);
 
     /* update-dr, then idle */
     jtag_tck_cycle(dev);

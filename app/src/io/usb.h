@@ -1,7 +1,6 @@
 #ifndef __IO_USB_PRIV_H__
 #define __IO_USB_PRIV_H__
 
-#include <sys/byteorder.h>
 #include <usb/usb_device.h>
 #include <usb/class/usb_cdc.h>
 #include <usb_descriptor.h>
@@ -43,7 +42,7 @@ void io_usb_status_cb(struct usb_cfg_data *cfg, enum usb_dc_status_code status, 
             .bDescriptorType = USB_DESC_ENDPOINT,                                                   \
             .bEndpointAddress = AUTO_EP_OUT,                                                        \
             .bmAttributes = USB_DC_EP_BULK,                                                         \
-            .wMaxPacketSize = sys_cpu_to_le16(IO_BULK_EP_MPS),                                      \
+            .wMaxPacketSize = IO_BULK_EP_MPS,                                                       \
             .bInterval = 0,                                                                         \
         },                                                                                          \
         .if0_in_ep = {                                                                              \
@@ -51,7 +50,7 @@ void io_usb_status_cb(struct usb_cfg_data *cfg, enum usb_dc_status_code status, 
             .bDescriptorType = USB_DESC_ENDPOINT,                                                   \
             .bEndpointAddress = AUTO_EP_IN,                                                         \
             .bmAttributes = USB_DC_EP_BULK,                                                         \
-            .wMaxPacketSize = sys_cpu_to_le16(IO_BULK_EP_MPS),                                      \
+            .wMaxPacketSize = IO_BULK_EP_MPS,                                                       \
             .bInterval = 0,                                                                         \
         },                                                                                          \
     };                                                                                              \

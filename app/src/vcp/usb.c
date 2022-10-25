@@ -1,6 +1,5 @@
 #include <drivers/uart.h>
 #include <logging/log.h>
-#include <sys/byteorder.h>
 #include <usb/usb_device.h>
 #include <usb/class/usb_cdc.h>
 #include <usb_descriptor.h>
@@ -74,7 +73,7 @@ int32_t vcp_usb_class_handle_req(
             }
 
             struct uart_config uart_line_coding = {
-                .baudrate = sys_le32_to_cpu(usb_line_coding.dwDTERate),
+                .baudrate = usb_line_coding.dwDTERate,
                 .parity = usb_line_coding.bParityType,
                 .stop_bits = uart_stop_bits,
                 .data_bits = uart_data_bits,
@@ -120,7 +119,7 @@ int32_t vcp_usb_class_handle_req(
             }
 
             usb_line_coding = (struct cdc_acm_line_coding) {
-                .dwDTERate = sys_cpu_to_le32(uart_line_coding.baudrate),
+                .dwDTERate = uart_line_coding.baudrate,
                 /* here we must convert the bCharFormat value in the opposite way as above */
                 .bCharFormat = uart_line_coding.stop_bits - 1,
                 .bParityType = uart_line_coding.parity,

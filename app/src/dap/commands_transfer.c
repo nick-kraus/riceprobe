@@ -1,5 +1,4 @@
 #include <logging/log.h>
-#include <sys/byteorder.h>
 #include <sys/ring_buffer.h>
 #include <zephyr.h>
 
@@ -14,15 +13,9 @@ int32_t dap_handle_command_transfer_configure(const struct device *dev) {
 
     if (ring_buf_size_get(config->request_buf) < 5) { return -EMSGSIZE; }
 
-    uint8_t idle_cycles = 0;
-    ring_buf_get(config->request_buf, &idle_cycles, 1);
-    data->transfer.idle_cycles = idle_cycles;
-    uint16_t wait_retries = 0;
-    ring_buf_get(config->request_buf, (uint8_t*) &wait_retries, 2);
-    data->transfer.wait_retries = sys_le16_to_cpu(wait_retries);
-    uint16_t match_retries = 0;
-    ring_buf_get(config->request_buf, (uint8_t*) &match_retries, 2);
-    data->transfer.match_retries = sys_le16_to_cpu(match_retries);
+    ring_buf_get(config->request_buf, &data->transfer.idle_cycles, 1);
+    ring_buf_get(config->request_buf, (uint8_t*) &data->transfer.wait_retries, 2);
+    ring_buf_get(config->request_buf, (uint8_t*) &data->transfer.match_retries, 2);
 
     uint8_t response[] = {DAP_COMMAND_TRANSFER_CONFIGURE, DAP_COMMAND_RESPONSE_OK};
     ring_buf_put(config->response_buf, response, ARRAY_SIZE(response));

@@ -1,5 +1,4 @@
 #include <logging/log.h>
-#include <sys/byteorder.h>
 #include <usb/usb_device.h>
 #include <usb_descriptor.h>
 #include <zephyr.h>
@@ -54,9 +53,9 @@ struct usb_msos_compatid_descr {
     struct usb_msos_compatid_func func0;
     struct usb_msos_compatid_func func1;
 } __packed usb_msos_compatid_descr = {
-    .dwLength = sys_cpu_to_le32(sizeof(struct usb_msos_compatid_descr)),
-	.bcdVersion = sys_cpu_to_le16(0x100),
-	.wIndex = sys_cpu_to_le16(4),
+    .dwLength = sizeof(struct usb_msos_compatid_descr),
+	.bcdVersion = 0x100,
+	.wIndex = 4,
 	.bCount = 2,
 	.bReserved = {0, 0, 0, 0, 0, 0, 0},
     .func0 = {
@@ -99,20 +98,20 @@ struct usb_msos_extprop_descr {
 	uint16_t wCount;
     struct usb_msos_device_intf_guid func;
 } __packed usb_msos_extprop_descr = {
-    .dwLength = sys_cpu_to_le32(sizeof(struct usb_msos_extprop_descr)),
-	.bcdVersion = sys_cpu_to_le16(0x100),
-	.wIndex = sys_cpu_to_le16(5),
-	.wCount = sys_cpu_to_le16(1),
+    .dwLength = sizeof(struct usb_msos_extprop_descr),
+	.bcdVersion = 0x100,
+	.wIndex = 5,
+	.wCount = 1,
     .func = {
-        .dwSize = sys_cpu_to_le32(sizeof(struct usb_msos_device_intf_guid)),
-        .dwPropertyDataType = sys_cpu_to_le32(1),
-        .wPropertyNameLength = sys_cpu_to_le16(40),
+        .dwSize = sizeof(struct usb_msos_device_intf_guid),
+        .dwPropertyDataType = 1,
+        .wPropertyNameLength = 40,
         .bPropertyName = {
             'D', 0, 'e', 0, 'v', 0, 'i', 0, 'c', 0, 'e', 0, 'I', 0, 'n', 0,
             't', 0, 'e', 0, 'r', 0, 'f', 0, 'a', 0, 'c', 0, 'e', 0, 'G', 0,
             'U', 0, 'I', 0, 'D', 0, 0, 0
         },
-        .dwPropertyDataLength = sys_cpu_to_le32(78),
+        .dwPropertyDataLength = 78,
         .bPropertyData = {
             '{', 0, 'C', 0, 'D', 0, 'B', 0, '3', 0, 'B', 0, '5', 0, 'A', 0,
             'D', 0, '-', 0, '2', 0, '9', 0, '3', 0, 'B', 0, '-', 0, '4', 0,
