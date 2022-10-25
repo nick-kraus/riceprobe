@@ -71,11 +71,11 @@ void jtag_set_ir(const struct device *dev, uint32_t ir) {
 
     /* bypass all tap bits before index */
     gpio_pin_set_dt(&config->tdi_gpio, 1);
-    for (int i = 0; i < data->jtag.ir_before[data->jtag.index]; i++) {
+    for (uint16_t i = 0; i < data->jtag.ir_before[data->jtag.index]; i++) {
         jtag_tck_cycle(dev);
     }
     /* set all ir bits except the last */
-    for (int i = 0; i < data->jtag.ir_length[data->jtag.index] - 1; i++) {
+    for (uint16_t i = 0; i < data->jtag.ir_length[data->jtag.index] - 1; i++) {
         jtag_tdi_cycle(dev, ir);
         ir >>= 1;
     }
@@ -87,7 +87,7 @@ void jtag_set_ir(const struct device *dev, uint32_t ir) {
     } else {
         jtag_tdi_cycle(dev, ir);
         gpio_pin_set_dt(&config->tdi_gpio, 1);
-        for (int i = 0; i < data->jtag.ir_after[data->jtag.index] - 1; i++) {
+        for (uint16_t i = 0; i < data->jtag.ir_after[data->jtag.index] - 1; i++) {
             jtag_tck_cycle(dev);
         }
         /* set last bypass bit, then exit-1-ir */
@@ -119,7 +119,7 @@ uint8_t jtag_transfer(const struct device *dev, uint8_t request, uint32_t *trans
     jtag_tck_cycle(dev);
 
     /* bypass for every tap before the current index */
-    for (int i = 0; i < data->jtag.index; i++) {
+    for (uint8_t i = 0; i < data->jtag.index; i++) {
         jtag_tck_cycle(dev);
     }
 
@@ -140,7 +140,7 @@ uint8_t jtag_transfer(const struct device *dev, uint8_t request, uint32_t *trans
     uint32_t dr = 0;
     if ((request & TRANSFER_REQUEST_RnW) != 0) {
         /* get bits 0..30 */
-        for (int i = 0; i < 31; i++) {
+        for (uint8_t i = 0; i < 31; i++) {
             dr |= jtag_tdo_cycle(dev) << i;
         }
 
@@ -148,7 +148,7 @@ uint8_t jtag_transfer(const struct device *dev, uint8_t request, uint32_t *trans
         if (after_index > 0) {
             /* get bit 31, then bypass after index */
             dr |= jtag_tdo_cycle(dev) << 31;
-            for (int i = 0; i < after_index - 1; i++) {
+            for (uint8_t i = 0; i < after_index - 1; i++) {
                 jtag_tck_cycle(dev);
             }
             /* bypass, then exit-1-dr */
@@ -165,7 +165,7 @@ uint8_t jtag_transfer(const struct device *dev, uint8_t request, uint32_t *trans
         dr = *transfer_data;
 
         /* set bits 0..30 */
-        for (int i = 0; i < 31; i++) {
+        for (uint8_t i = 0; i < 31; i++) {
             jtag_tdi_cycle(dev, dr);
             dr >>= 1;
         }
@@ -174,7 +174,7 @@ uint8_t jtag_transfer(const struct device *dev, uint8_t request, uint32_t *trans
         if (after_index > 0) {
             /* set bit 31, then bypass after index */
             jtag_tdi_cycle(dev, dr);
-            for (int i = 0; i < after_index - 1; i++) {
+            for (uint8_t i = 0; i < after_index - 1; i++) {
                 jtag_tck_cycle(dev);
             }
             /* bypass, then exit-1-dr */
@@ -197,7 +197,7 @@ end:
     /* TODO: grab timestamp here when supported */
 
     /* idle for configured cycles */
-    for (int i = 0; i < data->transfer.idle_cycles; i++) {
+    for (uint8_t i = 0; i < data->transfer.idle_cycles; i++) {
         jtag_tck_cycle(dev);
     }
 
@@ -222,14 +222,14 @@ int32_t dap_handle_command_jtag_configure(const struct device *dev) {
 
     uint16_t ir_length_sum = 0;
     data->jtag.count = count;
-    for (int i = 0; i < data->jtag.count; i++) {
+    for (uint8_t i = 0; i < data->jtag.count; i++) {
         uint8_t len = 0;
         ring_buf_get(config->request_buf, &len, 1);
         data->jtag.ir_before[i] = ir_length_sum;
         ir_length_sum += len;
         data->jtag.ir_length[i] = len;
     }
-    for (int i = 0; i < data->jtag.count; i++) {
+    for (uint8_t i = 0; i < data->jtag.count; i++) {
         ir_length_sum -= data->jtag.ir_length[i];
         data->jtag.ir_after[i] = ir_length_sum;
     }
@@ -268,7 +268,7 @@ int32_t dap_handle_command_jtag_sequence(const struct device *dev) {
 
     uint8_t seq_count = 0;
     ring_buf_get(config->request_buf, &seq_count, 1);
-    for (int i = 0; i < seq_count; i++) {
+    for (uint8_t i = 0; i < seq_count; i++) {
         uint8_t info = 0;
         ring_buf_get(config->request_buf, &info, 1);
 
@@ -337,11 +337,11 @@ int32_t dap_handle_command_jtag_idcode(const struct device *dev) {
     jtag_tck_cycle(dev);
 
     /* bypass for every tap before the current index */
-    for (int i = 0; i < data->jtag.index; i++) {
+    for (uint8_t i = 0; i < data->jtag.index; i++) {
         jtag_tck_cycle(dev);
     }
     /* tdo bits 0..30 */
-    for (int i = 0; i < 31; i++) {
+    for (uint8_t i = 0; i < 31; i++) {
         idcode |= jtag_tdo_cycle(dev) << i;
     }
     /* last tdo bit and exit-1-dr*/

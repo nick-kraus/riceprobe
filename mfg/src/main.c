@@ -23,7 +23,7 @@ const struct {
 
 static int cmd_partition_info(const struct shell *shell, size_t argc, char **argv) {
     const char *part_label = argv[1];
-    for (int i = 0; i < ARRAY_SIZE(partition_info); i++) {
+    for (uint8_t i = 0; i < ARRAY_SIZE(partition_info); i++) {
         if (strcmp(part_label, partition_info[i].part_label) == 0) {
             shell_print(shell, "partition \"%s\":", partition_info[i].part_label);
             shell_print(shell, "\tdevice name = %s", partition_info[i].dev_name);

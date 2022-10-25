@@ -84,7 +84,7 @@ int32_t dap_handle_command_transfer(const struct device *dev) {
                 /* if the current request is a read request and the ir is already correct, we can
                    read previous data and submit the current read in one transfer */
                 
-                for (int j = 0; j < data->transfer.wait_retries + 1; j++) {
+                for (uint32_t i = 0; i < data->transfer.wait_retries + 1; i++) {
                     transfer_ack = jtag_transfer(dev, request, &transfer_data);
                     if (transfer_ack != TRANSFER_RESPONSE_ACK_WAIT) {
                         break;
@@ -96,7 +96,7 @@ int32_t dap_handle_command_transfer(const struct device *dev) {
                     last_ir = JTAG_IR_DPACC;
                     jtag_set_ir(dev, JTAG_IR_DPACC);
                 }
-                for (int j = 0; j < data->transfer.wait_retries + 1; j++) {
+                for (uint32_t i = 0; i < data->transfer.wait_retries + 1; i++) {
                     transfer_ack = jtag_transfer(dev, TRANSFER_REQUEST_RnW | DP_ADDR_RDBUFF , &transfer_data);
                     if (transfer_ack != TRANSFER_RESPONSE_ACK_WAIT) { break; }
                 }
@@ -118,13 +118,13 @@ int32_t dap_handle_command_transfer(const struct device *dev) {
                     last_ir = request_ir;
                     jtag_set_ir(dev, request_ir);
                 }
-                for (int j = 0; j < data->transfer.wait_retries + 1; j++) {
+                for (uint32_t i = 0; i < data->transfer.wait_retries + 1; i++) {
                     transfer_ack = jtag_transfer(dev, request, &transfer_data);
                     if (transfer_ack != TRANSFER_RESPONSE_ACK_WAIT) { break; }
                 }
                 if (transfer_ack != TRANSFER_RESPONSE_ACK_OK) { break; }
-                for (int j = 0; j < data->transfer.match_retries + 1; j++) {
-                    for (int k = 0; k < data->transfer.wait_retries + 1; k++) {
+                for (uint32_t i = 0; i < data->transfer.match_retries + 1; i++) {
+                    for (uint32_t j = 0; j < data->transfer.wait_retries + 1; j++) {
                         transfer_ack = jtag_transfer(dev, request, &transfer_data);
                         if (transfer_ack != TRANSFER_RESPONSE_ACK_WAIT) { break; }
                     }
@@ -144,7 +144,7 @@ int32_t dap_handle_command_transfer(const struct device *dev) {
                     last_ir = request_ir;
                     jtag_set_ir(dev, request_ir);
                 }
-                for (int j = 0; j < data->transfer.wait_retries + 1; j++) {
+                for (uint32_t i = 0; i < data->transfer.wait_retries + 1; i++) {
                     transfer_ack = jtag_transfer(dev, request, &transfer_data);
                     if (transfer_ack != TRANSFER_RESPONSE_ACK_WAIT) { break; }
                 }
@@ -161,7 +161,7 @@ int32_t dap_handle_command_transfer(const struct device *dev) {
                     last_ir = request_ir;
                     jtag_set_ir(dev, request_ir);
                 }
-                for (int j = 0; j < data->transfer.wait_retries + 1; j++) {
+                for (uint32_t i = 0; i < data->transfer.wait_retries + 1; i++) {
                     transfer_ack = jtag_transfer(dev, request, &transfer_data);
                     if (transfer_ack != TRANSFER_RESPONSE_ACK_WAIT) { break; }
                 }
@@ -195,7 +195,7 @@ int32_t dap_handle_command_transfer(const struct device *dev) {
             last_ir = JTAG_IR_DPACC;
             jtag_set_ir(dev, JTAG_IR_DPACC);
         }
-        for (int i = 0; i < data->transfer.wait_retries + 1; i++) {
+        for (uint32_t i = 0; i < data->transfer.wait_retries + 1; i++) {
             transfer_ack = jtag_transfer(dev, DP_ADDR_RDBUFF | TRANSFER_REQUEST_RnW, &transfer_data);
             if (transfer_ack != TRANSFER_RESPONSE_ACK_WAIT) { break; }
         }
