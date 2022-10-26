@@ -1,9 +1,9 @@
 #ifndef __IO_PRIV_H__
 #define __IO_PRIV_H__
 
-#include <sys/ring_buffer.h>
-#include <usb/usb_device.h>
-#include <zephyr.h>
+#include <zephyr/kernel.h>
+#include <zephyr/sys/ring_buffer.h>
+#include <zephyr/usb/usb_device.h>
 
 /* size of the internal buffers in bytes */
 #define IO_RING_BUF_SIZE (1024)

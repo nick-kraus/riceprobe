@@ -1,10 +1,10 @@
 #ifndef __IO_USB_PRIV_H__
 #define __IO_USB_PRIV_H__
 
-#include <usb/usb_device.h>
-#include <usb/class/usb_cdc.h>
+#include <zephyr/kernel.h>
+#include <zephyr/usb/usb_device.h>
+#include <zephyr/usb/class/usb_cdc.h>
 #include <usb_descriptor.h>
-#include <zephyr.h>
 
 #include "../usb.h"
 

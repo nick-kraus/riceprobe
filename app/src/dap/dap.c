@@ -1,8 +1,8 @@
-#include <drivers/gpio.h>
-#include <logging/log.h>
-#include <sys/ring_buffer.h>
-#include <sys/slist.h>
-#include <zephyr.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/sys/ring_buffer.h>
+#include <zephyr/sys/slist.h>
 
 #include "dap/dap.h"
 #include "dap/commands.h"

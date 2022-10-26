@@ -1,7 +1,7 @@
-#include <logging/log.h>
-#include <usb/usb_device.h>
+#include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/usb/usb_device.h>
 #include <usb_descriptor.h>
-#include <zephyr.h>
 
 #include "../usb.h"
 #include "io/io.h"

@@ -7,6 +7,5 @@
 &usbd {
 	cdc_acm_uart0: cdc_acm_uart0 {
 		compatible = "zephyr,cdc-acm-uart";
-		label = "cdc-acm";
 	};
 };

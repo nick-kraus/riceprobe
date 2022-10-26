@@ -92,7 +92,7 @@ if __name__ == '__main__':
         stream.expect_bytes(b'mfg:~$ ')
 
         stream.write(b'partition_info manufacturing\n')
-        pattern = rb'.*device name = (\w*).*partition size = (\w*).*partition offset = (\w*).*'
+        pattern = rb'.*device name = ([-@\w]*).*partition size = (\w*).*partition offset = (\w*).*'
         match = stream.expect_regex(pattern, regex_options=re.DOTALL)
         flash_dev = match.groups[0].decode('ascii')
         mfg_part_offset = int(match.groups[2], 16)

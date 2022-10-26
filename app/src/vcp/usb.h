@@ -1,10 +1,10 @@
 #ifndef __VCP_USB_PRIV_H__
 #define __VCP_USB_PRIV_H__
 
-#include <usb/usb_device.h>
-#include <usb/class/usb_cdc.h>
+#include <zephyr/kernel.h>
+#include <zephyr/usb/usb_device.h>
+#include <zephyr/usb/class/usb_cdc.h>
 #include <usb_descriptor.h>
-#include <zephyr.h>
 
 /* usb descriptor max packet size */
 #if CONFIG_USB_DC_HAS_HS_SUPPORT

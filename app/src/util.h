@@ -1,7 +1,7 @@
 #ifndef __UTIL_H__
 #define __UTIL_H__
 
-#include <zephyr.h>
+#include <zephyr/kernel.h>
 
 /* tests a condition, and triggers a kernel oops with a log message on failure */
 #define FATAL_CHECK(_cond, _msg)    \

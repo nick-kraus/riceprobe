@@ -1,7 +1,7 @@
-#include <device.h>
-#include <logging/log.h>
-#include <storage/flash_map.h>
-#include <zephyr.h>
+#include <zephyr/device.h>
+#include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/storage/flash_map.h>
 
 LOG_MODULE_REGISTER(nvs);
 
@@ -43,7 +43,7 @@ int32_t nvs_init(const struct device *dev) {
     ARG_UNUSED(dev);
 
     const struct flash_area *mfg_fa;
-    int32_t ret = flash_area_open(FLASH_AREA_ID(manufacturing), &mfg_fa);
+    int32_t ret = flash_area_open(FIXED_PARTITION_ID(manufacturing_partition), &mfg_fa);
     if (ret < 0) {
         LOG_ERR("flash area open failed with error %d", ret);
         nvs_init_status = -EIO;

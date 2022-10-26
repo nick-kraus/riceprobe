@@ -1,9 +1,9 @@
-#include <drivers/uart.h>
-#include <logging/log.h>
-#include <usb/usb_device.h>
-#include <usb/class/usb_cdc.h>
+#include <zephyr/drivers/uart.h>
+#include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/usb/usb_device.h>
+#include <zephyr/usb/class/usb_cdc.h>
 #include <usb_descriptor.h>
-#include <zephyr.h>
 
 #include "../usb.h"
 #include "vcp/usb.h"

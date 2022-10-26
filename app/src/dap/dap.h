@@ -1,10 +1,10 @@
 #ifndef __DAP_PRIV_H__
 #define __DAP_PRIV_H__
 
-#include <drivers/gpio.h>
-#include <sys/ring_buffer.h>
-#include <usb/usb_device.h>
-#include <zephyr.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/kernel.h>
+#include <zephyr/sys/ring_buffer.h>
+#include <zephyr/usb/usb_device.h>
 
 /* supported version of the DAP protocol */
 #define DAP_PROTOCOL_VERSION    "2.1.1"

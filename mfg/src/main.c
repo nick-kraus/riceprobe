@@ -1,24 +1,24 @@
-#include <shell/shell.h>
 #include <sys/types.h>
-#include <usb/usb_device.h>
-#include <zephyr.h>
+#include <zephyr/devicetree.h>
+#include <zephyr/kernel.h>
+#include <zephyr/shell/shell.h>
+#include <zephyr/usb/usb_device.h>
 
-#define PARTITION_GET_INFO(part)                                    \
-    {                                                               \
-        .part_label = DT_LABEL(part),                               \
-        .dev_name = DT_LABEL(DT_MTD_FROM_FIXED_PARTITION(part)),    \
-        .part_size = DT_REG_SIZE(part),                             \
-        .part_offset = DT_REG_ADDR(part),                           \
+#define PARTITION_GET_INFO(part)                                                \
+    {                                                                           \
+        .flash_dev = DEVICE_DT_GET_OR_NULL(DT_MTD_FROM_FIXED_PARTITION(part)),  \
+        .part_label = DT_PROP(part, label),                                     \
+        .part_size = DT_REG_SIZE(part),                                         \
+        .part_offset = DT_REG_ADDR(part),                                       \
     },
-#define FOREACH_PARTITION_GET_INFO(part) DT_FOREACH_CHILD(part, PARTITION_GET_INFO)
 
 const struct {
+    const struct device *flash_dev;
     const char *part_label;
-    const char *dev_name;
     size_t part_size;
     off_t part_offset;
 } partition_info[] = {
-    DT_FOREACH_STATUS_OKAY(fixed_partitions, FOREACH_PARTITION_GET_INFO)
+    DT_FOREACH_CHILD(DT_NODELABEL(flash_partitions), PARTITION_GET_INFO)
 };
 
 static int cmd_partition_info(const struct shell *shell, size_t argc, char **argv) {
@@ -26,9 +26,9 @@ static int cmd_partition_info(const struct shell *shell, size_t argc, char **arg
     for (uint8_t i = 0; i < ARRAY_SIZE(partition_info); i++) {
         if (strcmp(part_label, partition_info[i].part_label) == 0) {
             shell_print(shell, "partition \"%s\":", partition_info[i].part_label);
-            shell_print(shell, "\tdevice name = %s", partition_info[i].dev_name);
+            shell_print(shell, "\tdevice name = %s", partition_info[i].flash_dev->name);
             shell_print(shell, "\tpartition size = 0x%x", partition_info[i].part_size);
-            shell_print(shell, "\tpartition offset = 0x%x", partition_info[i].part_offset);
+            shell_print(shell, "\tpartition offset = 0x%lx", partition_info[i].part_offset);
 
             return 0;
         }
