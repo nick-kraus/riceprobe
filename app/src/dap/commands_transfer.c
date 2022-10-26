@@ -4,6 +4,7 @@
 
 #include "dap/dap.h"
 #include "dap/commands.h"
+#include "util.h"
 
 LOG_MODULE_DECLARE(dap, CONFIG_DAP_LOG_LEVEL);
 
@@ -11,14 +12,12 @@ int32_t dap_handle_command_transfer_configure(const struct device *dev) {
     struct dap_data *data = dev->data;
     const struct dap_config *config = dev->config;
 
-    if (ring_buf_size_get(config->request_buf) < 5) { return -EMSGSIZE; }
-
-    ring_buf_get(config->request_buf, &data->transfer.idle_cycles, 1);
-    ring_buf_get(config->request_buf, (uint8_t*) &data->transfer.wait_retries, 2);
-    ring_buf_get(config->request_buf, (uint8_t*) &data->transfer.match_retries, 2);
+    CHECK_EQ(ring_buf_get(config->request_buf, &data->transfer.idle_cycles, 1), 1, -EMSGSIZE);
+    CHECK_EQ(ring_buf_get(config->request_buf, (uint8_t*) &data->transfer.wait_retries, 2), 2, -EMSGSIZE);
+    CHECK_EQ(ring_buf_get(config->request_buf, (uint8_t*) &data->transfer.match_retries, 2), 2, -EMSGSIZE);
 
     uint8_t response[] = {DAP_COMMAND_TRANSFER_CONFIGURE, DAP_COMMAND_RESPONSE_OK};
-    ring_buf_put(config->response_buf, response, ARRAY_SIZE(response));
+    CHECK_EQ(ring_buf_put(config->response_buf, response, 2), 2, -ENOBUFS);
     return ring_buf_size_get(config->response_buf);
 }
 
@@ -26,18 +25,15 @@ int32_t dap_handle_command_transfer(const struct device *dev) {
     struct dap_data *data = dev->data;
     const struct dap_config *config = dev->config;
 
-    /* minimum possible size for command, but actual length is variable */
-    if (ring_buf_size_get(config->request_buf) < 3) { return -EMSGSIZE; }
-
-    ring_buf_put(config->response_buf, &((uint8_t) {DAP_COMMAND_TRANSFER}), 1);
+    CHECK_EQ(ring_buf_put(config->response_buf, &((uint8_t) {DAP_COMMAND_TRANSFER}), 1), 1, -ENOBUFS);
     /* need a pointer to these items because we will write to them after trying the rest of the command */
     uint8_t *response_count = NULL;
     uint8_t *response_response = NULL;
-    ring_buf_put_claim(config->response_buf, &response_count, 1);
+    CHECK_EQ(ring_buf_put_claim(config->response_buf, &response_count, 1), 1, -ENOBUFS);
     *response_count = 0;
-    ring_buf_put_claim(config->response_buf, &response_response, 1);
+    CHECK_EQ(ring_buf_put_claim(config->response_buf, &response_response, 1), 1, -ENOBUFS);
     *response_response = 0;
-    ring_buf_put_finish(config->response_buf, 2);
+    CHECK_EQ(ring_buf_put_finish(config->response_buf, 2), 0, -ENOBUFS);
 
     if (data->swj.port == DAP_PORT_DISABLED) {
         return -EINVAL;
@@ -47,7 +43,7 @@ int32_t dap_handle_command_transfer(const struct device *dev) {
     }
 
     uint8_t index = 0;
-    ring_buf_get(config->request_buf, &index, 1);
+    CHECK_EQ(ring_buf_get(config->request_buf, &index, 1), 1, -EMSGSIZE);
     if (data->swj.port == DAP_PORT_JTAG) {
         if (index >= data->jtag.count) {
             return -EINVAL;
@@ -63,16 +59,16 @@ int32_t dap_handle_command_transfer(const struct device *dev) {
     /* set after a read request is made, to capture data on the next transfer (or at end) */
     bool read_pending = false;
     uint8_t count = 0;
-    ring_buf_get(config->request_buf, &count, 1);
+    CHECK_EQ(ring_buf_get(config->request_buf, &count, 1), 1, -EMSGSIZE);
     while (count > 0) {
         uint8_t request = 0;
-        ring_buf_get(config->request_buf, &request, 1);
+        CHECK_EQ(ring_buf_get(config->request_buf, &request, 1), 1, -EMSGSIZE);
         uint32_t request_ir = (request & TRANSFER_REQUEST_APnDP) ? JTAG_IR_APACC : JTAG_IR_DPACC;
         /* make sure to pull all request data before decrementing count, so that we don't miss
          * request bytes when processing cancelled requests */
         if ((request & TRANSFER_REQUEST_RnW) == 0 ||
             (request & TRANSFER_REQUEST_MATCH_VALUE) != 0) {
-            ring_buf_get(config->request_buf, (uint8_t*) &transfer_data, 4);
+            CHECK_EQ(ring_buf_get(config->request_buf, (uint8_t*) &transfer_data, 4), 4, -EMSGSIZE);
         }
         count--;
 
@@ -105,7 +101,7 @@ int32_t dap_handle_command_transfer(const struct device *dev) {
             if (transfer_ack != TRANSFER_RESPONSE_ACK_OK) {
                 break;
             } else {
-                ring_buf_put(config->response_buf, (uint8_t*) &transfer_data, 4);
+                CHECK_EQ(ring_buf_put(config->response_buf, (uint8_t*) &transfer_data, 4), 4, -ENOBUFS);
             }
         }
 
@@ -178,14 +174,14 @@ int32_t dap_handle_command_transfer(const struct device *dev) {
         count--;
 
         uint8_t request = 0;
-        ring_buf_get(config->request_buf, &request, 1);
+        CHECK_EQ(ring_buf_get(config->request_buf, &request, 1), 1, -EMSGSIZE);
         /* write requests and read match value both have 4 bytes of request input */
         if (((request & TRANSFER_REQUEST_RnW) != 0 &&
             (request & TRANSFER_REQUEST_MATCH_VALUE) != 0) ||
             (request & TRANSFER_REQUEST_RnW) == 0) {
             
             uint32_t temp;
-            ring_buf_get(config->request_buf, (uint8_t*) &temp, 4);
+            CHECK_EQ(ring_buf_get(config->request_buf, (uint8_t*) &temp, 4), 4, -EMSGSIZE);
         }
     }
 
@@ -200,7 +196,7 @@ int32_t dap_handle_command_transfer(const struct device *dev) {
             if (transfer_ack != TRANSFER_RESPONSE_ACK_WAIT) { break; }
         }
         if (transfer_ack == TRANSFER_RESPONSE_ACK_OK && read_pending) {
-            ring_buf_put(config->response_buf, (uint8_t*) &transfer_data, 4);
+            CHECK_EQ(ring_buf_put(config->response_buf, (uint8_t*) &transfer_data, 4), 4, ENOBUFS);
         }
 
         *response_response = transfer_ack;

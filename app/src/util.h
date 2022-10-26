@@ -12,6 +12,14 @@
         }                           \
     } while (0)
 
+/* tests if two expressions are equal, and return an error code if not */
+#define CHECK_EQ(_expr_a, _expr_b, _code)   \
+    do {                                    \
+        if ((_expr_a) != (_expr_b)) {       \
+            return _code;                   \
+        }                                   \
+    } while (0)
+
 /* busy waits for a set amount of nanoseconds */
 static inline void busy_wait_nanos(uint32_t nanos) {
     uint32_t start = k_cycle_get_32();

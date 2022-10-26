@@ -209,11 +209,8 @@ int32_t dap_handle_command_jtag_configure(const struct device *dev) {
     const struct dap_config *config = dev->config;
     uint8_t status = DAP_COMMAND_RESPONSE_OK;
 
-    /* minimum possible size for command, but actual length is variable */
-    if (ring_buf_size_get(config->request_buf) < 2) { return -EMSGSIZE; }
-
     uint8_t count = 0;
-    ring_buf_get(config->request_buf, &count, 1);
+    CHECK_EQ(ring_buf_get(config->request_buf, &count, 1), 1, -EMSGSIZE);
     if (count > DAP_JTAG_MAX_DEVICE_COUNT ||
         ring_buf_size_get(config->request_buf) < count) {
         status = DAP_COMMAND_RESPONSE_ERROR;
@@ -224,7 +221,7 @@ int32_t dap_handle_command_jtag_configure(const struct device *dev) {
     data->jtag.count = count;
     for (uint8_t i = 0; i < data->jtag.count; i++) {
         uint8_t len = 0;
-        ring_buf_get(config->request_buf, &len, 1);
+        CHECK_EQ(ring_buf_get(config->request_buf, &len, 1), 1, -EMSGSIZE);
         data->jtag.ir_before[i] = ir_length_sum;
         ir_length_sum += len;
         data->jtag.ir_length[i] = len;
@@ -236,8 +233,7 @@ int32_t dap_handle_command_jtag_configure(const struct device *dev) {
 
 end: ;
     uint8_t response[] = {DAP_COMMAND_JTAG_CONFIGURE, status};
-    ring_buf_put(config->response_buf, response, ARRAY_SIZE(response));
-
+    CHECK_EQ(ring_buf_put(config->response_buf, response, 2), 2, -ENOBUFS);
     return ring_buf_size_get(config->response_buf);
 }
 
@@ -251,15 +247,12 @@ int32_t dap_handle_command_jtag_sequence(const struct device *dev) {
     const uint8_t info_tdo_capture_mask = 0x80;
     const uint8_t info_tms_value_shift = 6;
 
-    /* minimum possible size for command, but actual length is variable */
-    if (ring_buf_size_get(config->request_buf) < 3) { return -EMSGSIZE; }
-
-    ring_buf_put(config->response_buf, &((uint8_t) {DAP_COMMAND_JTAG_SEQUENCE}), 1);
+    CHECK_EQ(ring_buf_put(config->response_buf, &((uint8_t) {DAP_COMMAND_JTAG_SEQUENCE}), 1), 1, -EMSGSIZE);
     /* need a pointer to this item because we will write to it after trying the rest of the command */
     uint8_t *command_status = NULL;
-    ring_buf_put_claim(config->response_buf, &command_status, 1);
+    CHECK_EQ(ring_buf_put_claim(config->response_buf, &command_status, 1), 1, -ENOBUFS);
     *command_status = 0;
-    ring_buf_put_finish(config->response_buf, 1);
+    CHECK_EQ(ring_buf_put_finish(config->response_buf, 1), 0, -ENOBUFS);
 
     if (data->swj.port != DAP_PORT_JTAG) {
         status = DAP_COMMAND_RESPONSE_ERROR;
@@ -267,10 +260,10 @@ int32_t dap_handle_command_jtag_sequence(const struct device *dev) {
     }
 
     uint8_t seq_count = 0;
-    ring_buf_get(config->request_buf, &seq_count, 1);
+    CHECK_EQ(ring_buf_get(config->request_buf, &seq_count, 1), 1, -EMSGSIZE);
     for (uint8_t i = 0; i < seq_count; i++) {
         uint8_t info = 0;
-        ring_buf_get(config->request_buf, &info, 1);
+        CHECK_EQ(ring_buf_get(config->request_buf, &info, 1), 1, -EMSGSIZE);
 
         uint8_t tck_cycles = info & info_tck_cycles_mask;
         if (tck_cycles == 0) {
@@ -282,7 +275,7 @@ int32_t dap_handle_command_jtag_sequence(const struct device *dev) {
 
         while (tck_cycles > 0) {
             uint8_t tdi = 0;
-            ring_buf_get(config->request_buf, &tdi, 1);
+            CHECK_EQ(ring_buf_get(config->request_buf, &tdi, 1), 1, -EMSGSIZE);
             uint8_t tdo = 0;
 
             uint8_t bits = 8;
@@ -298,7 +291,7 @@ int32_t dap_handle_command_jtag_sequence(const struct device *dev) {
             tdo >>= bits;
 
             if ((info & info_tdo_capture_mask) != 0) {
-                ring_buf_put(config->response_buf, &tdo, 1);
+                CHECK_EQ(ring_buf_put(config->response_buf, &tdo, 1), 1, -ENOBUFS);
             }
         }
     }
@@ -314,10 +307,8 @@ int32_t dap_handle_command_jtag_idcode(const struct device *dev) {
     uint8_t status = DAP_COMMAND_RESPONSE_OK;
     uint32_t idcode = 0;
 
-    if (ring_buf_size_get(config->request_buf) < 1) { return -EMSGSIZE; }
-
     uint8_t index = 0;
-    ring_buf_get(config->request_buf, &index, 1);
+    CHECK_EQ(ring_buf_get(config->request_buf, &index, 1), 1, -EMSGSIZE);
     if ((data->swj.port != DAP_PORT_JTAG) ||
         (index >= data->jtag.count)) {
         status = DAP_COMMAND_RESPONSE_ERROR;
@@ -356,6 +347,6 @@ int32_t dap_handle_command_jtag_idcode(const struct device *dev) {
 end: ;
     uint8_t response[] = {DAP_COMMAND_JTAG_IDCODE, status, 0, 0, 0, 0};
     memcpy(&response[2], (uint8_t*) &idcode, sizeof(idcode));
-    ring_buf_put(config->response_buf, response, ARRAY_SIZE(response));
+    CHECK_EQ(ring_buf_put(config->response_buf, response, 6), 6, -ENOBUFS);
     return ring_buf_size_get(config->response_buf);
 }

@@ -7,6 +7,7 @@
 
 #include "vcp/usb.h"
 #include "vcp/vcp.h"
+#include "util.h"
 
 LOG_MODULE_REGISTER(vcp, CONFIG_VCP_LOG_LEVEL);
 
@@ -87,7 +88,8 @@ static void vcp_uart_isr(const struct device *dev, void *user_data) {
                 LOG_ERR("uart fifo read failed with error %d", read);
                 read = 0;
             }
-            ring_buf_put_finish(config->rx_rbuf, read);
+            /* should never fail since we always read less than the claim size */
+            FATAL_CHECK(ring_buf_put_finish(config->rx_rbuf, read) == 0, "rx buffer read fail");
             ret = k_work_submit(&data->rx_work);
             if (ret < 0) {
                 LOG_ERR("transport work queue submit failed with error %d", ret);
@@ -109,7 +111,8 @@ static void vcp_uart_isr(const struct device *dev, void *user_data) {
                 LOG_ERR("uart fifo fill failed with error %d", filled);
                 filled = 0;
             }
-            ring_buf_get_finish(config->tx_rbuf, filled);
+            /* should never fail since we always read less than the claim size */
+            FATAL_CHECK(ring_buf_get_finish(config->tx_rbuf, filled) == 0, "tx buffer read fail");
         }
     }
 }

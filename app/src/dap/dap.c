@@ -58,7 +58,7 @@ int32_t dap_handle_request(const struct device *dev) {
     ring_buf_reset(config->response_buf);
     /* data should be available at the front of the ring buffer before calling this handler */
     uint8_t command = 0xff;
-    ring_buf_get(config->request_buf, &command, 1);
+    CHECK_EQ(ring_buf_get(config->request_buf, &command, 1), 1, -EMSGSIZE);
     
     switch (command) {
     case DAP_COMMAND_INFO:

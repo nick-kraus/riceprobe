@@ -7,6 +7,7 @@
 #include "dap/commands.h"
 #include "dap/dap.h"
 #include "dap/usb.h"
+#include "util.h"
 
 LOG_MODULE_DECLARE(dap, CONFIG_DAP_LOG_LEVEL);
 
@@ -65,7 +66,8 @@ static void dap_usb_read_cb(uint8_t ep, int32_t size, void *priv) {
 		ring_buf_reset(config->request_buf);
 		ring_buf_reset(config->response_buf);
 		uint8_t response = DAP_COMMAND_RESPONSE_ERROR;
-        ring_buf_put(config->response_buf, &response, 1);
+		/* since just reset, should only ever fail if the ring buffer is size 0 */
+        FATAL_CHECK(ring_buf_put(config->response_buf, &response, 1) > 0, "response buf size 0");
 		ret = 1;
 	}
 
