@@ -35,22 +35,6 @@ int32_t dap_handle_command_transfer(const struct device *dev) {
     *response_response = 0;
     CHECK_EQ(ring_buf_put_finish(config->response_buf, 2), 0, -ENOBUFS);
 
-    if (data->swj.port == DAP_PORT_DISABLED) {
-        return -EINVAL;
-    } else if (data->swj.port == DAP_PORT_SWD) {
-        /* TODO: add support for swd and remove this check */
-        return -EINVAL;
-    }
-
-    uint8_t index = 0;
-    CHECK_EQ(ring_buf_get(config->request_buf, &index, 1), 1, -EMSGSIZE);
-    if (data->swj.port == DAP_PORT_JTAG) {
-        if (index >= data->jtag.count) {
-            return -EINVAL;
-        }
-        data->jtag.index = index;
-    }
-
     /* transfer acknowledge and data storage */
     uint8_t transfer_ack = 0;
     uint32_t transfer_data = 0;
@@ -58,8 +42,23 @@ int32_t dap_handle_command_transfer(const struct device *dev) {
     uint32_t last_ir = 0;
     /* set after a read request is made, to capture data on the next transfer (or at end) */
     bool read_pending = false;
+    uint8_t index = 0;
+    CHECK_EQ(ring_buf_get(config->request_buf, &index, 1), 1, -EMSGSIZE);
     uint8_t count = 0;
     CHECK_EQ(ring_buf_get(config->request_buf, &count, 1), 1, -EMSGSIZE);
+
+    if (data->swj.port == DAP_PORT_DISABLED) {
+        goto end;
+    } else if (data->swj.port == DAP_PORT_SWD) {
+        /* TODO: add support for swd and remove this check */
+        goto end;
+    } else if (data->swj.port == DAP_PORT_JTAG) {
+        if (index >= data->jtag.count) {
+            goto end;
+        }
+        data->jtag.index = index;
+    }
+
     while (count > 0) {
         uint8_t request = 0;
         CHECK_EQ(ring_buf_get(config->request_buf, &request, 1), 1, -EMSGSIZE);
@@ -169,7 +168,8 @@ int32_t dap_handle_command_transfer(const struct device *dev) {
     }
     *response_response = transfer_ack;
 
-    /* process remaining (canceled) requets */
+end:
+    /* process remaining (canceled) request bytes */
     while (count > 0) {
         count--;
 
@@ -185,7 +185,7 @@ int32_t dap_handle_command_transfer(const struct device *dev) {
         }
     }
 
-    /* perform final read to reset DP RDBUFF and collect pending data */
+    /* perform final read to get last transfer ack and collect pending data if needed */
     if (transfer_ack == TRANSFER_RESPONSE_ACK_OK) {
         if (last_ir != JTAG_IR_DPACC) {
             last_ir = JTAG_IR_DPACC;
@@ -196,7 +196,7 @@ int32_t dap_handle_command_transfer(const struct device *dev) {
             if (transfer_ack != TRANSFER_RESPONSE_ACK_WAIT) { break; }
         }
         if (transfer_ack == TRANSFER_RESPONSE_ACK_OK && read_pending) {
-            CHECK_EQ(ring_buf_put(config->response_buf, (uint8_t*) &transfer_data, 4), 4, ENOBUFS);
+            CHECK_EQ(ring_buf_put(config->response_buf, (uint8_t*) &transfer_data, 4), 4, -ENOBUFS);
         }
 
         *response_response = transfer_ack;

@@ -211,9 +211,12 @@ int32_t dap_handle_command_jtag_configure(const struct device *dev) {
 
     uint8_t count = 0;
     CHECK_EQ(ring_buf_get(config->request_buf, &count, 1), 1, -EMSGSIZE);
-    if (count > DAP_JTAG_MAX_DEVICE_COUNT ||
-        ring_buf_size_get(config->request_buf) < count) {
+    if (count > DAP_JTAG_MAX_DEVICE_COUNT) {
         status = DAP_COMMAND_RESPONSE_ERROR;
+        /* process remaining request bytes */
+        uint8_t *temp = NULL;
+        CHECK_EQ(ring_buf_get_claim(config->request_buf, &temp, count), count, -EMSGSIZE);
+        CHECK_EQ(ring_buf_get_finish(config->request_buf, count), 0, -EMSGSIZE);
         goto end;
     }
 
@@ -254,11 +257,6 @@ int32_t dap_handle_command_jtag_sequence(const struct device *dev) {
     *command_status = 0;
     CHECK_EQ(ring_buf_put_finish(config->response_buf, 1), 0, -ENOBUFS);
 
-    if (data->swj.port != DAP_PORT_JTAG) {
-        status = DAP_COMMAND_RESPONSE_ERROR;
-        goto end;
-    }
-
     uint8_t seq_count = 0;
     CHECK_EQ(ring_buf_get(config->request_buf, &seq_count, 1), 1, -EMSGSIZE);
     for (uint8_t i = 0; i < seq_count; i++) {
@@ -268,6 +266,17 @@ int32_t dap_handle_command_jtag_sequence(const struct device *dev) {
         uint8_t tck_cycles = info & info_tck_cycles_mask;
         if (tck_cycles == 0) {
             tck_cycles = 64;
+        }
+
+        /* if the current port isn't JTAG, just use this loop to process remaining bytes */
+        if (data->swj.port != DAP_PORT_JTAG) {
+            status = DAP_COMMAND_RESPONSE_ERROR;
+            while (tck_cycles > 0) {
+                uint8_t temp = 0;
+                CHECK_EQ(ring_buf_get(config->request_buf, &temp, 1), 1, -EMSGSIZE);
+                tck_cycles -= MIN(tck_cycles, 8);
+            }
+            continue;
         }
 
         uint8_t tms_val = (info & BIT(info_tms_value_shift)) >> info_tms_value_shift;
@@ -296,7 +305,6 @@ int32_t dap_handle_command_jtag_sequence(const struct device *dev) {
         }
     }
 
-end:
     *command_status = status;
     return ring_buf_size_get(config->response_buf);
 }

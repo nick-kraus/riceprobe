@@ -40,6 +40,8 @@ def test_unsupported(usb_dap_eps):
 
 def test_info_command(usb_dap_eps):
     dap = Dap(usb_dap_eps)
+    # incomplete command request
+    dap.command(b'\x00', expect=b'\xff')
     # vendor name from info should match USB vendor string
     dap.command(b'\x00\x01', expect=b'\x00\x0bNick Kraus\x00')
     # product name from info should match USB product string
@@ -79,20 +81,24 @@ def test_info_command(usb_dap_eps):
 
 def test_host_status_command(usb_dap_eps):
     dap = Dap(usb_dap_eps)
+    # incomplete command request
+    dap.command(b'\x01\x00', expect=b'\xff')
     # enable connected led
     dap.command(b'\x01\x00\x01', expect=b'\x01\x00')
     # enable running led
     dap.command(b'\x01\x01\x01', expect=b'\x01\x00')
-    # disable running led
-    dap.command(b'\x01\x01\x00', expect=b'\x01\x00')
     # disable connected led
     dap.command(b'\x01\x00\x00', expect=b'\x01\x00')
+    # disable running led
+    dap.command(b'\x01\x01\x00', expect=b'\x01\x00')
     # make sure that an unsupported led type or status value produces an error
     dap.command(b'\x01\x02\x00', expect=b'\x01\xff')
     dap.command(b'\x01\x00\x02', expect=b'\x01\xff')
 
 def test_delay_command(usb_dap_eps):
     dap = Dap(usb_dap_eps)
+    # incomplete command request
+    dap.command(b'\x09\xff', expect=b'\xff')
     start = time.time()
     # delay command with maximum microseconds (65535)
     dap.command(b'\x09\xff\xff', expect=b'\x09\x00')
@@ -107,6 +113,10 @@ def test_reset_target_command(usb_dap_eps):
 
 def test_disconnect_connect_swj_pins_commands(usb_dap_eps):
     dap = Dap(usb_dap_eps)
+    # incomplete command requests
+    dap.command(b'\x10', expect=b'\xff')
+    dap.command(b'\x10\x00', expect=b'\xff')
+    dap.command(b'\x10\x00\x00\xff\xff', expect=b'\xff')
     dap.jtag_default()
     # set all outputs low, make sure they read low, tdo will read high
     dap.command(b'\x10\x00\x8f\xff\xff\x00\x00', expect=b'\x10\x08')
@@ -135,6 +145,8 @@ def test_disconnect_connect_swj_pins_commands(usb_dap_eps):
 
 def test_swj_clock_command(usb_dap_eps):
     dap = Dap(usb_dap_eps)
+    # incomplete command requests
+    dap.command(b'\x11\x00\x00', expect=b'\xff')
     # clock rate of 0 should produce an error
     dap.command(b'\x11\x00\x00\x00\x00', expect=b'\x11\xff')
     # anything else should succeed
@@ -142,6 +154,14 @@ def test_swj_clock_command(usb_dap_eps):
 
 def test_jtag_sequence_configure_idcode_command(usb_dap_eps):
     dap = Dap(usb_dap_eps)
+    # incomplete command requests
+    dap.command(b'\x14', expect=b'\xff')
+    dap.command(b'\x14\x01\x42', expect=b'\xff')
+    dap.command(b'\x14\x02\x42\x00\x02', expect=b'\xff')
+    # attempt the jtag sequence command while configured as swd, should be an error
+    dap.command(b'\x02\x01', expect=b'\x02\x01')
+    dap.command(b'\x14\x03\x02\xaa\x09\xaa\xaa\x00\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa', expect=b'\x14\xff')
+    # now for correct usage of the command
     dap.jtag_default()
     # here we set the jtag ir to the idcode instruction (0b1110), the target is an stm32l4r5zi
     # which has a boundary scan tap (5-bit ir) followed by a debug tap (4-bit ir)
@@ -159,52 +179,90 @@ def test_jtag_sequence_configure_idcode_command(usb_dap_eps):
     # jtag state: idle
     dap.command(b'\x14\x01\x01\x00', expect=b'\x14\x00')
     # we now get the 32-bit idcode from the data register, which will be from the cortex-m4
-    # core, r0p1 (0x4ba00477)
+    # core, r0p1 (0x4ba00477), and use a single sequence command
     #
     # jtag state: select-dr-scan
-    dap.command(b'\x14\x01\x41\x00', expect=b'\x14\x00')
+    sequence = b'\x41\x00'
     # jtag state: capture-dr, shift-dr
-    dap.command(b'\x14\x01\x02\x00', expect=b'\x14\x00')
+    sequence += b'\x02\x00'
     # clock out the 32-bit idcode onto tdo
-    dap.command(b'\x14\x01\xA0\x00\x00\x00\x00', expect=b'\x14\x00\x77\x04\xa0\x4b')
+    sequence += b'\xA0\x00\x00\x00\x00'
     # jtag state: exit-1-dr, update-dr
-    dap.command(b'\x14\x01\x42\x00', expect=b'\x14\x00')
+    sequence += b'\x42\x00'
     # jtag state: idle
-    dap.command(b'\x14\x01\x01\x00', expect=b'\x14\x00')
-    # configure the jtag tap details
+    sequence += b'\x01\x00'
+    # now send the 5-sequence sequence
+    dap.command(b'\x14\x05' + sequence, expect=b'\x14\x00\x77\x04\xa0\x4b')
+
+def test_jtag_configure_idcode_command(usb_dap_eps):
+    dap = Dap(usb_dap_eps)
+    # incomplete configure command requests
+    dap.command(b'\x15\x05\x00', expect=b'\xff')
+    dap.command(b'\x15\x02\x00', expect=b'\xff')
+    # only support up to 4 devices in the jtag chain, so this should be an error
+    dap.command(b'\x15\x05\x01\x01\x01\x01\x01', expect=b'\x15\xff')
+    # incomplete idcode command request
+    dap.command(b'\x16', expect=b'\xff')
+    # now configure the tap chain for the actual target: stm32l4r5zi
+    dap.jtag_default()
     dap.command(b'\x15\x02\x04\x05', expect=b'\x15\x00')
+    # should fail with an invalid index, and when not configured as jtag
+    dap.command(b'\x16\x08', expect=b'\x16\xff\x00\x00\x00\x00')
+    dap.command(b'\x02\x01', expect=b'\x02\x01')
+    dap.command(b'\x16\x00', expect=b'\x16\xff\x00\x00\x00\x00')
+    dap.command(b'\x02\x02', expect=b'\x02\x02')
     # run the idcode command and make sure we get the same result
     dap.command(b'\x16\x00', expect=b'\x16\x00\x77\x04\xa0\x4b')
 
 def test_jtag_transfer_configure_command(usb_dap_eps):
     dap = Dap(usb_dap_eps)
+    # should return no data transfer when port is disconnected or index invalid
+    dap.command(b'\x03', expect=b'\x03\x00')
+    dap.command(b'\x05\x00\x01\x06', expect=b'\x05\x00\x00')
+    dap.command(b'\x05\x08\x01\x06', expect=b'\x05\x00\x00')
+
     dap.jtag_default()
     # configure the jtag tap details
     dap.command(b'\x15\x02\x04\x05', expect=b'\x15\x00')
-    # write to DP, CTRL/STAT register (0x4)
-    # clear the register fully to return to an expected default state
-    dap.command(b'\x05\x00\x01\x04\x00\x00\x00\x00', expect=b'\x05\x01\x01')
-    # read from DP, CTRL/STAT register (0x4), verify previous write
-    # the value won't fully clear for the given target, but most bits do
-    dap.command(b'\x05\x00\x01\x06', expect=b'\x05\x01\x01\x00\x00\x00\x20')
-    # write to DP, CTRL/STAT register (0x4)
-    # set the CSYSPWRUPREQ and CDBGPWRUPREQ bits to enable debug power-up, and clear
-    # the STICKYERR flag in case is was previously set
-    dap.command(b'\x05\x00\x01\x04\x10\x00\x00\x50', expect=b'\x05\x01\x01')
-    # read from DP, CTRL/STAT register (0x4), verify previous write
-    dap.command(b'\x05\x00\x01\x06', expect=b'\x05\x01\x01\x00\x00\x00\xf0')
+    # incomplete transfer configure command request
+    dap.command(b'\x04\x00\x00', expect=b'\xff')
+    # incomplete transfer command requests
+    dap.command(b'\x05\x00\x01', expect=b'\xff')
+    dap.command(b'\x05\x00\x03\x06\x06', expect=b'\xff')
+
+    # write to DP, CTRL/STAT register (0x4), clear register expected default state,
+    # then read from DP, CTRL/STAT, to verify previous read, where most bits (but
+    # not all) will be zeroed
+    xfer_request = b'\x04\x00\x00\x00\x00' + b'\x06'
+    xfer_response = b'\x00\x00\x00\x20'
+    dap.command(b'\x05\x00\x02' + xfer_request, expect=b'\x05\x02\x01' + xfer_response)
+    # now write CSYSPWRUPREQ and CDBGPWRUPREQ bits and clear STICKYERR from CTRL/STAT, then
+    # make multiple reads to check read transfer pipelining
+    xfer_request = b'\x04\x10\x00\x00\x50' + b'\x06' + b'\x06' + b'\x20\x00\x00\x00\x00'
+    xfer_response = b'\x00\x00\x00\xf0' + b'\x00\x00\x00\xf0'
+    dap.command(b'\x05\x00\x04' + xfer_request, expect=b'\x05\x04\x01' + xfer_response)
+
     # write to DP, SELECT register (0x8)
     # set APSEL to 0 and APBANKSEL to the AP register bank containing the ID register (0xf)
     dap.command(b'\x05\x00\x01\x08\xf0\x00\x00\x00', expect=b'\x05\x01\x01')
     # read from DP, SELECT register (0x8), verify previous write
     dap.command(b'\x05\x00\x01\x0a', expect=b'\x05\x01\x01\xf0\x00\x00\x00')
 
-    # DAP AP 0 should be a MEM-AP for the given target, designed by ARM Limited, with a 
-    # JEP-106 identity code of 0x3b
-    # write match mask, for JEP-106 identity code bits
-    dap.command(b'\x05\x00\x01\x20\x00\x00\xfe\x00', expect=b'\x05\x01\x01')
-    # read match value from AP, ID register (0xc)
-    dap.command(b'\x05\x00\x01\x1f\x00\x00\x76\x00', expect=b'\x05\x01\x01')
-    # read match value from AP, ID register (0xc)
-    # wrong value on purpose, to verify a value mismatch error is created
+    # DAP AP 0 should be a MEM-AP for the given target (stm32l4r5zi), designed by ARM Limited,
+    # with a JEP-106 continuation code of 0x4 and a JEP-106 identity code of 0x3b
+    #
+    # write match mask for continuation code
+    xfer_request = b'\x20\x00\x00\x00\x0f'
+    # read match value of continuation code
+    xfer_request += b'\x1f\x00\x00\x00\x04'
+    # write match mask for identity code
+    xfer_request += b'\x20\x00\x00\xfe\x00'
+    # read match value of identity code
+    xfer_request += b'\x1f\x00\x00\x76\x00'
+    dap.command(b'\x05\x00\x04' + xfer_request, expect=b'\x05\x04\x01')
+
+    # verify a wrong value produces a value mismatch error
     dap.command(b'\x05\x00\x01\x1f\x00\x00\x76\x01', expect=b'\x05\x00\x11')
+    # verify an error clears the remaining request bytes
+    dap.command(b'\x05\x00\x03\x1f\x00\x00\x76\x01\x1f\x00\x00\x76\x00\x06', expect=b'\x05\x00\x11')
+    dap.command(b'\x05\x00\x01\x1f\x00\x00\x76\x00', expect=b'\x05\x01\x01')
