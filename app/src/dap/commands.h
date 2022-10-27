@@ -72,6 +72,7 @@ int32_t dap_handle_command_connect(const struct device *dev);
 int32_t dap_handle_command_disconnect(const struct device *dev);
 int32_t dap_handle_command_transfer_configure(const struct device *dev);
 int32_t dap_handle_command_transfer(const struct device *dev);
+int32_t dap_handle_command_transfer_block(const struct device *dev);
 int32_t dap_handle_command_delay(const struct device *dev);
 int32_t dap_handle_command_reset_target(const struct device *dev);
 int32_t dap_handle_command_swj_pins(const struct device *dev);

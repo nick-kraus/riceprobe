@@ -214,21 +214,29 @@ def test_jtag_configure_idcode_command(usb_dap_eps):
     # run the idcode command and make sure we get the same result
     dap.command(b'\x16\x00', expect=b'\x16\x00\x77\x04\xa0\x4b')
 
-def test_jtag_transfer_configure_command(usb_dap_eps):
+def test_jtag_transfer_commands(usb_dap_eps):
     dap = Dap(usb_dap_eps)
-    # should return no data transfer when port is disconnected or index invalid
+
+    # when port is disconnected or index invalid, transfer and transfer_block
+    # should return no sequences and data
     dap.command(b'\x03', expect=b'\x03\x00')
     dap.command(b'\x05\x00\x01\x06', expect=b'\x05\x00\x00')
+    dap.command(b'\x06\x00\x01\x00\x06', expect=b'\x06\x00\x00\x00')
+    dap.command(b'\x02\x02', expect=b'\x02\x02')
     dap.command(b'\x05\x08\x01\x06', expect=b'\x05\x00\x00')
+    dap.command(b'\x06\x08\x01\x00\x06', expect=b'\x06\x00\x00\x00')
 
     dap.jtag_default()
     # configure the jtag tap details
     dap.command(b'\x15\x02\x04\x05', expect=b'\x15\x00')
+
     # incomplete transfer configure command request
     dap.command(b'\x04\x00\x00', expect=b'\xff')
     # incomplete transfer command requests
     dap.command(b'\x05\x00\x01', expect=b'\xff')
     dap.command(b'\x05\x00\x03\x06\x06', expect=b'\xff')
+    # incomplete transfer block command requests
+    dap.command(b'\x06\x00\x01\x00', expect=b'\xff')
 
     # write to DP, CTRL/STAT register (0x4), clear register expected default state,
     # then read from DP, CTRL/STAT, to verify previous read, where most bits (but
@@ -266,3 +274,15 @@ def test_jtag_transfer_configure_command(usb_dap_eps):
     # verify an error clears the remaining request bytes
     dap.command(b'\x05\x00\x03\x1f\x00\x00\x76\x01\x1f\x00\x00\x76\x00\x06', expect=b'\x05\x00\x11')
     dap.command(b'\x05\x00\x01\x1f\x00\x00\x76\x00', expect=b'\x05\x01\x01')
+
+    # set APBANKSEL to the AP register bank containing the CSW, TAR, and RDW registers (0x0)
+    xfer_request = b'\x08\x00\x00\x00\x00'
+    # set AP #0 CSW to default useful value (from openocd arm_adi_v5.h), read back
+    xfer_request += b'\x01\x12\x00\x00\x22' + b'\x03'
+    xfer_response = b'\x52\x00\x00\x23'
+    dap.command(b'\x05\x00\x03' + xfer_request, expect=b'\x05\x03\x01' + xfer_response)
+
+    # write multiple words of data to the TAR register, then read them back multiple times,
+    # making sure all reads return the same value
+    dap.command(b'\x06\x00\x02\x00\x05\x12\x34\x45\x78\x12\x34\x45\x78', expect=b'\x06\x02\x00\x01')
+    dap.command(b'\x06\x00\x02\x00\x07', expect=b'\x06\x02\x00\x01\x12\x34\x45\x78\x12\x34\x45\x78')

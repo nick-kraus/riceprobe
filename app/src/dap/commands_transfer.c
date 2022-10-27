@@ -42,8 +42,10 @@ int32_t dap_handle_command_transfer(const struct device *dev) {
     uint32_t last_ir = 0;
     /* set after a read request is made, to capture data on the next transfer (or at end) */
     bool read_pending = false;
+    /* jtag index, ignored for SWD */
     uint8_t index = 0;
     CHECK_EQ(ring_buf_get(config->request_buf, &index, 1), 1, -EMSGSIZE);
+    /* number of transfers */
     uint8_t count = 0;
     CHECK_EQ(ring_buf_get(config->request_buf, &count, 1), 1, -EMSGSIZE);
 
@@ -200,6 +202,115 @@ end:
         }
 
         *response_response = transfer_ack;
+    }
+
+    return ring_buf_size_get(config->response_buf);
+}
+
+int32_t dap_handle_command_transfer_block(const struct device *dev) {
+    struct dap_data *data = dev->data;
+    const struct dap_config *config = dev->config;
+
+    CHECK_EQ(ring_buf_put(config->response_buf, &((uint8_t) {DAP_COMMAND_TRANSFER_BLOCK}), 1), 1, -ENOBUFS);
+    /* need a pointer to these items because we will write to them after trying the rest of the command */
+    uint16_t *response_count = NULL;
+    uint8_t *response_response = NULL;
+    CHECK_EQ(ring_buf_put_claim(config->response_buf, (uint8_t**) &response_count, 2), 2, -ENOBUFS);
+    *response_count = 0;
+    CHECK_EQ(ring_buf_put_claim(config->response_buf, &response_response, 1), 1, -ENOBUFS);
+    *response_response = 0;
+    CHECK_EQ(ring_buf_put_finish(config->response_buf, 3), 0, -ENOBUFS);
+
+    /* transfer acknowledge and data storage */
+    uint8_t transfer_ack = 0;
+    uint32_t transfer_data = 0;
+    /* jtag index, ignored for SWD */
+    uint8_t index = 0;
+    CHECK_EQ(ring_buf_get(config->request_buf, &index, 1), 1, -EMSGSIZE);
+    /* number of words transferred */
+    uint16_t count = 0;
+    CHECK_EQ(ring_buf_get(config->request_buf, (uint8_t*) &count, 2), 2, -EMSGSIZE);
+    /* transfer request metadata */
+    uint8_t request = 0;
+    CHECK_EQ(ring_buf_get(config->request_buf, &request, 1), 1, -EMSGSIZE);
+
+    if (data->swj.port == DAP_PORT_DISABLED) {
+        goto end;
+    } else if (data->swj.port == DAP_PORT_SWD) {
+        /* TODO: add support for swd and remove this check */
+        goto end;
+    } else if (data->swj.port == DAP_PORT_JTAG) {
+        if (index >= data->jtag.count) {
+            goto end;
+        }
+        data->jtag.index = index;
+    }
+
+    uint32_t request_ir = (request & TRANSFER_REQUEST_APnDP) ? JTAG_IR_APACC : JTAG_IR_DPACC;
+    jtag_set_ir(dev, request_ir);
+
+    if ((request & TRANSFER_REQUEST_RnW) != 0) {
+        /* read transfer, prepare read then get all words */
+        for (uint32_t i = 0; i < data->transfer.wait_retries + 1; i++) {
+            transfer_ack = jtag_transfer(dev, request, &transfer_data);
+            if (transfer_ack != TRANSFER_RESPONSE_ACK_WAIT) { break; }
+        }
+        if (transfer_ack != TRANSFER_RESPONSE_ACK_OK) { goto end; }
+
+        while (count > 0) {
+            count--;
+
+            /* final read should be to DP RDBUFF, just to get last data out */
+            if (count == 0) {
+                if (request_ir != JTAG_IR_DPACC) {
+                    jtag_set_ir(dev, JTAG_IR_DPACC);
+                }
+                request = DP_ADDR_RDBUFF | TRANSFER_REQUEST_RnW;
+            }
+
+            for (uint32_t i = 0; i < data->transfer.wait_retries + 1; i++) {
+                transfer_ack = jtag_transfer(dev, request, &transfer_data);
+                if (transfer_ack != TRANSFER_RESPONSE_ACK_WAIT) { break; }
+            }
+            if (transfer_ack != TRANSFER_RESPONSE_ACK_OK) {
+                goto end;
+            } else {
+                CHECK_EQ(ring_buf_put(config->response_buf, (uint8_t*) &transfer_data, 4), 4, -ENOBUFS);
+            }
+            *response_count += 1;
+        }
+    } else {
+        /* write transfer */
+        while (count > 0) {
+            count--;
+
+            CHECK_EQ(ring_buf_get(config->request_buf, (uint8_t*) &transfer_data, 4), 4, -EMSGSIZE);
+            for (uint32_t i = 0; i < data->transfer.wait_retries + 1; i++) {
+                transfer_ack = jtag_transfer(dev, request, &transfer_data);
+                if (transfer_ack != TRANSFER_RESPONSE_ACK_WAIT) { break; }
+            }
+            if (transfer_ack != TRANSFER_RESPONSE_ACK_OK) { goto end; }
+            *response_count += 1;
+        }
+        /* get ack of last write */
+        if (request_ir != JTAG_IR_DPACC) {
+            jtag_set_ir(dev, JTAG_IR_DPACC);
+        }
+        request = DP_ADDR_RDBUFF | TRANSFER_REQUEST_RnW;
+        for (uint32_t i = 0; i < data->transfer.wait_retries + 1; i++) {
+            transfer_ack = jtag_transfer(dev, request, &transfer_data);
+            if (transfer_ack != TRANSFER_RESPONSE_ACK_WAIT) { break; }
+        }
+    }
+    *response_response = transfer_ack;
+
+end:
+    /* process remaining (canceled) request bytes */
+    if ((request & TRANSFER_REQUEST_RnW) == 0) {
+        uint8_t *temp = NULL;
+        uint16_t request_remaining = count * 4;
+        CHECK_EQ(ring_buf_get_claim(config->request_buf, &temp, request_remaining), request_remaining, -EMSGSIZE);
+        CHECK_EQ(ring_buf_get_finish(config->request_buf, request_remaining), 0, -EMSGSIZE);
     }
 
     return ring_buf_size_get(config->response_buf);
