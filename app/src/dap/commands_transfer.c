@@ -315,3 +315,10 @@ end:
 
     return ring_buf_size_get(config->response_buf);
 }
+
+int32_t dap_handle_command_transfer_abort(const struct device *dev) {
+    /* TODO: eventually we should separate reading data from the USB from replying to the requests,
+     * so that we can actually scan for the abort request and cancel an in-progress transfer */
+
+    return 0;
+}

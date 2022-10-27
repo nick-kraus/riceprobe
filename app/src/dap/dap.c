@@ -76,7 +76,7 @@ int32_t dap_handle_request(const struct device *dev) {
     case DAP_COMMAND_TRANSFER_BLOCK:
         return dap_handle_command_transfer_block(dev);
     case DAP_COMMAND_TRANSFER_ABORT:
-        return -ENOTSUP; /* TODO */
+        return dap_handle_command_transfer_abort(dev);
     case DAP_COMMAND_WRITE_ABORT:
         return -ENOTSUP; /* TODO */
     case DAP_COMMAND_DELAY:

@@ -8,8 +8,8 @@ class Dap:
     def write(self, data):
         return self.out_ep.write(data)
 
-    def read(self, len):
-        return self.in_ep.read(len).tobytes()
+    def read(self, len, timeout=None):
+        return self.in_ep.read(len, timeout).tobytes()
 
     def command(self, data, expect=None):
         self.write(data)
@@ -286,3 +286,9 @@ def test_jtag_transfer_commands(usb_dap_eps):
     # making sure all reads return the same value
     dap.command(b'\x06\x00\x02\x00\x05\x12\x34\x45\x78\x12\x34\x45\x78', expect=b'\x06\x02\x00\x01')
     dap.command(b'\x06\x00\x02\x00\x07', expect=b'\x06\x02\x00\x01\x12\x34\x45\x78\x12\x34\x45\x78')
+
+    # basic (no-op) check of the transfer abort command
+    dap.write(b'\x07')
+    data = dap.read(1, timeout=10)
+    # command doesn't return anything
+    assert(len(data) == 0)
