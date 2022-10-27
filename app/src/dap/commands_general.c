@@ -34,7 +34,7 @@ int32_t dap_handle_command_info(const struct device *dev) {
     const uint8_t info_max_packet_size = 0xff;
     /* capabilities byte 0 */
     const uint8_t caps_no_swd_support = 0x00;
-    const uint8_t caps_no_jtag_support = 0x00;
+    const uint8_t caps_support_jtag = 0x02;
     const uint8_t caps_no_swo_uart_support = 0x00;
     const uint8_t caps_no_swo_manchester_support = 0x00;
     const uint8_t caps_no_atomic_cmds_support = 0x00;
@@ -107,7 +107,7 @@ int32_t dap_handle_command_info(const struct device *dev) {
         /* TODO: this all needs to be changed as we support new capabilities */
         const uint8_t capabilities_len = 2;
         const uint8_t capabilities_info0 = caps_no_swd_support |
-                                           caps_no_jtag_support |
+                                           caps_support_jtag |
                                            caps_no_swo_uart_support |
                                            caps_no_swo_manchester_support |
                                            caps_no_atomic_cmds_support |

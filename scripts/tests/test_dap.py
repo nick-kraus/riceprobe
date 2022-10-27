@@ -64,7 +64,7 @@ def test_info_command(usb_dap_eps):
     assert(data[0] == ord(b'\x00') and data[1] == len(data) - 2)
     assert(re.match(rb'^v\d+\.\d+\.\d+-\d+-g[0-9a-f]{7}(-dirty)?\x00$', data[2:]))
     # capabilities should match a known value
-    dap.command(b'\x00\xf0', expect=b'\x00\x02\x00\x01')
+    dap.command(b'\x00\xf0', expect=b'\x00\x02\x02\x01')
     # test domain timer should return the default unused value
     dap.command(b'\x00\xf1', expect=b'\x00\x08\x00\x00\x00\x00')
     # uart rx and tx buffer size should match a known value
