@@ -78,6 +78,7 @@ int32_t dap_handle_command_delay(const struct device *dev);
 int32_t dap_handle_command_reset_target(const struct device *dev);
 int32_t dap_handle_command_swj_pins(const struct device *dev);
 int32_t dap_handle_command_swj_clock(const struct device *dev);
+int32_t dap_handle_command_swj_sequence(const struct device *dev);
 int32_t dap_handle_command_jtag_sequence(const struct device *dev);
 int32_t dap_handle_command_jtag_configure(const struct device *dev);
 int32_t dap_handle_command_jtag_idcode(const struct device *dev);

@@ -88,7 +88,7 @@ int32_t dap_handle_request(const struct device *dev) {
     case DAP_COMMAND_SWJ_CLOCK:
         return dap_handle_command_swj_clock(dev);
     case DAP_COMMAND_SWJ_SEQUENCE:
-        return -ENOTSUP; /* TODO */
+        return dap_handle_command_swj_sequence(dev);
     case DAP_COMMAND_SWD_CONFIGURE:
         return -ENOTSUP; /* TODO */
     case DAP_COMMAND_JTAG_SEQUENCE:

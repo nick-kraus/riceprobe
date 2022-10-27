@@ -374,3 +374,31 @@ int32_t dap_handle_command_swj_clock(const struct device *dev) {
     CHECK_EQ(ring_buf_put(config->response_buf, response, 2), 2, -ENOBUFS);
     return ring_buf_size_get(config->response_buf);
 }
+
+int32_t dap_handle_command_swj_sequence(const struct device *dev) {
+    struct dap_data *data = dev->data;
+    const struct dap_config *config = dev->config;
+
+    uint16_t count = 0;
+    CHECK_EQ(ring_buf_get(config->request_buf, (uint8_t*) &count, 1), 1, -EMSGSIZE);
+    if (count == 0) {
+        count = 256;
+    }
+
+    uint8_t tms_swdio_bits = 0;
+    for (uint16_t i = 0; i < count; i++) {
+        if (i % 8 == 0) {
+            CHECK_EQ(ring_buf_get(config->request_buf, &tms_swdio_bits, 1), 1, -EMSGSIZE);
+        }
+        gpio_pin_set_dt(&config->tms_swdio_gpio, tms_swdio_bits & 0x01);
+        gpio_pin_set_dt(&config->tck_swclk_gpio, 0);
+        busy_wait_nanos(data->swj.delay_ns);
+        gpio_pin_set_dt(&config->tck_swclk_gpio, 1);
+        busy_wait_nanos(data->swj.delay_ns);
+        tms_swdio_bits >>= 1;
+    }
+
+    uint8_t response[] = {DAP_COMMAND_SWJ_SEQUENCE, DAP_COMMAND_RESPONSE_OK};
+    CHECK_EQ(ring_buf_put(config->response_buf, response, 2), 2, -ENOBUFS);
+    return ring_buf_size_get(config->response_buf);
+}

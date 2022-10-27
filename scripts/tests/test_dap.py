@@ -143,14 +143,33 @@ def test_disconnect_connect_swj_pins_commands(usb_dap_eps):
     dap.command(b'\x10\x80\x80\xff\xff\x00\x00', expect=b'\x10\x8c')
     dap.command(b'\x03', expect=b'\x03\x00')
 
-def test_swj_clock_command(usb_dap_eps):
+def test_swj_clock_sequence_commands(usb_dap_eps):
     dap = Dap(usb_dap_eps)
-    # incomplete command requests
+    # incomplete clock command request
     dap.command(b'\x11\x00\x00', expect=b'\xff')
+    # incomplete sequence command request
+    dap.command(b'\x12\x0a\xff', expect=b'\xff')
     # clock rate of 0 should produce an error
     dap.command(b'\x11\x00\x00\x00\x00', expect=b'\x11\xff')
     # anything else should succeed
     dap.command(b'\x11\x87\xd6\x12\x00', expect=b'\x11\x00')
+
+    # read the JTAG idcode using the SWJ sequence command any time we are just changing tap states
+    dap.jtag_default()
+    # select-dr-scan, select-ir-scan, capture-ir, shift-ir
+    dap.command(b'\x12\x04\x03', expect=b'\x12\x00')
+    # shift the 4-bit idcode (0b1110)
+    dap.command(b'\x14\x01\x04\x0e', expect=b'\x14\x00')
+    # shift the first 4 bits of boundary scan tap bypass
+    dap.command(b'\x14\x01\x04\x0f', expect=b'\x14\x00')
+    # shift the last bit of bypass; exit-1-ir, update-ir
+    dap.command(b'\x14\x01\x42\x01', expect=b'\x14\x00')
+    # idle, select-dr-scan, capture-dr, shift-dr
+    dap.command(b'\x12\x04\x02', expect=b'\x12\x00')
+    # clock out the 32-bit idcode onto tdo
+    dap.command(b'\x14\x01\xa0\x00\x00\x00\x00', expect=b'\x14\x00\x77\x04\xa0\x4b')
+    # exit-1-dr, update-dr, idle
+    dap.command(b'\x12\x03\x03', expect=b'\x12\x00')
 
 def test_jtag_sequence_configure_idcode_command(usb_dap_eps):
     dap = Dap(usb_dap_eps)
