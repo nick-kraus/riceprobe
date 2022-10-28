@@ -45,7 +45,7 @@ def test_info_command(usb_dap_eps):
     # vendor name from info should match USB vendor string
     dap.command(b'\x00\x01', expect=b'\x00\x0bNick Kraus\x00')
     # product name from info should match USB product string
-    dap.command(b'\x00\x02', expect=b'\x00\x0aRICEProbe\x00')
+    dap.command(b'\x00\x02', expect=b'\x00\x17RICEProbe IO CMSIS-DAP\x00')
     # serial number from info should match USB serial number
     data = dap.command(b'\x00\x03')
     assert(len(data) == 19 and data[0:2] == b'\x00\x11')

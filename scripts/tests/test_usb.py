@@ -22,7 +22,7 @@ def test_usb_descriptor(
 
     # String Descriptors
     assert(usb.util.get_string(usb_device, usb_device.iManufacturer) == 'Nick Kraus')
-    assert(usb.util.get_string(usb_device, usb_device.iProduct) == 'RICEProbe')
+    assert(usb.util.get_string(usb_device, usb_device.iProduct) == 'RICEProbe IO CMSIS-DAP')
     regex = re.compile(r'^RPB1-[23][0-9][0-5][0-9][0-9]{6}[0-9A-Z]$')
     assert(re.match(regex, usb.util.get_string(usb_device, usb_device.iSerialNumber)))
 
