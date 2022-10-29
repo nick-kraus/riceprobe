@@ -41,8 +41,8 @@ int32_t dap_handle_command_info(const struct device *dev) {
     const uint8_t caps_no_test_domain_timer_support = 0x00;
     const uint8_t caps_no_swo_trace_support = 0x00;
     const uint8_t caps_no_uart_dap_port_support = 0x00;
-    /* capabilities byte 1 */
-    const uint8_t caps_support_uart_vcp = 0x01;
+    /* we don't support the second capabilities byte, as certain debug software
+     * doesn't properly support it and causes probe initialization failures */
 
     uint8_t id = 0;
     CHECK_EQ(ring_buf_get(config->request_buf, &id, 1), 1, -EMSGSIZE);
@@ -105,7 +105,7 @@ int32_t dap_handle_command_info(const struct device *dev) {
         return ring_buf_size_get(config->response_buf);
     } else if (id == info_capabilities) {
         /* TODO: this all needs to be changed as we support new capabilities */
-        const uint8_t capabilities_len = 2;
+        const uint8_t capabilities_len = 1;
         const uint8_t capabilities_info0 = caps_no_swd_support |
                                            caps_support_jtag |
                                            caps_no_swo_uart_support |
@@ -114,9 +114,8 @@ int32_t dap_handle_command_info(const struct device *dev) {
                                            caps_no_test_domain_timer_support |
                                            caps_no_swo_trace_support |
                                            caps_no_uart_dap_port_support;
-        const uint8_t capabilities_info1 = caps_support_uart_vcp;
-        const uint8_t response[3] = { capabilities_len, capabilities_info0, capabilities_info1 };
-        CHECK_EQ(ring_buf_put(config->response_buf, response, 3), 3, -ENOBUFS);
+        const uint8_t response[2] = { capabilities_len, capabilities_info0};
+        CHECK_EQ(ring_buf_put(config->response_buf, response, 2), 2, -ENOBUFS);
         return ring_buf_size_get(config->response_buf);
     } else if (id == info_test_domain_timer) {
         /* not supported by this debug unit, just return a reasonable default */
