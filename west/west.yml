@@ -13,6 +13,11 @@ manifest:
       url-base: git@github.com:nick-kraus
 
   projects:
+    - name: riceprobe-test
+      remote: nick-kraus
+      revision: 859136b2705da6a756d514e543d95d055c56b8c1
+      path: test
+
     - name: zephyr
       remote: nick-kraus
       revision: 88cf0ad5065771866504e1482280cf53560c4d82

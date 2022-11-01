@@ -10,7 +10,7 @@ Once the repository is initialized, a clean build can be ran with the command `w
 
 ## Running Tests
 
-The RICEProbe integration tests are written in [Python](https://www.python.org/) and are orchestrated with [Pytest](https://docs.pytest.org/). To run the test suite run the command `pytest tests/`.
+The RICEProbe integration tests are written in [Python](https://www.python.org/) and are orchestrated with [Pytest](https://docs.pytest.org/). To run the test suite run the command `pytest`.
 
 ## Building Documentation
 
