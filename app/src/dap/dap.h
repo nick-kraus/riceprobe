@@ -10,7 +10,7 @@
 #define DAP_PROTOCOL_VERSION    "2.1.1"
 
 /* size of the internal buffers in bytes */
-#define DAP_RING_BUF_SIZE       (1024)
+#define DAP_RING_BUF_SIZE       (512)
 
 /* default SWD/JTAG clock rate in Hz */
 #define DAP_DEFAULT_SWJ_CLOCK_RATE    (1000000)
@@ -68,6 +68,7 @@ struct dap_data {
 };
 
 struct dap_config {
+    uint8_t *ep_buf;
     struct ring_buf *request_buf;
     struct ring_buf *response_buf;
 

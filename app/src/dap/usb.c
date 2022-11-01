@@ -44,57 +44,55 @@ static void dap_usb_read_cb(uint8_t ep, int32_t size, void *priv) {
 	const struct device *dev = priv;
     const struct dap_config *config = dev->config;
 	struct usb_cfg_data *cfg = config->usb_config;
-    int32_t ret;
 
 	LOG_DBG("read_cb, ep 0x%x, %d bytes", ep, size);
 	if (size <= 0) {
 		goto end;
 	}
 
-	ret = ring_buf_put_finish(config->request_buf, size);
-	if (ret < 0) {
-		LOG_ERR("buffer write finish failed with error %d", ret);
+	uint32_t wrote = ring_buf_put(config->request_buf, config->ep_buf, size);
+	if (wrote < size) {
+		LOG_ERR("request buffer full, write failed");
+		ring_buf_reset(config->request_buf);
 		goto end;
 	}
 
-	ret = dap_handle_request(dev);
-	if (ret < 0) {
-		LOG_ERR("dap handle request failed with error %d", ret);
+	int response_size = dap_handle_request(dev);
+	if (response_size < 0) {
+		LOG_ERR("dap handle request failed with error %d", response_size);
 
-		/* commands that failed or aren't implemented get a simple 0xff response byte,
-		 * and we also reset the request buffer since it is probably in a known bad state */
+		/* commands that failed or aren't implemented get a simple 0xff reponse byte, and we also
+		 * reset the request buffer since they are probably in a bad state */
 		ring_buf_reset(config->request_buf);
 		ring_buf_reset(config->response_buf);
 		uint8_t response = DAP_COMMAND_RESPONSE_ERROR;
-		/* since just reset, should only ever fail if the ring buffer is size 0 */
-        FATAL_CHECK(ring_buf_put(config->response_buf, &response, 1) > 0, "response buf size 0");
-		ret = 1;
+		/* since just reset, this should only ever fail if the ring buffer is size 0 */
+        FATAL_CHECK(ring_buf_put(config->response_buf, &response, 1) == 1, "response buf size not 1");
+		response_size = 1;
 	}
 
 	uint8_t *ptr;
-	uint32_t resp_size = ring_buf_get_claim(config->response_buf, &ptr, DAP_BULK_EP_MPS);
-	if (resp_size != ret) {
-		LOG_ERR("reported response size of %d does not match buffer size of %d", ret, resp_size);
-		ring_buf_get_finish(config->response_buf, resp_size);
+	uint32_t claim_size = ring_buf_get_claim(config->response_buf, &ptr, response_size);
+	if (claim_size < response_size) {
+		LOG_ERR("only %d bytes available in buffer for response size %d", claim_size, response_size);
+		ring_buf_reset(config->response_buf);
 		goto end;
 	}
 
 	usb_transfer(
 		cfg->endpoint[DAP_USB_IN_EP_IDX].ep_addr,
 		ptr,
-		resp_size,
+		response_size,
 		USB_TRANS_WRITE,
 		dap_usb_write_cb,
 		(void*) dev
 	);
 
 end: ;
-	/* write data into the largest continuous buffer space available within the ring bufer */
-	uint32_t space = ring_buf_put_claim(config->request_buf, &ptr, DAP_RING_BUF_SIZE);
 	usb_transfer(
 		ep,
-		ptr,
-		space,
+		config->ep_buf,
+		DAP_BULK_EP_MPS,
 		USB_TRANS_READ,
 		dap_usb_read_cb,
 		(void*) dev

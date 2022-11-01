@@ -73,7 +73,7 @@ def test_info_command(usb_dap_eps):
     # swo trace buffer size should return 0 while unsupported
     dap.command(b'\x00\xfd', expect=b'\x00\x04\x00\x00\x00\x00')
     # usb packet count should match a known value
-    dap.command(b'\x00\xfe', expect=b'\x00\x01\x02')
+    dap.command(b'\x00\xfe', expect=b'\x00\x01\x01')
     # usb packet size should match a known value
     dap.command(b'\x00\xff', expect=b'\x00\x02\x00\x02')
     # unsupported info id

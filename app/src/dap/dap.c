@@ -175,13 +175,15 @@ static int32_t dap_init(const struct device *dev) {
 
 #define DAP_DT_DEVICE_DEFINE(idx)                                           \
                                                                             \
+    static uint8_t dap_ep_buffer_##idx[DAP_BULK_EP_MPS];                    \
     RING_BUF_DECLARE(dap_request_buf_##idx, DAP_RING_BUF_SIZE);             \
-    RING_BUF_DECLARE(dap_respones_buf_##idx, DAP_BULK_EP_MPS);              \
+    RING_BUF_DECLARE(dap_respones_buf_##idx, DAP_RING_BUF_SIZE);            \
                                                                             \
     DAP_USB_CONFIG_DEFINE(dap_usb_config_##idx, idx);                       \
                                                                             \
     struct dap_data dap_data_##idx;                                         \
     const struct dap_config dap_config_##idx = {                            \
+        .ep_buf = dap_ep_buffer_##idx,                                      \
         .request_buf = &dap_request_buf_##idx,                              \
         .response_buf = &dap_respones_buf_##idx,                            \
         .usb_config = &dap_usb_config_##idx,                                \
