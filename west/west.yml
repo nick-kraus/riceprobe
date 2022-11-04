@@ -15,7 +15,7 @@ manifest:
   projects:
     - name: riceprobe-test
       remote: nick-kraus
-      revision: 859136b2705da6a756d514e543d95d055c56b8c1
+      revision: b2bd20ba178839737e8197092da7f4bc557a77ce
       path: test
 
     - name: zephyr
@@ -27,6 +27,10 @@ manifest:
     - name: hal_atmel
       revision: 43c73d862a78cd5a18a6e24b58cf6980016dbe9e
       path: modules/hal/atmel
+
+    - name: hal_stm32
+      revision: 642e199c59828137dc6b1c7044a289d4269886d1
+      path: modules/hal/stm32
 
     - name: cmsis
       revision: 093de61c2a7d12dc9253daf8692f61f793a9254a
