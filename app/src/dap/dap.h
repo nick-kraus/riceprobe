@@ -46,6 +46,12 @@ struct dap_data {
         uint16_t ir_after[DAP_JTAG_MAX_DEVICE_COUNT];
     } jtag;
     struct {
+        /* turnaround clock period of the SWD bus */
+        uint8_t turnaround_cycles;
+        /* whether or not to generate a data phase */
+        bool data_phase;
+    } swd;
+    struct {
         /* number of extra idle cycles after each transfer */
         uint8_t idle_cycles;
         /* number of transfer retries after WAIT response */

@@ -15,7 +15,7 @@ manifest:
   projects:
     - name: riceprobe-test
       remote: nick-kraus
-      revision: b2bd20ba178839737e8197092da7f4bc557a77ce
+      revision: 0a7ddcea57d3d69578a66849af1c4167f8dfb2b0
       path: test
 
     - name: zephyr

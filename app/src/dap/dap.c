@@ -33,6 +33,8 @@ int32_t dap_reset(const struct device *dev) {
     memset(data->jtag.ir_length, 0, sizeof(data->jtag.ir_length));
     memset(data->jtag.ir_before, 0, sizeof(data->jtag.ir_before));
     memset(data->jtag.ir_after, 0, sizeof(data->jtag.ir_after));
+    data->swd.turnaround_cycles = 0;
+    data->swd.data_phase = false;
     data->transfer.idle_cycles = 0;
     data->transfer.wait_retries = 100;
     data->transfer.match_retries = 0;
@@ -90,7 +92,7 @@ int32_t dap_handle_request(const struct device *dev) {
     case DAP_COMMAND_SWJ_SEQUENCE:
         return dap_handle_command_swj_sequence(dev);
     case DAP_COMMAND_SWD_CONFIGURE:
-        return -ENOTSUP; /* TODO */
+        return dap_handle_command_swd_configure(dev);
     case DAP_COMMAND_JTAG_SEQUENCE:
         return dap_handle_command_jtag_sequence(dev);
     case DAP_COMMAND_JTAG_CONFIGURE:
@@ -110,7 +112,7 @@ int32_t dap_handle_request(const struct device *dev) {
     case DAP_COMMAND_SWO_DATA:
         return -ENOTSUP; /* TODO */
     case DAP_COMMAND_SWD_SEQUENCE:
-        return -ENOTSUP; /* TODO */
+        return dap_handle_command_swd_sequence(dev);
     case DAP_COMMAND_SWO_EXTENDED_STATUS:
         return -ENOTSUP; /* TODO */
     case DAP_COMMAND_UART_TRANSPORT:
