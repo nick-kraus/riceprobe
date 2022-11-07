@@ -1,0 +1,13 @@
+/* PWM1 conflicts with SPI2, enable PWM and disable SPI */
+
+&pwm1 {
+    status = "okay";
+};
+
+&pwmleds {
+    status = "okay";
+};
+
+&spi2 {
+    status = "disabled";
+};

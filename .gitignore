@@ -49,8 +49,6 @@
 /tools/
 /zephyr/
 /build/
-# this is a top level module pulled in via west
-/test/
 
 # Python
 __pycache__/
