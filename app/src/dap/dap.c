@@ -33,7 +33,7 @@ int32_t dap_reset(const struct device *dev) {
     memset(data->jtag.ir_length, 0, sizeof(data->jtag.ir_length));
     memset(data->jtag.ir_before, 0, sizeof(data->jtag.ir_before));
     memset(data->jtag.ir_after, 0, sizeof(data->jtag.ir_after));
-    data->swd.turnaround_cycles = 0;
+    data->swd.turnaround_cycles = 1;
     data->swd.data_phase = false;
     data->transfer.idle_cycles = 0;
     data->transfer.wait_retries = 100;

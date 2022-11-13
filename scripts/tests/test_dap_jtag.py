@@ -30,7 +30,7 @@ def test_info_command(dap):
     assert(data[0] == ord(b'\x00') and data[1] == len(data) - 2)
     assert(re.match(rb'^v\d+\.\d+\.\d+-\d+-g[0-9a-f]{7}(-dirty)?\x00$', data[2:]))
     # capabilities should match a known value
-    dap.command(b'\x00\xf0', expect=b'\x00\x01\x02')
+    dap.command(b'\x00\xf0', expect=b'\x00\x01\x03')
     # test domain timer should return the default unused value
     dap.command(b'\x00\xf1', expect=b'\x00\x08\x00\x00\x00\x00')
     # uart rx and tx buffer size should match a known value
@@ -205,6 +205,8 @@ def test_jtag_transfer_commands(dap):
     dap.configure_jtag()
     # configure the jtag tap details
     dap.command(b'\x15\x02\x04\x05', expect=b'\x15\x00')
+    # configure transfer parameters
+    dap.command(b'\x04\x00\x64\x00\x01\x00', expect=b'\x04\x00')
 
     # incomplete transfer configure command request
     dap.command(b'\x04\x00\x00', expect=b'\xff')

@@ -51,6 +51,7 @@
 #define TRANSFER_REQUEST_MATCH_VALUE        ((uint8_t) 0x10)
 #define TRANSFER_REQUEST_MATCH_MASK         ((uint8_t) 0x20)
 
+#define TRANSFER_REQUEST_APnDP_SHIFT        ((uint8_t) 0x00)
 #define TRANSFER_REQUEST_RnW_SHIFT          ((uint8_t) 0x01)
 #define TRANSFER_REQUEST_A2_SHIFT           ((uint8_t) 0x02)
 #define TRANSFER_REQUEST_A3_SHIFT           ((uint8_t) 0x03)
@@ -61,10 +62,13 @@
 /* dap transfer response bits */
 #define TRANSFER_RESPONSE_ACK_OK            ((uint8_t) 0x01)
 #define TRANSFER_RESPONSE_ACK_WAIT          ((uint8_t) 0x02)
+#define TRANSFER_RESPONSE_FAULT             ((uint8_t) 0x04)
+#define TRANSFER_RESPONSE_ERROR             ((uint8_t) 0x08)
 #define TRANSFER_RESPONSE_VALUE_MISMATCH    ((uint8_t) 0x10)
 
 void jtag_set_ir(const struct device *dev, uint32_t ir);
 uint8_t jtag_transfer(const struct device *dev, uint8_t request, uint32_t *transfer_data);
+uint8_t swd_transfer(const struct device *dev, uint8_t request, uint32_t *transfer_data);
 
 int32_t dap_handle_command_info(const struct device *dev);
 int32_t dap_handle_command_host_status(const struct device *dev);

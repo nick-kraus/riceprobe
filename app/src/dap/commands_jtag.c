@@ -107,7 +107,6 @@ void jtag_set_ir(const struct device *dev, uint32_t ir) {
 uint8_t jtag_transfer(const struct device *dev, uint8_t request, uint32_t *transfer_data) {
     struct dap_data *data = dev->data;
     const struct dap_config *config = dev->config;
-    uint8_t ack = 0;
 
     /* assumes we are starting in idle tap state, move to select-dr-scan */
     gpio_pin_set_dt(&config->tms_swdio_gpio, 1);
@@ -126,6 +125,7 @@ uint8_t jtag_transfer(const struct device *dev, uint8_t request, uint32_t *trans
     /* set RnW, A2, and A3, and get previous ack[0..2]. ack[0] and ack[1] are swapped here
      * because the bottom two bits of the JTAG ack response are flipped from the dap transfer
      * ack response (i.e. jtag ack ok/fault = 0x2, dap ack ok/fault = 0x1) */
+    uint8_t ack = 0;
     ack |= jtag_tdio_cycle(dev, request >> TRANSFER_REQUEST_RnW_SHIFT) << 1;
     ack |= jtag_tdio_cycle(dev, request >> TRANSFER_REQUEST_A2_SHIFT) << 0;
     ack |= jtag_tdio_cycle(dev, request >> TRANSFER_REQUEST_A3_SHIFT) << 2;

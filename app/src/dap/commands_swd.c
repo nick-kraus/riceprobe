@@ -32,6 +32,138 @@ static inline void swd_write_cycle(const struct device *dev, uint8_t swdio) {
     busy_wait_nanos(data->swj.delay_ns);
 }
 
+static inline void swd_swclk_cycle(const struct device *dev) {
+    struct dap_data *data = dev->data;
+    const struct dap_config *config = dev->config;
+
+    gpio_pin_set_dt(&config->tck_swclk_gpio, 0);
+    busy_wait_nanos(data->swj.delay_ns);
+    gpio_pin_set_dt(&config->tck_swclk_gpio, 1);
+    busy_wait_nanos(data->swj.delay_ns);
+}
+
+uint8_t swd_transfer(const struct device *dev, uint8_t request, uint32_t *transfer_data) {
+    struct dap_data *data = dev->data;
+    const struct dap_config *config = dev->config;
+
+    /* 8-bit packet request */
+    uint8_t ap_ndp = request >> TRANSFER_REQUEST_APnDP_SHIFT;
+    uint8_t r_nw = request >> TRANSFER_REQUEST_RnW_SHIFT;
+    uint8_t a2 = request >> TRANSFER_REQUEST_A2_SHIFT;
+    uint8_t a3 = request >> TRANSFER_REQUEST_A3_SHIFT;
+    uint32_t parity = ap_ndp + r_nw + a2 + a3;
+    /* start bit */
+    swd_write_cycle(dev, 1);
+    swd_write_cycle(dev, ap_ndp);
+    swd_write_cycle(dev, r_nw);
+    swd_write_cycle(dev, a2);
+    swd_write_cycle(dev, a3);
+    swd_write_cycle(dev, parity);
+    /* stop then park bits */
+    swd_write_cycle(dev, 0);
+    swd_write_cycle(dev, 1);
+
+    /* turnaround bits */
+    FATAL_CHECK(
+        gpio_pin_configure_dt(&config->tms_swdio_gpio, GPIO_INPUT) >= 0,
+        "tms swdio config failed"
+    );
+    for (uint8_t i = 0; i < data->swd.turnaround_cycles; i++) {
+        swd_swclk_cycle(dev);
+    }
+
+    /* acknowledge bits */
+    uint8_t ack = 0;
+    ack |= swd_read_cycle(dev) << 0;
+    ack |= swd_read_cycle(dev) << 1;
+    ack |= swd_read_cycle(dev) << 2;
+
+    if (ack == TRANSFER_RESPONSE_ACK_OK) {
+        if ((request & TRANSFER_REQUEST_RnW) != 0) {
+            /* read data */
+            uint32_t read = 0;
+            parity = 0;
+            for (uint8_t i = 0; i < 32; i++) {
+                uint8_t bit = swd_read_cycle(dev);
+                read |= bit << i;
+                parity += bit;
+            }
+            uint8_t parity_bit = swd_read_cycle(dev);
+            if ((parity & 0x01) != parity_bit) {
+                ack = TRANSFER_RESPONSE_ERROR;
+            }
+            *transfer_data = read;
+            /* turnaround bits */
+            for (uint8_t i = 0; i < data->swd.turnaround_cycles; i++) {
+                swd_swclk_cycle(dev);
+            }
+            FATAL_CHECK(
+                gpio_pin_configure_dt(&config->tms_swdio_gpio, GPIO_INPUT | GPIO_OUTPUT) >= 0,
+                "tms swdio config failed"
+            );
+        } else {
+            /* turnaround bits */
+            for (uint8_t i = 0; i < data->swd.turnaround_cycles; i++) {
+                swd_swclk_cycle(dev);
+            }
+            FATAL_CHECK(
+                gpio_pin_configure_dt(&config->tms_swdio_gpio, GPIO_INPUT | GPIO_OUTPUT) >= 0,
+                "tms swdio config failed"
+            );
+            /* write data */
+            uint32_t write = *transfer_data;
+            parity = 0;
+            for (uint8_t i = 0; i < 32; i++) {
+                swd_write_cycle(dev, (uint8_t) write);
+                parity += write;
+                write >>= 1;
+            }
+            swd_write_cycle(dev, (uint8_t) parity);
+        }
+        /* idle cycles */
+        for (uint8_t i = 0; i < data->transfer.idle_cycles; i++) {
+            swd_write_cycle(dev, 0);
+        }
+        gpio_pin_set_dt(&config->tms_swdio_gpio, 1);
+        return ack;
+    } else if (ack == TRANSFER_RESPONSE_ACK_WAIT || ack == TRANSFER_RESPONSE_FAULT) {
+        if (data->swd.data_phase && (request & TRANSFER_REQUEST_RnW) != 0) {
+            /* dummy read through 32 bits and parity */
+            for (uint8_t i = 0; i < 33; i++) {
+                swd_swclk_cycle(dev);
+            }
+        }
+        /* turnaround bits */
+        for (uint8_t i = 0; i < data->swd.turnaround_cycles; i++) {
+            swd_swclk_cycle(dev);
+        }
+        FATAL_CHECK(
+            gpio_pin_configure_dt(&config->tms_swdio_gpio, GPIO_INPUT | GPIO_OUTPUT) >= 0,
+            "tms swdio config failed"
+        );
+        if (data->swd.data_phase && (request & TRANSFER_REQUEST_RnW) == 0) {
+            gpio_pin_set_dt(&config->tms_swdio_gpio, 0);
+            /* dummy write through 32 bits and parity */
+            for (uint8_t i = 0; i < 33; i++) {
+                swd_swclk_cycle(dev);
+            }
+        }
+        gpio_pin_set_dt(&config->tms_swdio_gpio, 1);
+        return ack;
+    } else {
+        /* dummy read through turnaround bits, 32 bits and parity */
+        for (uint8_t i = 0; i < data->swd.turnaround_cycles + 33; i++) {
+            swd_swclk_cycle(dev);
+        }
+        FATAL_CHECK(
+            gpio_pin_configure_dt(&config->tms_swdio_gpio, GPIO_INPUT | GPIO_OUTPUT) >= 0,
+            "tms swdio config failed"
+        );
+        gpio_pin_set_dt(&config->tms_swdio_gpio, 1);
+        return ack;
+    }
+}
+
 int32_t dap_handle_command_swd_configure(const struct device *dev) {
     struct dap_data *data = dev->data;
     const struct dap_config *config = dev->config;
@@ -42,7 +174,7 @@ int32_t dap_handle_command_swd_configure(const struct device *dev) {
 
     uint8_t configuration = 0;
     CHECK_EQ(ring_buf_get(config->request_buf, &configuration, 1), 1, -EMSGSIZE);
-    data->swd.turnaround_cycles = configuration & turnaround_mask;
+    data->swd.turnaround_cycles = (configuration & turnaround_mask) + 1;
     data->swd.data_phase = (configuration & data_phase_mask) == 0 ? false : true;
 
     uint8_t response[] = {DAP_COMMAND_SWD_CONFIGURE, DAP_COMMAND_RESPONSE_OK};

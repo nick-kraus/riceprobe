@@ -1,8 +1,8 @@
 import pytest
 import usb.core
 
-pytest.register_assert_rewrite('dap')
-pytest.register_assert_rewrite('openocd')
+pytest.register_assert_rewrite('fixtures.dap')
+pytest.register_assert_rewrite('fixtures.openocd')
 
 from fixtures.dap import Dap
 from fixtures.openocd import OpenOCD
@@ -22,18 +22,17 @@ def dap():
     yield dap
     dap.shutdown()
 
-@pytest.fixture(scope='module')
-def openocd_rtt():
-    openocd = OpenOCD()
-    openocd.start()
-    # ensure the target is reset, initialized, and running, since we connected under reset
-    openocd.send(b'reset run')
+@pytest.fixture(scope='module', params=['jtag', 'swd'])
+def openocd_rtt(request):
+    transport = request.param
+    with OpenOCD(transport=transport) as openocd:
+        # ensure the target is reset, initialized, and running, since we connected under reset
+        openocd.send(b'reset run')
 
-    rtt = openocd.enable_rtt()
-    # make sure we can send and receive data from the shell
-    assert(rtt.send(b'\n\n') == 2)
-    assert(rtt.expect_bytes(b'target:~$ ') is not None)
-    assert(rtt.expect_bytes(b'target:~$ ') is not None)
+        rtt = openocd.enable_rtt()
+        # make sure we can send and receive data from the shell
+        assert(rtt.send(b'\n\n') == 2)
+        assert(rtt.expect_bytes(b'target:~$ ') is not None)
+        assert(rtt.expect_bytes(b'target:~$ ') is not None)
 
-    yield openocd, rtt
-    openocd.close()
+        yield openocd, rtt
