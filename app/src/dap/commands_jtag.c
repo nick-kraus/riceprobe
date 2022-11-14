@@ -194,8 +194,6 @@ end:
     jtag_tck_cycle(dev);
     gpio_pin_set_dt(&config->tdi_gpio, 1);
 
-    /* TODO: grab timestamp here when supported */
-
     /* idle for configured cycles */
     for (uint8_t i = 0; i < data->transfer.idle_cycles; i++) {
         jtag_tck_cycle(dev);
