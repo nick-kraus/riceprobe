@@ -116,15 +116,13 @@ int32_t dap_handle_request(const struct device *dev) {
     case DAP_COMMAND_SWO_EXTENDED_STATUS:
         return -ENOTSUP; /* TODO */
     case DAP_COMMAND_UART_TRANSPORT:
-        return -ENOTSUP; /* TODO */
     case DAP_COMMAND_UART_CONFIGURE:
-        return -ENOTSUP; /* TODO */
     case DAP_COMMAND_UART_TRANSFER:
-        return -ENOTSUP; /* TODO */
     case DAP_COMMAND_UART_CONTROL:
-        return -ENOTSUP; /* TODO */
     case DAP_COMMAND_UART_STATUS:
-        return -ENOTSUP; /* TODO */
+        /* no intention on implementing the DAP UART commands, can just be interfaced over the
+         * CDC-ACM virtual com port interface */
+        return -ENOTSUP;
     case DAP_COMMAND_QUEUE_COMMANDS:
         return -ENOTSUP; /* TODO */
     case DAP_COMMAND_EXECUTE_COMMANDS:
