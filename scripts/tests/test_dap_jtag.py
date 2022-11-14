@@ -270,3 +270,17 @@ def test_jtag_transfer_commands(dap):
     data = dap.read(1, timeout=10)
     # command doesn't return anything
     assert(len(data) == 0)
+
+def test_jtag_write_abort_command(dap):
+    # it is harder to cause a fault on the JTAG transfers, so for now just test that the command returns
+    # the expected result
+    dap.configure_jtag()
+    dap.command(b'\x15\x02\x04\x05', expect=b'\x15\x00')
+
+    # incomplete command
+    dap.command(b'\x08', expect=b'\xff')
+    dap.command(b'\x08\x01\x12\x34', expect=b'\xff')
+    # if index is invalid make sure that an error is returned
+    dap.command(b'\x08\xff\x00\x00\x00\x00', expect=b'\x08\xff')
+    # now make sure the real command works
+    dap.command(b'\x08\x00\x01\x00\x00\x00', expect=b'\x08\x00')

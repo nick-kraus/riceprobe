@@ -294,3 +294,36 @@ int32_t dap_handle_command_transfer_abort(const struct device *dev) {
 
     return 0;
 }
+
+int32_t dap_handle_command_write_abort(const struct device *dev) {
+    struct dap_data *data = dev->data;
+    const struct dap_config *config = dev->config;
+    uint8_t status = DAP_COMMAND_RESPONSE_OK;
+
+    /* jtag index, ignored for SWD */
+    uint8_t index = 0;
+    CHECK_EQ(ring_buf_get(config->request_buf, &index, 1), 1, -EMSGSIZE);
+    /* value to write to the abort register */
+    uint32_t abort = 0;
+    CHECK_EQ(ring_buf_get(config->request_buf, (uint8_t*) &abort, 4), 4, -EMSGSIZE);
+
+    if (data->swj.port == DAP_PORT_DISABLED) {
+        status = DAP_COMMAND_RESPONSE_ERROR;
+        goto end;
+    } else if (data->swj.port == DAP_PORT_JTAG) {
+        if (index >= data->jtag.count) {
+            status = DAP_COMMAND_RESPONSE_ERROR;
+            goto end;
+        }
+        data->jtag.index = index;
+    }
+
+    port_set_ir(dev, NULL, JTAG_IR_ABORT);
+    /* DP write, address 0x0, */
+    port_transfer(dev, 0x00, &abort);
+
+end: ;
+    uint8_t response[] = {DAP_COMMAND_WRITE_ABORT, status};
+    CHECK_EQ(ring_buf_put(config->response_buf, response, 2), 2, -ENOBUFS);
+    return ring_buf_size_get(config->response_buf);
+}

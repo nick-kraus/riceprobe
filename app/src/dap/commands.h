@@ -41,6 +41,7 @@
 #define DAP_COMMAND_EXECUTE_COMMANDS        ((uint8_t) 0x7f)
 
 /* jtag ir instructions */
+#define JTAG_IR_ABORT                       ((uint8_t) 0x08)
 #define JTAG_IR_DPACC                       ((uint8_t) 0x0a)
 #define JTAG_IR_APACC                       ((uint8_t) 0x0b)
 #define JTAG_IR_IDCODE                      ((uint8_t) 0x0e)
@@ -78,6 +79,7 @@ int32_t dap_handle_command_transfer_configure(const struct device *dev);
 int32_t dap_handle_command_transfer(const struct device *dev);
 int32_t dap_handle_command_transfer_block(const struct device *dev);
 int32_t dap_handle_command_transfer_abort(const struct device *dev);
+int32_t dap_handle_command_write_abort(const struct device *dev);
 int32_t dap_handle_command_delay(const struct device *dev);
 int32_t dap_handle_command_reset_target(const struct device *dev);
 int32_t dap_handle_command_swj_pins(const struct device *dev);

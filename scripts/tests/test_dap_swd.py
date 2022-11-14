@@ -90,3 +90,40 @@ def test_swd_transfer_command(dap):
     # making sure all reads return the same value
     dap.command(b'\x06\x00\x02\x00\x05\x12\x34\x45\x78\x12\x34\x45\x78', expect=b'\x06\x02\x00\x01')
     dap.command(b'\x06\x00\x02\x00\x07', expect=b'\x06\x02\x00\x01\x12\x34\x45\x78\x12\x34\x45\x78')
+
+def test_swd_write_abort_command(dap):
+    dap.configure_swd()
+    # configure swd parameters
+    dap.command(b'\x13\x00', expect=b'\x13\x00')
+    # configure transfer parameters
+    dap.command(b'\x04\x00\x64\x00\x01\x00', expect=b'\x04\x00')
+
+    # incomplete command
+    dap.command(b'\x08', expect=b'\xff')
+    dap.command(b'\x08\x01\x12\x34', expect=b'\xff')
+
+    # get the SW-DP IDCODE, must be done before anything else
+    dap.command(b'\x05\x00\x01\x02', expect=b'\x05\x01\x01\x77\x14\xa0\x2b')
+    # set CTRLSEL in DP SELECT to 0
+    dap.command(b'\x05\x00\x01\x08\x00\x00\x00\x00', expect=b'\x05\x01\x01')
+    # write to DP, CTRL/STAT register (0x4), clear register expected default state,
+    # then read from DP, CTRL/STAT, to verify previous read, where most bits (but
+    # not all) will be zeroed
+    xfer_request = b'\x04\x00\x00\x00\x00' + b'\x06'
+    xfer_response = b'\x40\x00\x00\x20'
+    dap.command(b'\x05\x00\x02' + xfer_request, expect=b'\x05\x02\x01' + xfer_response)
+    # now write CSYSPWRUPREQ and CDBGPWRUPREQ bits and clear STICKYERR from CTRL/STAT, then
+    # make multiple reads to check read transfer pipelining
+    xfer_request = b'\x04\x10\x00\x00\x50' + b'\x06' + b'\x06' + b'\x20\x00\x00\x00\x00'
+    xfer_response = b'\x40\x00\x00\xf0' + b'\x40\x00\x00\xf0'
+    dap.command(b'\x05\x00\x04' + xfer_request, expect=b'\x05\x04\x01' + xfer_response)
+
+    # now purposely cause an SWD fault, by setting up a transfer with incorrect parity on the data,
+    # while trying to write the DP CTRL/STAT register
+    dap.command(b'\x1d\x03\x08\xa9\x85\x21\x10\x00\x00\x50\x00')
+    # the WDATAERR flag in DP CTRL/STAT should now be set
+    dap.command(b'\x05\x00\x01\x06', expect=b'\x05\x01\x01\xc0\x00\x00\xf0')
+    # performing the write abort should clear the WDATAERR flag
+    dap.command(b'\x08\x00\x1e\x00\x00\x00', expect=b'\x08\x00')
+    # CTRL/STAT should now be at the original (initialized) value
+    dap.command(b'\x05\x00\x01\x06', expect=b'\x05\x01\x01\x40\x00\x00\xf0')
