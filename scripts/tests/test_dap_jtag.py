@@ -284,3 +284,19 @@ def test_jtag_write_abort_command(dap):
     dap.command(b'\x08\xff\x00\x00\x00\x00', expect=b'\x08\xff')
     # now make sure the real command works
     dap.command(b'\x08\x00\x01\x00\x00\x00', expect=b'\x08\x00')
+
+def test_atomic_commands(dap):
+    # incomplete command request
+    dap.command(b'\x7f', expect=b'\xff')
+
+    # get vendor name twice, and make sure the value is returned twice as expected, and measure execution time
+    dap.command(b'\x7f\x02\x00\x01\x00\x01', expect=b'\x7f\x02\x00\x0bNick Kraus\x00\x00\x0bNick Kraus\x00')
+
+    # repeat the above command with a delay in between, make sure the execution time is as expected
+    start = time.time()
+    dap.command(
+        b'\x7f\x03\x00\x01\x09\xff\xff\x00\x01',
+        expect=b'\x7f\x03\x00\x0bNick Kraus\x00\x09\x00\x00\x0bNick Kraus\x00'
+    )
+    delta = (time.time() - start) * 1000000
+    assert(delta > 30000 and delta < 100000)

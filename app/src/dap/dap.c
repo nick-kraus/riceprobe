@@ -52,16 +52,7 @@ int32_t dap_reset(const struct device *dev) {
     return 0;
 }
 
-int32_t dap_handle_request(const struct device *dev) {
-    const struct dap_config *config = dev->config;
-
-    /* this request should not be handled before the previous response was transmitted, so
-     * we can assume that the response buffer is safe to reset */
-    ring_buf_reset(config->response_buf);
-    /* data should be available at the front of the ring buffer before calling this handler */
-    uint8_t command = 0xff;
-    CHECK_EQ(ring_buf_get(config->request_buf, &command, 1), 1, -EMSGSIZE);
-    
+static int32_t dap_handle_single_request(const struct device *dev, uint8_t command) {
     switch (command) {
     case DAP_COMMAND_INFO:
         return dap_handle_command_info(dev);
@@ -125,12 +116,43 @@ int32_t dap_handle_request(const struct device *dev) {
         return -ENOTSUP;
     case DAP_COMMAND_QUEUE_COMMANDS:
         return -ENOTSUP; /* TODO */
-    case DAP_COMMAND_EXECUTE_COMMANDS:
-        return -ENOTSUP; /* TODO */
     default:
         LOG_ERR("unsupported command 0x%x", command);
         return -ENOTSUP;
     }
+}
+
+int32_t dap_handle_request(const struct device *dev) {
+    const struct dap_config *config = dev->config;
+
+    /* this request should not be handled before the previous response was transmitted, so
+     * we can assume that the response buffer is safe to reset */
+    ring_buf_reset(config->response_buf);
+
+    /* this will usually just run once, unless an atomic command is being used */
+    uint8_t num_commands = 1;
+    do {
+        /* data should be available at the front of the ring buffer before calling this handler */
+        uint8_t command = 0xff;
+        CHECK_EQ(ring_buf_get(config->request_buf, &command, 1), 1, -EMSGSIZE);
+
+        if (command == DAP_COMMAND_EXECUTE_COMMANDS) {
+            CHECK_EQ(ring_buf_get(config->request_buf, &num_commands, 1), 1, -EMSGSIZE);
+            CHECK_EQ(ring_buf_put(config->response_buf, &command, 1), 1, -ENOBUFS);
+            CHECK_EQ(ring_buf_put(config->response_buf, &num_commands, 1), 1, -ENOBUFS);
+            /* get the next command for processing */
+            CHECK_EQ(ring_buf_get(config->request_buf, &command, 1), 1, -EMSGSIZE);
+        }
+
+        int32_t size = dap_handle_single_request(dev, command);
+        if (size < 0) {
+            return size;
+        } else {
+            num_commands--;
+        }
+    } while (num_commands > 0);
+
+    return ring_buf_size_get(config->response_buf);
 }
 
 static void handle_running_led_timer(struct k_timer *timer) {
