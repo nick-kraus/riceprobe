@@ -57,6 +57,15 @@ static void dap_usb_read_cb(uint8_t ep, int32_t size, void *priv) {
 		goto end;
 	}
 
+	/* if the given command is DAP_COMMAND_QUEUE_COMMANDS, we delay calling the handle request function until we
+	 * receive a non-DAP_COMMAND_QUEUE_COMMANDS command, at which point all commands will execute at once */
+	if (config->ep_buf[0] == DAP_COMMAND_QUEUE_COMMANDS) {
+		goto end;
+	}
+
+	/* by this point the previous response should have been received by the host and it should be safe to clear
+	 * the response buffer */
+	ring_buf_reset(config->response_buf);
 	int response_size = dap_handle_request(dev);
 	if (response_size < 0) {
 		LOG_ERR("dap handle request failed with error %d", response_size);

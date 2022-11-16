@@ -114,8 +114,6 @@ static int32_t dap_handle_single_request(const struct device *dev, uint8_t comma
         /* no intention on implementing the DAP UART commands, can just be interfaced over the
          * CDC-ACM virtual com port interface */
         return -ENOTSUP;
-    case DAP_COMMAND_QUEUE_COMMANDS:
-        return -ENOTSUP; /* TODO */
     default:
         LOG_ERR("unsupported command 0x%x", command);
         return -ENOTSUP;
@@ -125,17 +123,26 @@ static int32_t dap_handle_single_request(const struct device *dev, uint8_t comma
 int32_t dap_handle_request(const struct device *dev) {
     const struct dap_config *config = dev->config;
 
-    /* this request should not be handled before the previous response was transmitted, so
-     * we can assume that the response buffer is safe to reset */
-    ring_buf_reset(config->response_buf);
-
     /* this will usually just run once, unless an atomic command is being used */
     uint8_t num_commands = 1;
+    bool queued_commands = false;
     do {
+        if (queued_commands && num_commands == 0) {
+            /* this may be the last command in the chain, if not we will reset this flag later */
+            num_commands = 1;
+            queued_commands = false;
+        }
+
         /* data should be available at the front of the ring buffer before calling this handler */
         uint8_t command = 0xff;
         CHECK_EQ(ring_buf_get(config->request_buf, &command, 1), 1, -EMSGSIZE);
 
+        if (command == DAP_COMMAND_QUEUE_COMMANDS) {
+            queued_commands = true;
+            /* response of queued command is identical to execute commands, so replace the current
+             * command to re-use the existing code path */
+            command = DAP_COMMAND_EXECUTE_COMMANDS;
+        }
         if (command == DAP_COMMAND_EXECUTE_COMMANDS) {
             CHECK_EQ(ring_buf_get(config->request_buf, &num_commands, 1), 1, -EMSGSIZE);
             CHECK_EQ(ring_buf_put(config->response_buf, &command, 1), 1, -ENOBUFS);
@@ -150,7 +157,7 @@ int32_t dap_handle_request(const struct device *dev) {
         } else {
             num_commands--;
         }
-    } while (num_commands > 0);
+    } while (num_commands > 0 || queued_commands);
 
     return ring_buf_size_get(config->response_buf);
 }

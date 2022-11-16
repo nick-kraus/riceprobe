@@ -1,5 +1,8 @@
+import pytest
 import re
 import time
+
+from usb.core import USBTimeoutError
 
 def test_unsupported(dap):
     # unsupported writes should return the single hex byte 0xff
@@ -30,7 +33,7 @@ def test_info_command(dap):
     assert(data[0] == ord(b'\x00') and data[1] == len(data) - 2)
     assert(re.match(rb'^v\d+\.\d+\.\d+-\d+-g[0-9a-f]{7}(-dirty)?\x00$', data[2:]))
     # capabilities should match a known value
-    dap.command(b'\x00\xf0', expect=b'\x00\x01\x03')
+    dap.command(b'\x00\xf0', expect=b'\x00\x01\x13')
     # test domain timer should return the default unused value
     dap.command(b'\x00\xf1', expect=b'\x00\x08\x00\x00\x00\x00')
     # uart rx and tx buffer size should match a known value
@@ -300,3 +303,17 @@ def test_atomic_commands(dap):
     )
     delta = (time.time() - start) * 1000000
     assert(delta > 30000 and delta < 100000)
+
+    # for queued commands, make sure that there are no responses until the final command is given
+    dap.write(b'\x7e\x01\x09\xff\x00')
+    with pytest.raises(USBTimeoutError):
+        dap.read(512, timeout=10)
+    dap.write(b'\x7e\x02\x00\x01\x09\xff\x00')
+    with pytest.raises(USBTimeoutError):
+        dap.read(512, timeout=10)
+    dap.write(b'\x00\x02')
+    data = dap.read(512, timeout=10)
+    expected_response = b'\x7f\x01\x09\x00'
+    expected_response += b'\x7f\x02\x00\x0bNick Kraus\x00\x09\x00'
+    expected_response += b'\x00\x17RICEProbe IO CMSIS-DAP\x00'
+    assert(data == expected_response)

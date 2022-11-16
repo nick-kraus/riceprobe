@@ -37,7 +37,7 @@ int32_t dap_handle_command_info(const struct device *dev) {
     const uint8_t caps_support_jtag = 0x02;
     const uint8_t caps_no_swo_uart_support = 0x00;
     const uint8_t caps_no_swo_manchester_support = 0x00;
-    const uint8_t caps_no_atomic_cmds_support = 0x00;
+    const uint8_t caps_support_atomic_cmds = 0x10;
     const uint8_t caps_no_test_domain_timer_support = 0x00;
     const uint8_t caps_no_swo_trace_support = 0x00;
     const uint8_t caps_no_uart_dap_port_support = 0x00;
@@ -110,7 +110,7 @@ int32_t dap_handle_command_info(const struct device *dev) {
                                            caps_support_jtag |
                                            caps_no_swo_uart_support |
                                            caps_no_swo_manchester_support |
-                                           caps_no_atomic_cmds_support |
+                                           caps_support_atomic_cmds |
                                            caps_no_test_domain_timer_support |
                                            caps_no_swo_trace_support |
                                            caps_no_uart_dap_port_support;
