@@ -104,7 +104,6 @@ int32_t dap_handle_command_info(const struct device *dev) {
         CHECK_EQ(ring_buf_put_finish(config->response_buf, space), 0, -ENOBUFS);
         return ring_buf_size_get(config->response_buf);
     } else if (id == info_capabilities) {
-        /* TODO: this all needs to be changed as we support new capabilities */
         const uint8_t capabilities_len = 1;
         const uint8_t capabilities_info0 = caps_support_swd |
                                            caps_support_jtag |
@@ -126,12 +125,13 @@ int32_t dap_handle_command_info(const struct device *dev) {
                id == info_uart_tx_buffer_size) {
         const uint32_t rx_buf_size = VCP_RING_BUF_SIZE;
         uint8_t response[5] = { 0x04, 0x00, 0x00, 0x00, 0x00 };
-        bytecpy(response + 1, &rx_buf_size, sizeof(rx_buf_size));
+        bytecpy(response + 1, &rx_buf_size, 4);
         CHECK_EQ(ring_buf_put(config->response_buf, response, 5), 5, -ENOBUFS);
         return ring_buf_size_get(config->response_buf);
     } else if (id == info_swo_buffer_size) {
-        /* TODO: change this when functionality is supported */
-        const uint8_t response[5] = { 0x04, 0x00, 0x00, 0x00, 0x00 };
+        const uint32_t swo_buffer_size = DAP_SWO_RING_BUF_SIZE;
+        uint8_t response[5] = { 0x04, 0x00, 0x00, 0x00, 0x00 };
+        bytecpy(response + 1, &swo_buffer_size, 4);
         CHECK_EQ(ring_buf_put(config->response_buf, response, 5), 5, -ENOBUFS);
         return ring_buf_size_get(config->response_buf);
     } else if (id == info_max_packet_count) {
@@ -142,7 +142,7 @@ int32_t dap_handle_command_info(const struct device *dev) {
     } else if (id == info_max_packet_size) {
         const uint16_t packet_size = DAP_BULK_EP_MPS;
         uint8_t response[3] = { 0x02, 0x00, 0x00 };
-        bytecpy(response + 1, &packet_size, sizeof(packet_size));
+        bytecpy(response + 1, &packet_size, 2);
         CHECK_EQ(ring_buf_put(config->response_buf, response, 3), 3, -ENOBUFS);
         return ring_buf_size_get(config->response_buf);
     } else {
@@ -209,6 +209,9 @@ int32_t dap_handle_command_connect(const struct device *dev) {
     }
 
     if (port == 1) {
+        /* tdo is configured as uart but capture not enabled */
+        swo_capture_control(dev, false);
+        if (pinctrl_apply_state(config->pinctrl_config, PINCTRL_STATE_SWO) != 0) { goto end; }
         FATAL_CHECK(
             gpio_pin_configure_dt(&config->tck_swclk_gpio, GPIO_INPUT | GPIO_OUTPUT_ACTIVE) >= 0,
             "tck swclk config failed"
@@ -222,12 +225,14 @@ int32_t dap_handle_command_connect(const struct device *dev) {
             gpio_pin_configure_dt(&config->nreset_gpio, GPIO_INPUT | GPIO_OUTPUT_ACTIVE) >= 0,
             "nreset config failed"
         );
-        /* tdi and tdo unused in swd mode */
-        FATAL_CHECK(gpio_pin_configure_dt(&config->tdo_gpio, GPIO_INPUT) >= 0, "tdo config failed");
+        /* tdi unused in swd mode */
         FATAL_CHECK(gpio_pin_configure_dt(&config->tdi_gpio, GPIO_INPUT) >= 0, "tdi config failed");
         data->swj.port = DAP_PORT_SWD;
         response_port = 1;
     } else {
+        /* tdo pinctrl must be configured as gpio, and uart capture disabled */
+        swo_capture_control(dev, false);
+        if (pinctrl_apply_state(config->pinctrl_config, PINCTRL_STATE_TDO) != 0) { goto end; }
         FATAL_CHECK(
             gpio_pin_configure_dt(&config->tck_swclk_gpio, GPIO_INPUT | GPIO_OUTPUT_ACTIVE | GPIO_PULL_DOWN) >= 0,
             "tck swclk config failed"
@@ -260,6 +265,13 @@ end: ;
 int32_t dap_handle_command_disconnect(const struct device *dev) {
     struct dap_data *data = dev->data;
     const struct dap_config *config = dev->config;
+    uint8_t status = DAP_COMMAND_RESPONSE_OK;
+
+    /* disable SWO if it is currently enabled */
+    swo_capture_control(dev, false);
+    if (pinctrl_apply_state(config->pinctrl_config, PINCTRL_STATE_TDO) != 0) {
+        status = DAP_COMMAND_RESPONSE_ERROR;
+    }
 
     data->swj.port = DAP_PORT_DISABLED;
     FATAL_CHECK(gpio_pin_configure_dt(&config->tck_swclk_gpio, GPIO_INPUT) >= 0, "tck swclk config failed");
@@ -269,7 +281,7 @@ int32_t dap_handle_command_disconnect(const struct device *dev) {
     FATAL_CHECK(gpio_pin_configure_dt(&config->nreset_gpio, GPIO_INPUT) >= 0, "nreset config failed");
     LOG_INF("configured port io as HiZ");
 
-    uint8_t response[] = {DAP_COMMAND_DISCONNECT, DAP_COMMAND_RESPONSE_OK};
+    uint8_t response[] = {DAP_COMMAND_DISCONNECT, status};
     CHECK_EQ(ring_buf_put(config->response_buf, response, 2), 2, -ENOBUFS);
     return ring_buf_size_get(config->response_buf);
 }

@@ -25,6 +25,14 @@
 		vtref_gpios = <&piod 30 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>;
 		led_connect_gpios = <&pioa 23 GPIO_ACTIVE_LOW>;
 		led_running_gpios = <&pioa 23 GPIO_ACTIVE_LOW>;
+
+		swo_uart = <&uart3>;
+
+		/* by default the tdo/swo pin is configured as a GPIO input, but must be switched
+		 * to a UART input if SWO is used */
+		pinctrl-0 = <&dap_pinctrl_tdo_swo_gpio>;
+		pinctrl-1 = <&dap_pinctrl_tdo_swo_uart>;
+		pinctrl-names = "tdo", "swo";
     };
 
     io: io {
@@ -86,6 +94,19 @@
 };
 
 &pinctrl {
+	dap_pinctrl_tdo_swo_gpio: dap_pinctrl_tdo_swo_gpio {
+		group1 {
+			pinmux = <PD28_GPIO>;
+		};
+	};
+
+	dap_pinctrl_tdo_swo_uart: dap_pinctrl_tdo_swo_uart {
+		group1 {
+			pinmux = <PD28A_UART3_RXD>;
+			bias-pull-up;
+		};
+	};
+
 	usart1_pinctrl: usart1_pinctrl {
 		group1 {
 			pinmux = <PA21A_USART1_RXD>,
@@ -112,6 +133,13 @@
 
 &pioe {
 	status = "okay";
+};
+
+&uart3 {
+	status = "okay";
+	current-speed = <115200>;
+	pinctrl-0 = <&dap_pinctrl_tdo_swo_uart>;
+	pinctrl-names = "default";
 };
 
 &usart1 {

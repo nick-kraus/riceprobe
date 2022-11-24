@@ -70,6 +70,7 @@
 void jtag_set_ir(const struct device *dev, uint32_t ir);
 uint8_t jtag_transfer(const struct device *dev, uint8_t request, uint32_t *transfer_data);
 uint8_t swd_transfer(const struct device *dev, uint8_t request, uint32_t *transfer_data);
+void swo_capture_control(const struct device *dev, bool enable);
 
 int32_t dap_handle_command_info(const struct device *dev);
 int32_t dap_handle_command_host_status(const struct device *dev);
@@ -89,6 +90,13 @@ int32_t dap_handle_command_swd_configure(const struct device *dev);
 int32_t dap_handle_command_jtag_sequence(const struct device *dev);
 int32_t dap_handle_command_jtag_configure(const struct device *dev);
 int32_t dap_handle_command_jtag_idcode(const struct device *dev);
+int32_t dap_handle_command_swo_transport(const struct device *dev);
+int32_t dap_handle_command_swo_mode(const struct device *dev);
+int32_t dap_handle_command_swo_baudrate(const struct device *dev);
+int32_t dap_handle_command_swo_control(const struct device *dev);
+int32_t dap_handle_command_swo_status(const struct device *dev);
+int32_t dap_handle_command_swo_data(const struct device *dev);
 int32_t dap_handle_command_swd_sequence(const struct device *dev);
+int32_t dap_handle_command_swo_extended_status(const struct device *dev);
 
 #endif /* __DAP_COMMANDS_PRIV_H__ */

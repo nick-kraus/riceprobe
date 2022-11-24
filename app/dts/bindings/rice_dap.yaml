@@ -2,6 +2,9 @@ description: CMSIS-DAP protocol driver
 
 compatible: "rice,dap"
 
+include:
+    - name: pinctrl-device.yaml
+
 properties:
     label:
       type: string
@@ -50,3 +53,8 @@ properties:
       description: Connect LED GPIO Pin.
 
         Outputs the running status of the debug probe.
+
+    swo_uart:
+      type: phandle
+      required: true
+      description: SWO UART Device.

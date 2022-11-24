@@ -31,6 +31,9 @@ if SERIAL
 config USART_SAM
 	default y
 
+config UART_SAM
+	default y
+
 endif # SERIAL
 
 endif # BOARD_RICE_SAMV71B_XULT

@@ -2,6 +2,7 @@
 #define __DAP_PRIV_H__
 
 #include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/pinctrl.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/ring_buffer.h>
 #include <zephyr/usb/usb_device.h>
@@ -11,6 +12,8 @@
 
 /* size of the internal buffers in bytes */
 #define DAP_RING_BUF_SIZE       (512)
+/* size of the swo uart buffer in bytes */
+#define DAP_SWO_RING_BUF_SIZE   (4096)
 
 /* default SWD/JTAG clock rate in Hz */
 #define DAP_DEFAULT_SWJ_CLOCK_RATE    (1000000)
@@ -22,6 +25,11 @@
 
 /* maximum number of devices supported on the JTAG chain */
 #define DAP_JTAG_MAX_DEVICE_COUNT   4
+
+/* pinctrl state for tdo/swo pin as gpio */
+#define PINCTRL_STATE_TDO       ((uint8_t) 0)
+/* pinctrl state for tdo/swo pin as uart rx */
+#define PINCTRL_STATE_SWO       ((uint8_t) 1)
 
 struct dap_data {
     /* shared swd and jtag state */
@@ -51,6 +59,20 @@ struct dap_data {
         /* whether or not to generate a data phase */
         bool data_phase;
     } swd;
+    struct {
+        /* transport for swo data to host */
+        uint8_t transport;
+        /* interface mode for swo data to target */
+        uint8_t mode;
+        /* uart mode baudrate */
+        uint32_t baudrate;
+        /* if true then swo data is actively being captured */
+        bool capture;
+        /* true if a uart error has occurred, clears on swo disable */
+        bool error;
+        /* true if the swo buffer has overrun, clears on swo enable */
+        bool overrun;
+    } swo;
     struct {
         /* number of extra idle cycles after each transfer */
         uint8_t idle_cycles;
@@ -88,6 +110,11 @@ struct dap_config {
     struct gpio_dt_spec vtref_gpio;
     struct gpio_dt_spec led_connect_gpio;
     struct gpio_dt_spec led_running_gpio;
+
+    const struct device *swo_uart_dev;
+    struct ring_buf *swo_buf;
+
+    const struct pinctrl_dev_config *pinctrl_config;
 };
 
 extern sys_slist_t dap_devlist;
