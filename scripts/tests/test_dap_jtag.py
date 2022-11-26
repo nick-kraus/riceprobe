@@ -42,7 +42,7 @@ def test_info_command(dap):
     # swo trace buffer size should match a known value
     dap.command(b'\x00\xfd', expect=b'\x00\x04\x00\x10\x00\x00')
     # usb packet count should match a known value
-    dap.command(b'\x00\xfe', expect=b'\x00\x01\x01')
+    dap.command(b'\x00\xfe', expect=b'\x00\x01\x04')
     # usb packet size should match a known value
     dap.command(b'\x00\xff', expect=b'\x00\x02\x00\x02')
     # unsupported info id

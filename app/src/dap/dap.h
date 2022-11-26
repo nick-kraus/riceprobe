@@ -11,9 +11,9 @@
 #define DAP_PROTOCOL_VERSION    "2.1.1"
 
 /* size of the internal buffers in bytes */
-#define DAP_RING_BUF_SIZE       (512)
+#define DAP_RING_BUF_SIZE       (2048)
 /* size of the swo uart buffer in bytes */
-#define DAP_SWO_RING_BUF_SIZE   (4096)
+#define DAP_SWO_RING_BUF_SIZE   (2048)
 
 /* default SWD/JTAG clock rate in Hz */
 #define DAP_DEFAULT_SWJ_CLOCK_RATE    (1000000)
