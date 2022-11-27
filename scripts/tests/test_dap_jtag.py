@@ -45,8 +45,8 @@ def test_info_command(dap):
     dap.command(b'\x00\xfe', expect=b'\x00\x01\x04')
     # usb packet size should match a known value
     dap.command(b'\x00\xff', expect=b'\x00\x02\x00\x02')
-    # unsupported info id
-    dap.command(b'\x00\xbb', expect=b'\xff')
+    # unsupported info id returns length of 0
+    dap.command(b'\x00\xbb', expect=b'\x00\x00')
 
 def test_host_status_command(dap):
     # incomplete command request

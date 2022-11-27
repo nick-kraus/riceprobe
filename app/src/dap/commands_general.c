@@ -146,7 +146,9 @@ int32_t dap_handle_command_info(const struct device *dev) {
         CHECK_EQ(ring_buf_put(config->response_buf, response, 3), 3, -ENOBUFS);
         return ring_buf_size_get(config->response_buf);
     } else {
-        return -ENOTSUP;
+        /* unsupported info responses just have a length of 0 */
+        CHECK_EQ(ring_buf_put(config->response_buf, &((uint8_t) {0}), 1), 1, -ENOBUFS);
+        return ring_buf_size_get(config->response_buf);
     }
 }
 
