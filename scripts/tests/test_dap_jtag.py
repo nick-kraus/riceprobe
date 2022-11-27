@@ -40,7 +40,7 @@ def test_info_command(dap):
     dap.command(b'\x00\xfb', expect=b'\x00\x04\x00\x04\x00\x00')
     dap.command(b'\x00\xfc', expect=b'\x00\x04\x00\x04\x00\x00')
     # swo trace buffer size should match a known value
-    dap.command(b'\x00\xfd', expect=b'\x00\x04\x00\x10\x00\x00')
+    dap.command(b'\x00\xfd', expect=b'\x00\x04\x00\x08\x00\x00')
     # usb packet count should match a known value
     dap.command(b'\x00\xfe', expect=b'\x00\x01\x04')
     # usb packet size should match a known value
@@ -307,12 +307,12 @@ def test_atomic_commands(dap):
     # for queued commands, make sure that there are no responses until the final command is given
     dap.write(b'\x7e\x01\x09\xff\x00')
     with pytest.raises(USBTimeoutError):
-        dap.read(512, timeout=10)
+        dap.read(2049, timeout=10)
     dap.write(b'\x7e\x02\x00\x01\x09\xff\x00')
     with pytest.raises(USBTimeoutError):
-        dap.read(512, timeout=10)
+        dap.read(2049, timeout=10)
     dap.write(b'\x00\x02')
-    data = dap.read(512, timeout=10)
+    data = dap.read(2049)
     expected_response = b'\x7f\x01\x09\x00'
     expected_response += b'\x7f\x02\x00\x0bNick Kraus\x00\x09\x00'
     expected_response += b'\x00\x17RICEProbe IO CMSIS-DAP\x00'

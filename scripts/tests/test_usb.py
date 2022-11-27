@@ -95,3 +95,42 @@ def test_vcp_interface_descriptor(usb_device):
     # bulk in endpoint
     assert(in_ep is not None)
     assert(in_ep.bmAttributes == 0x02)
+
+def test_dap_interface_transfer_sizes(dap):
+    # send a command with a length exactly 512-bytes (high-speed USB max)
+    command = b'\x7f\xab' + b'\x09\x00\x00' * 168 + b'\x00\xff' * 3
+    response = b'\x7f\xab' + b'\x09\x00' * 168 + b'\x00\x02\x00\x02' * 3
+    assert(len(command) == 512)
+    dap.command(command, expect=response)
+
+    # send a command with a response exactly 512-bytes
+    command = b'\x7f\x80' + b'\x00\xff' * 127 + b'\x00\x05'
+    response = b'\x7f\x80' + b'\x00\x02\x00\x02' * 127 + b'\x00\x00'
+    dap.write(command)
+    data = dap.read(2049)
+    assert(len(data) == 512)
+    assert(data == response)
+
+    # send a chain of commands which uses the full 2048 byte buffer size
+    command = b'\x7e\xab' + b'\x09\x00\x00' * 168 + b'\x00\xff' * 3
+    for i in range(3):
+        dap.write(command)
+    command = b'\x7f\xab' + b'\x09\x00\x00' * 168 + b'\x00\xff' * 3
+    dap.write(command)
+    response = (b'\x7f\xab' + b'\x09\x00' * 168 + b'\x00\x02\x00\x02' * 3) * 4
+    data = dap.read(2049)
+    assert(data == response)
+
+    # send a chain of commands which has a response of the full 2048 byte buffer size
+    command = b'\x7e\x80' + b'\x00\xff' * 127 + b'\x00\x05'
+    for i in range(3):
+        dap.write(command)
+    command = b'\x7f\x80' + b'\x00\xff' * 127 + b'\x00\x05'
+    dap.write(command)
+    response = (b'\x7f\x80' + b'\x00\x02\x00\x02' * 127 + b'\x00\x00')  * 4
+    data = dap.read(2049)
+    assert(len(data) == 2048)
+    assert(data == response)
+
+    # at the end of all this, make sure a regular command still works
+    dap.command(b'\x00\xff', expect=b'\x00\x02\x00\x02')

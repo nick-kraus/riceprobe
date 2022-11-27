@@ -1,10 +1,12 @@
 import time
-import usb.core
 import usb.util
 
-class Dap:
-    def __init__(self, vid, pid):
-        self.usb_device = usb.core.find(idVendor=vid, idProduct=pid)
+class Dap:    
+
+    MAX_RESPONSE_LENGTH = 2048
+
+    def __init__(self, usb_device):
+        self.usb_device = usb_device
         cfg = self.usb_device.get_active_configuration()
         intf = usb.util.find_descriptor(
             cfg,
@@ -20,7 +22,7 @@ class Dap:
 
     def command(self, data, expect=None):
         self.write(data)
-        read = self.read(512)
+        read = self.read(self.MAX_RESPONSE_LENGTH + 1)
         if expect is not None:
             assert(read == expect)
         return read

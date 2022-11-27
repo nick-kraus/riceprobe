@@ -17,8 +17,8 @@ def usb_device():
     dev.reset()
 
 @pytest.fixture(scope='module')
-def dap():
-    dap = Dap(RICEPROBE_VID, RICEPROBE_PID)
+def dap(usb_device):
+    dap = Dap(usb_device)
     yield dap
     dap.shutdown()
 

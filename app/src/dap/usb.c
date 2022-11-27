@@ -15,6 +15,8 @@ LOG_MODULE_DECLARE(dap, CONFIG_DAP_LOG_LEVEL);
 #define DAP_USB_OUT_EP_IDX			0
 #define DAP_USB_IN_EP_IDX			1
 
+static void dap_usb_read_cb(uint8_t ep, int32_t size, void *priv);
+
 USBD_STRING_DESCR_USER_DEFINE(primary) struct {
 	uint8_t bLength;
 	uint8_t bDescriptorType;
@@ -28,16 +30,24 @@ USBD_STRING_DESCR_USER_DEFINE(primary) struct {
 static void dap_usb_write_cb(uint8_t ep, int32_t size, void *priv) {
 	const struct device *dev = priv;
     const struct dap_config *config = dev->config;
-    int32_t ret;
-
-	LOG_DBG("write_cb, ep 0x%x, %d bytes", ep, size);
+	struct usb_cfg_data *cfg = config->usb_config;
 
 	/* finishing the buffer read that was started in the read callback */
-    ret = ring_buf_get_finish(config->response_buf, size);
-    if (ret < 0) {
-        LOG_ERR("buffer read finish failed with error %d", ret);
-        return;
-    }
+	int32_t ret = ring_buf_get_finish(config->response_buf, size);
+	if (ret < 0) {
+		LOG_ERR("buffer read finish failed with error %d", ret);
+		return;
+	}
+
+	/* start the next request read */
+	usb_transfer(
+		cfg->endpoint[DAP_USB_OUT_EP_IDX].ep_addr,
+		config->ep_buf,
+		DAP_BULK_EP_MPS,
+		USB_TRANS_READ,
+		dap_usb_read_cb,
+		(void*) dev
+	);
 }
 
 static void dap_usb_read_cb(uint8_t ep, int32_t size, void *priv) {
@@ -45,25 +55,27 @@ static void dap_usb_read_cb(uint8_t ep, int32_t size, void *priv) {
     const struct dap_config *config = dev->config;
 	struct usb_cfg_data *cfg = config->usb_config;
 
-	LOG_DBG("read_cb, ep 0x%x, %d bytes", ep, size);
 	if (size <= 0) {
-		goto end;
+		dap_usb_write_cb(cfg->endpoint[DAP_USB_IN_EP_IDX].ep_addr, 0, (void*) dev);
+		return;
 	}
 
 	uint32_t wrote = ring_buf_put(config->request_buf, config->ep_buf, size);
 	if (wrote < size) {
 		LOG_ERR("request buffer full, write failed");
 		ring_buf_reset(config->request_buf);
-		goto end;
+		dap_usb_write_cb(cfg->endpoint[DAP_USB_IN_EP_IDX].ep_addr, 0, (void*) dev);
+		return;
 	}
 
 	/* if the given command is DAP_COMMAND_QUEUE_COMMANDS, we delay calling the handle request function until we
 	 * receive a non-DAP_COMMAND_QUEUE_COMMANDS command, at which point all commands will execute at once */
 	if (config->ep_buf[0] == DAP_COMMAND_QUEUE_COMMANDS) {
-		goto end;
+		dap_usb_write_cb(cfg->endpoint[DAP_USB_IN_EP_IDX].ep_addr, 0, (void*) dev);
+		return;
 	}
 
-	/* by this point the previous response should have been received by the host and it should be safe to clear
+	/* by this point the previous response will have been received by the host and it should be safe to clear
 	 * the response buffer */
 	ring_buf_reset(config->response_buf);
 	int response_size = dap_handle_request(dev);
@@ -85,7 +97,8 @@ static void dap_usb_read_cb(uint8_t ep, int32_t size, void *priv) {
 	if (claim_size < response_size) {
 		LOG_ERR("only %d bytes available in buffer for response size %d", claim_size, response_size);
 		ring_buf_reset(config->response_buf);
-		goto end;
+		dap_usb_write_cb(cfg->endpoint[DAP_USB_IN_EP_IDX].ep_addr, 0, (void*) dev);
+		return;
 	}
 
 	usb_transfer(
@@ -94,16 +107,6 @@ static void dap_usb_read_cb(uint8_t ep, int32_t size, void *priv) {
 		response_size,
 		USB_TRANS_WRITE,
 		dap_usb_write_cb,
-		(void*) dev
-	);
-
-end: ;
-	usb_transfer(
-		ep,
-		config->ep_buf,
-		DAP_BULK_EP_MPS,
-		USB_TRANS_READ,
-		dap_usb_read_cb,
 		(void*) dev
 	);
 }
