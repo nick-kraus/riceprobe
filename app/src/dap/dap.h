@@ -119,7 +119,6 @@ struct dap_config {
 
 extern sys_slist_t dap_devlist;
 
-int32_t dap_configure(const struct device *dev);
 int32_t dap_reset(const struct device *dev);
 int32_t dap_handle_request(const struct device *dev);
 

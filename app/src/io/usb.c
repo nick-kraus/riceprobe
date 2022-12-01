@@ -6,12 +6,15 @@
 #include "../usb.h"
 #include "io/io.h"
 #include "io/usb.h"
+#include "util.h"
 
 LOG_MODULE_DECLARE(io, CONFIG_IO_LOG_LEVEL);
 
 #define IO_USB_INTERFACE_STRING     "Rice I/O v1"
 #define IO_USB_OUT_EP_IDX			0
 #define IO_USB_IN_EP_IDX			1
+
+static void io_usb_read_cb(uint8_t ep, int32_t size, void *priv);
 
 USBD_STRING_DESCR_USER_DEFINE(primary) struct {
 	uint8_t bLength;
@@ -26,64 +29,79 @@ USBD_STRING_DESCR_USER_DEFINE(primary) struct {
 static void io_usb_write_cb(uint8_t ep, int32_t size, void *priv) {
 	const struct device *dev = priv;
     const struct io_config *config = dev->config;
-    int32_t ret;
-
-	LOG_DBG("write_cb, ep 0x%x, %d bytes", ep, size);
+	struct usb_cfg_data *cfg = config->usb_config;
 
 	/* finishing the buffer read that was started in the read callback */
-    ret = ring_buf_get_finish(config->rbuf, size);
-    if (ret < 0) {
-        LOG_ERR("buffer read finish failed with error %d", ret);
-        return;
-    }
-    if (ring_buf_is_empty(config->rbuf)) {
-        LOG_DBG("transmit work complete");
-        return;
-    }
+	int32_t ret = ring_buf_get_finish(config->response_buf, size);
+	if (ret < 0) {
+		LOG_ERR("buffer read finish failed with error %d", ret);
+		ring_buf_reset(config->response_buf);
+	}
+
+	/* start the next request read */
+	usb_transfer(
+		cfg->endpoint[IO_USB_OUT_EP_IDX].ep_addr,
+		config->ep_buf,
+		IO_BULK_EP_MPS,
+		USB_TRANS_READ,
+		io_usb_read_cb,
+		(void*) dev
+	);
 }
 
 static void io_usb_read_cb(uint8_t ep, int32_t size, void *priv) {
 	const struct device *dev = priv;
     const struct io_config *config = dev->config;
 	struct usb_cfg_data *cfg = config->usb_config;
-    int32_t ret;
 
-	LOG_DBG("read_cb, ep 0x%x, %d bytes", ep, size);
-    if (size > 0) {
-        /* the data will already exist in the buffer from the previous read_cb call */
-        ret = ring_buf_put_finish(config->rbuf, size);
-        if (ret < 0) {
-            LOG_ERR("buffer write finish failed with error %d", ret);
-        } else {
-			uint8_t *ptr;
-			uint32_t size = ring_buf_get_claim(config->rbuf, &ptr, IO_RING_BUF_SIZE);
-			if (size == 0) {
-				LOG_DBG("ring buffer empty, nothing to send");
-				return;
-			}
+	if (size <= 0) {
+		io_usb_write_cb(cfg->endpoint[IO_USB_IN_EP_IDX].ep_addr, 0, (void*) dev);
+		return;
+	}
 
-            usb_transfer(
-				cfg->endpoint[IO_USB_IN_EP_IDX].ep_addr,
-				ptr,
-				size,
-				USB_TRANS_WRITE,
-				io_usb_write_cb,
-				(void*) dev
-			);
-        }
-    }
+	uint32_t wrote = ring_buf_put(config->request_buf, config->ep_buf, size);
+	if (wrote < size) {
+		LOG_ERR("request buffer full, write failed");
+		ring_buf_reset(config->request_buf);
+		io_usb_write_cb(cfg->endpoint[IO_USB_IN_EP_IDX].ep_addr, 0, (void*) dev);
+		return;
+	}
 
-	/* write data into the largest continuous buffer space available within the ring bufer */
-    uint8_t *ptr;
-    uint32_t space = ring_buf_put_claim(config->rbuf, &ptr, IO_RING_BUF_SIZE);
-    usb_transfer(
-        ep,
-        ptr,
-        space,
-        USB_TRANS_READ,
-        io_usb_read_cb,
-        (void*) dev
-    );
+	/* by this point the previous response will have been received by the host and it should be safe to clear
+	 * the response buffer */
+	ring_buf_reset(config->response_buf);
+	int response_size = io_handle_request(dev);
+	if (response_size < 0) {
+		/* response size is the two's-complement of an error code as defined in commands.h */
+		uint8_t command_error = (uint8_t) -1 * response_size;
+		LOG_ERR("handle request failed with error %d", command_error);
+
+		/* unhandled commands or catastrophic errors will be returned with a zeroed id */
+		ring_buf_reset(config->request_buf);
+		ring_buf_reset(config->response_buf);
+		uint8_t response[] = {0x00, (uint8_t) command_error};
+		/* since just reset, this should only ever fail if the ring buffer is size 0 */
+        FATAL_CHECK(ring_buf_put(config->response_buf, response, 2) == 2, "response buf size not 2");
+		response_size = 2;
+	}
+
+	uint8_t *ptr;
+	uint32_t claim_size = ring_buf_get_claim(config->response_buf, &ptr, response_size);
+	if (claim_size < response_size) {
+		LOG_ERR("only %d bytes available in buffer for response size %d", claim_size, response_size);
+		ring_buf_reset(config->response_buf);
+		io_usb_write_cb(cfg->endpoint[IO_USB_IN_EP_IDX].ep_addr, 0, (void*) dev);
+		return;
+	}
+
+	usb_transfer(
+		cfg->endpoint[IO_USB_IN_EP_IDX].ep_addr,
+		ptr,
+		response_size,
+		USB_TRANS_WRITE,
+		io_usb_write_cb,
+		(void*) dev
+	);
 }
 
 void io_usb_interface_config(struct usb_desc_header *head, uint8_t bInterfaceNumber) {
@@ -119,19 +137,11 @@ void io_usb_status_cb(struct usb_cfg_data *cfg, enum usb_dc_status_code status, 
         break;
     case USB_DC_CONFIGURED:
         LOG_DBG("usb device configured");
-		if (!io_is_configured(dev)) {
-			ret = io_configure(dev);
-			if (ret < 0) {
-				LOG_ERR("device configuration failed with error %d", ret);
-				return;
-			}
-
-			io_usb_read_cb(
-				cfg->endpoint[IO_USB_OUT_EP_IDX].ep_addr,
-				0,
-				(void*) dev
-			);
-		}
+		io_usb_read_cb(
+			cfg->endpoint[IO_USB_OUT_EP_IDX].ep_addr,
+			0,
+			(void*) dev
+		);
         break;
     case USB_DC_DISCONNECTED:
         LOG_DBG("usb device disconnected");

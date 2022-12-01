@@ -2,9 +2,11 @@ import pytest
 import usb.core
 
 pytest.register_assert_rewrite('fixtures.dap')
+pytest.register_assert_rewrite('fixtures.io')
 pytest.register_assert_rewrite('fixtures.openocd')
 
 from fixtures.dap import Dap
+from fixtures.io import IO
 from fixtures.openocd import OpenOCD
 
 RICEPROBE_VID = 0xFFFE
@@ -21,6 +23,12 @@ def dap(usb_device):
     dap = Dap(usb_device)
     yield dap
     dap.shutdown()
+
+@pytest.fixture(scope='module')
+def io(usb_device):
+    io = IO(usb_device)
+    yield io
+    io.shutdown()
 
 @pytest.fixture(scope='module', params=['jtag', 'swd'])
 def openocd_rtt(request):

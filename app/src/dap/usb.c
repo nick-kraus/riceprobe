@@ -36,7 +36,7 @@ static void dap_usb_write_cb(uint8_t ep, int32_t size, void *priv) {
 	int32_t ret = ring_buf_get_finish(config->response_buf, size);
 	if (ret < 0) {
 		LOG_ERR("buffer read finish failed with error %d", ret);
-		return;
+		ring_buf_reset(config->response_buf);
 	}
 
 	/* start the next request read */
@@ -80,7 +80,7 @@ static void dap_usb_read_cb(uint8_t ep, int32_t size, void *priv) {
 	ring_buf_reset(config->response_buf);
 	int response_size = dap_handle_request(dev);
 	if (response_size < 0) {
-		LOG_ERR("dap handle request failed with error %d", response_size);
+		LOG_ERR("handle request failed with error %d", response_size);
 
 		/* commands that failed or aren't implemented get a simple 0xff reponse byte, and we also
 		 * reset the request buffer since they are probably in a bad state */

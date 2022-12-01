@@ -1,11 +1,5 @@
-import usb.util
-
-def test_write_read(usb_device):
-    intf = usb.util.find_descriptor(
-        usb_device.get_active_configuration(),
-        custom_match=lambda i : usb.util.get_string(usb_device, i.iInterface) == 'Rice I/O v1'
-    )
-    (out_ep, in_ep) = intf.endpoints()
-
-    out_ep.write(b'testing')
-    assert(in_ep.read(512).tobytes() == b'testing')
+def test_unsupported(io):
+    # unsupported writes return a command id of 0 and the unsupported error status
+    io.command(b'\xff\xff\xff\x7f', expect=b'\x00\x81')
+    # writes with an invalid id (too large) will use the ivalid error status
+    io.command(b'\xff\xff\xff\xff', expect=b'\x00\x82')
