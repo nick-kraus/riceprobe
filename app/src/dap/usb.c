@@ -4,19 +4,17 @@
 #include <usb_descriptor.h>
 
 #include "../usb.h"
-#include "dap/commands.h"
 #include "dap/dap.h"
-#include "dap/usb.h"
 #include "util.h"
 
 LOG_MODULE_DECLARE(dap, CONFIG_DAP_LOG_LEVEL);
 
-#define DAP_USB_INTERFACE_STRING	"Rice CMSIS-DAP v2"
-#define DAP_USB_OUT_EP_IDX			0
-#define DAP_USB_IN_EP_IDX			1
+/* make sure the underlying usb stack supports high-speed */
+#ifndef CONFIG_USB_DC_HAS_HS_SUPPORT
+	#error "dap driver requires high-speed usb support for 512 byte packet size"
+#endif
 
-static void dap_usb_read_cb(uint8_t ep, int32_t size, void *priv);
-
+#define DAP_USB_INTERFACE_STRING "Rice CMSIS-DAP v2"
 USBD_STRING_DESCR_USER_DEFINE(primary) struct {
 	uint8_t bLength;
 	uint8_t bDescriptorType;
@@ -27,149 +25,194 @@ USBD_STRING_DESCR_USER_DEFINE(primary) struct {
 	.bString = DAP_USB_INTERFACE_STRING,
 };
 
+static struct usb_cfg_data dap_usb_cfg;
+#define DAP_USB_OUT_EP_ADDR		(dap_usb_cfg.endpoint[0].ep_addr)
+#define DAP_USB_IN_EP_ADDR		(dap_usb_cfg.endpoint[1].ep_addr)
+
 static void dap_usb_write_cb(uint8_t ep, int32_t size, void *priv) {
-	const struct device *dev = priv;
-    const struct dap_config *config = dev->config;
-	struct usb_cfg_data *cfg = config->usb_config;
+    const struct device *dev = priv;
+    struct dap_data *data = dev->data;
 
-	/* finishing the buffer read that was started in the read callback */
-	int32_t ret = ring_buf_get_finish(config->response_buf, size);
-	if (ret < 0) {
-		LOG_ERR("buffer read finish failed with error %d", ret);
-		return;
-	}
-
-	/* start the next request read */
-	usb_transfer(
-		cfg->endpoint[DAP_USB_OUT_EP_IDX].ep_addr,
-		config->ep_buf,
-		DAP_BULK_EP_MPS,
-		USB_TRANS_READ,
-		dap_usb_read_cb,
-		(void*) dev
-	);
+    k_event_post(&data->thread.event, DAP_THREAD_EVENT_WRITE_COMPLETE);
 }
 
+void dap_usb_recv_begin(const struct device *dev);
 static void dap_usb_read_cb(uint8_t ep, int32_t size, void *priv) {
 	const struct device *dev = priv;
-    const struct dap_config *config = dev->config;
-	struct usb_cfg_data *cfg = config->usb_config;
+    struct dap_data *data = dev->data;
 
-	if (size <= 0) {
-		dap_usb_write_cb(cfg->endpoint[DAP_USB_IN_EP_IDX].ep_addr, 0, (void*) dev);
-		return;
-	}
+    int32_t ret = ring_buf_put_finish(&data->buf.request, size);
+    if (ret < 0) {
+        LOG_ERR("not enough space in request buffer, dropped bytes");
+    }
 
-	uint32_t wrote = ring_buf_put(config->request_buf, config->ep_buf, size);
-	if (wrote < size) {
-		LOG_ERR("request buffer full, write failed");
-		ring_buf_reset(config->request_buf);
-		dap_usb_write_cb(cfg->endpoint[DAP_USB_IN_EP_IDX].ep_addr, 0, (void*) dev);
-		return;
-	}
+    if (size > 0) {
+        /* signal that data is ready to process, except if we receive a DAP Queue Commands request,
+         * in which case we don't immediately process the data
+         */
+        if (data->buf.request_tail[0] != DAP_COMMAND_QUEUE_COMMANDS) {
+            k_event_post(&data->thread.event, DAP_THREAD_EVENT_READ_READY);
+        } else {
+            /* continue to read data from the transport until we have a full request to process */
+            dap_usb_recv_begin(dev);
+        }
+    }
+}
 
-	/* if the given command is DAP_COMMAND_QUEUE_COMMANDS, we delay calling the handle request function until we
-	 * receive a non-DAP_COMMAND_QUEUE_COMMANDS command, at which point all commands will execute at once */
-	if (config->ep_buf[0] == DAP_COMMAND_QUEUE_COMMANDS) {
-		dap_usb_write_cb(cfg->endpoint[DAP_USB_IN_EP_IDX].ep_addr, 0, (void*) dev);
-		return;
-	}
+void dap_usb_send(const struct device *dev) {
+    struct dap_data *data = dev->data;
+    if (data->thread.transport != DAP_TRANSPORT_USB) { return; }
 
-	/* by this point the previous response will have been received by the host and it should be safe to clear
-	 * the response buffer */
-	ring_buf_reset(config->response_buf);
-	int response_size = dap_handle_request(dev);
-	if (response_size < 0) {
-		LOG_ERR("dap handle request failed with error %d", response_size);
-
-		/* commands that failed or aren't implemented get a simple 0xff reponse byte, and we also
-		 * reset the request buffer since they are probably in a bad state */
-		ring_buf_reset(config->request_buf);
-		ring_buf_reset(config->response_buf);
-		uint8_t response = DAP_COMMAND_RESPONSE_ERROR;
-		/* since just reset, this should only ever fail if the ring buffer is size 0 */
-        FATAL_CHECK(ring_buf_put(config->response_buf, &response, 1) == 1, "response buf size not 1");
-		response_size = 1;
-	}
-
-	uint8_t *ptr;
-	uint32_t claim_size = ring_buf_get_claim(config->response_buf, &ptr, response_size);
-	if (claim_size < response_size) {
-		LOG_ERR("only %d bytes available in buffer for response size %d", claim_size, response_size);
-		ring_buf_reset(config->response_buf);
-		dap_usb_write_cb(cfg->endpoint[DAP_USB_IN_EP_IDX].ep_addr, 0, (void*) dev);
-		return;
-	}
+    /* because the buffer is reset before population, the full length should be available
+     * from a single buffer pointer
+     */
+    uint8_t *ptr;
+    uint32_t size = ring_buf_size_get(&data->buf.response);
+    uint32_t claim_size = ring_buf_get_claim(&data->buf.response, &ptr, size);
+    if (claim_size < size) {
+        LOG_ERR("only %d bytes available in buffer for response size %d", claim_size, size);
+        ring_buf_reset(&data->buf.response);
+        return;
+    }
 
 	usb_transfer(
-		cfg->endpoint[DAP_USB_IN_EP_IDX].ep_addr,
+		DAP_USB_IN_EP_ADDR,
 		ptr,
-		response_size,
+		size,
 		USB_TRANS_WRITE,
 		dap_usb_write_cb,
 		(void*) dev
 	);
 }
 
-void dap_usb_interface_config(struct usb_desc_header *head, uint8_t bInterfaceNumber) {
-	struct usb_if_descriptor *intf = (struct usb_if_descriptor*) head;
-    struct dap_usb_descriptor *desc = CONTAINER_OF(intf, struct dap_usb_descriptor, if0);
+void dap_usb_send_stop(void) {
+    usb_cancel_transfer(DAP_USB_IN_EP_ADDR);
+}
 
-    desc->if0.bInterfaceNumber = bInterfaceNumber;
-    desc->if0.iInterface = usb_get_str_descriptor_idx(&dap_interface_string_descriptor);
+void dap_usb_recv_begin(const struct device *dev) {
+    struct dap_data *data = dev->data;
+    if (data->thread.transport != DAP_TRANSPORT_USB) { return; }
+
+    uint32_t request_space = ring_buf_put_claim(
+        &data->buf.request,
+        &data->buf.request_tail,
+        DAP_RING_BUF_SIZE
+    );
+    /* never accept more than the maximum packet size */
+    request_space = MIN(request_space, DAP_MAX_PACKET_SIZE);
+
+    usb_transfer(
+        DAP_USB_OUT_EP_ADDR,
+        data->buf.request_tail,
+        request_space,
+        USB_TRANS_READ,
+        dap_usb_read_cb,
+        (void*) dev
+    );
+}
+
+void dap_usb_recv_stop(void) {
+    usb_cancel_transfer(DAP_USB_OUT_EP_ADDR);
+}
+
+static void dap_usb_interface_config(struct usb_desc_header *head, uint8_t bInterfaceNumber) {
+	struct usb_if_descriptor *intf = (struct usb_if_descriptor*) head;
+	intf->bInterfaceNumber = bInterfaceNumber;
+	intf->iInterface = usb_get_str_descriptor_idx(&dap_interface_string_descriptor);
 
     /* dap functionality occupies the 'first' function in the MS OS descriptors */
 	usb_winusb_set_func0_interface(bInterfaceNumber);
 }
 
-void dap_usb_status_cb(struct usb_cfg_data *cfg, enum usb_dc_status_code status, const uint8_t *param) {
-	int32_t ret;
-	
-	const struct device *dev = DRIVER_DEV_FROM_USB_CFG(struct dap_data, struct dap_config, cfg, dap_devlist);
-	if (dev == NULL) {
-        LOG_WRN("device data not found for cfg %p", cfg);
-        return;
-    }
+static void dap_usb_status_cb(struct usb_cfg_data *cfg, enum usb_dc_status_code status, const uint8_t *param) {
+	const struct device *dev = DEVICE_DT_GET(DAP_DT_NODE);
+	if (!device_is_ready(dev)) {
+		LOG_ERR("dap device not ready");
+		return;
+	}
+	struct dap_data *data = dev->data;
 
-	switch (status) {
+    switch (status) {
     case USB_DC_ERROR:
-		LOG_ERR("usb device error");
-		break;
-    case USB_DC_RESET:
-        LOG_DBG("usb device reset");
-		ret = dap_reset(dev);
-		if (ret < 0) {
-			LOG_ERR("device reset failed with error %d", ret);
-		}
+        LOG_ERR("usb device error");
         break;
     case USB_DC_CONFIGURED:
         LOG_DBG("usb device configured");
-		dap_usb_read_cb(
-			cfg->endpoint[DAP_USB_OUT_EP_IDX].ep_addr,
-			0,
-			(void*) dev
-		);
-        break;
-    case USB_DC_DISCONNECTED:
-        LOG_DBG("usb device disconnected");
-		ret = dap_reset(dev);
-		if (ret < 0) {
-			LOG_ERR("device reset failed with error %d", ret);
-		}
+        /* signal opening a new connection, if not already connected */
+        if (data->thread.transport == DAP_TRANSPORT_NONE) {
+            k_event_post(&data->thread.event, DAP_THREAD_EVENT_USB_CONNECT);
+        }
         break;
     case USB_DC_SUSPEND:
-		LOG_DBG("usb device suspended");
-		break;
+        LOG_DBG("usb device suspended");
+        /* signal closing the current connection, only if connected */
+        if (data->thread.transport == DAP_TRANSPORT_USB) {
+            k_event_post(&data->thread.event, DAP_THREAD_EVENT_DISCONNECT);
+        }
+        break;
+    case USB_DC_RESET:
 	case USB_DC_RESUME:
-		LOG_DBG("usb device resumed");
-		break;
     case USB_DC_CONNECTED:
+    case USB_DC_DISCONNECTED:
     case USB_DC_INTERFACE:
     case USB_DC_SOF:
-		break;
-	case USB_DC_UNKNOWN:
+        break;
+    case USB_DC_UNKNOWN:
 	default:
 		LOG_DBG("unknown usb device event");
 		break;
     }
 }
+
+struct dap_usb_descriptor {
+    struct usb_if_descriptor if0;
+    struct usb_ep_descriptor if0_out_ep;
+	struct usb_ep_descriptor if0_in_ep;
+} USBD_CLASS_DESCR_DEFINE(primary, 0) dap_usb_descriptor = {
+    .if0 = {
+        .bLength = sizeof(struct usb_if_descriptor),
+        .bDescriptorType = USB_DESC_INTERFACE,
+        .bInterfaceNumber = 0,
+        .bAlternateSetting = 0,
+        .bNumEndpoints = 2,
+        .bInterfaceClass = USB_BCC_VENDOR,
+        .bInterfaceSubClass = 0,
+        .bInterfaceProtocol = 0,
+        .iInterface = 0,
+    },
+    .if0_out_ep = {
+        .bLength = sizeof(struct usb_ep_descriptor),
+        .bDescriptorType = USB_DESC_ENDPOINT,
+        .bEndpointAddress = AUTO_EP_OUT,
+        .bmAttributes = USB_DC_EP_BULK,
+        .wMaxPacketSize = 512,
+        .bInterval = 0,
+    },
+    .if0_in_ep = {
+        .bLength = sizeof(struct usb_ep_descriptor),
+        .bDescriptorType = USB_DESC_ENDPOINT,
+        .bEndpointAddress = AUTO_EP_IN,
+        .bmAttributes = USB_DC_EP_BULK,
+        .wMaxPacketSize = 512,
+        .bInterval = 0,
+    },
+};
+
+static struct usb_ep_cfg_data dap_usb_ep_data[] = {
+    { .ep_cb = usb_transfer_ep_callback, .ep_addr = AUTO_EP_OUT },
+    { .ep_cb = usb_transfer_ep_callback, .ep_addr = AUTO_EP_IN },
+};
+
+USBD_DEFINE_CFG_DATA(dap_usb_cfg) = {
+    .usb_device_description = NULL,
+    .interface_config = dap_usb_interface_config,
+    .interface_descriptor = &dap_usb_descriptor.if0,
+    .cb_usb_status = dap_usb_status_cb,
+    .interface = {
+        .class_handler = NULL,
+        .custom_handler = usb_winusb_custom_handle_req,
+        .vendor_handler = usb_winusb_vendor_handle_req,
+    },
+    .num_endpoints = ARRAY_SIZE(dap_usb_ep_data),
+    .endpoint = dap_usb_ep_data,
+};

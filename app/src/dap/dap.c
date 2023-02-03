@@ -7,11 +7,46 @@
 #include <zephyr/sys/slist.h>
 
 #include "dap/dap.h"
-#include "dap/commands.h"
-#include "dap/usb.h"
 #include "util.h"
 
 LOG_MODULE_REGISTER(dap, CONFIG_DAP_LOG_LEVEL);
+
+/* stack space for the dap driver thread */
+K_THREAD_STACK_DEFINE(dap_thread_stack, 2048);
+
+/* command specific handlers declarations */
+int32_t dap_handle_command_info(const struct device *dev);
+int32_t dap_handle_command_host_status(const struct device *dev);
+int32_t dap_handle_command_connect(const struct device *dev);
+int32_t dap_handle_command_disconnect(const struct device *dev);
+int32_t dap_handle_command_transfer_configure(const struct device *dev);
+int32_t dap_handle_command_transfer(const struct device *dev);
+int32_t dap_handle_command_transfer_block(const struct device *dev);
+int32_t dap_handle_command_transfer_abort(const struct device *dev);
+int32_t dap_handle_command_write_abort(const struct device *dev);
+int32_t dap_handle_command_delay(const struct device *dev);
+int32_t dap_handle_command_reset_target(const struct device *dev);
+int32_t dap_handle_command_swj_pins(const struct device *dev);
+int32_t dap_handle_command_swj_clock(const struct device *dev);
+int32_t dap_handle_command_swj_sequence(const struct device *dev);
+int32_t dap_handle_command_swd_configure(const struct device *dev);
+int32_t dap_handle_command_jtag_sequence(const struct device *dev);
+int32_t dap_handle_command_jtag_configure(const struct device *dev);
+int32_t dap_handle_command_jtag_idcode(const struct device *dev);
+int32_t dap_handle_command_swo_transport(const struct device *dev);
+int32_t dap_handle_command_swo_mode(const struct device *dev);
+int32_t dap_handle_command_swo_baudrate(const struct device *dev);
+int32_t dap_handle_command_swo_control(const struct device *dev);
+int32_t dap_handle_command_swo_status(const struct device *dev);
+int32_t dap_handle_command_swo_data(const struct device *dev);
+int32_t dap_handle_command_swd_sequence(const struct device *dev);
+int32_t dap_handle_command_swo_extended_status(const struct device *dev);
+
+/* transport declarations */
+void dap_usb_recv_begin(const struct device *dev);
+void dap_usb_recv_stop(void);
+void dap_usb_send(const struct device *dev);
+void dap_usb_send_stop(void);
 
 int32_t dap_reset(const struct device *dev) {
     struct dap_data *data = dev->data;
@@ -28,6 +63,11 @@ int32_t dap_reset(const struct device *dev) {
     FATAL_CHECK(gpio_pin_configure_dt(&config->tdo_gpio, GPIO_INPUT) >= 0, "tdo config failed");
     FATAL_CHECK(gpio_pin_configure_dt(&config->tdi_gpio, GPIO_INPUT) >= 0, "tdi config failed");
     FATAL_CHECK(gpio_pin_configure_dt(&config->nreset_gpio, GPIO_INPUT) >= 0, "nreset config failed");
+
+    /* deselect any current transport */
+    data->thread.transport = DAP_TRANSPORT_NONE;
+    dap_usb_recv_stop();
+    dap_usb_send_stop();
 
     /* set all internal state to sane defaults */
     data->swj.port = DAP_PORT_DISABLED;
@@ -51,9 +91,6 @@ int32_t dap_reset(const struct device *dev) {
     data->transfer.match_retries = 0;
     data->transfer.match_mask = 0;
 
-    ring_buf_reset(config->request_buf);
-    ring_buf_reset(config->response_buf);
-
     data->led.connected = false;
     data->led.running = false;
     k_timer_stop(&data->led.timer);
@@ -62,7 +99,6 @@ int32_t dap_reset(const struct device *dev) {
 
     uart_irq_rx_disable(config->swo_uart_dev);
     uart_irq_err_disable(config->swo_uart_dev);
-    ring_buf_reset(config->swo_buf);
     struct uart_config uart_config = {
         .baudrate = data->swo.baudrate,
         .parity = UART_CFG_PARITY_NONE,
@@ -72,79 +108,15 @@ int32_t dap_reset(const struct device *dev) {
     };
     CHECK_EQ(uart_configure(config->swo_uart_dev, &uart_config), 0, -EIO);
 
+    ring_buf_reset(&data->buf.request);
+    ring_buf_reset(&data->buf.response);
+    ring_buf_reset(&data->buf.swo);
+
     return 0;
 }
 
-static int32_t dap_handle_single_request(const struct device *dev, uint8_t command) {
-    switch (command) {
-    case DAP_COMMAND_INFO:
-        return dap_handle_command_info(dev);
-    case DAP_COMMAND_HOST_STATUS:
-        return dap_handle_command_host_status(dev);
-    case DAP_COMMAND_CONNECT:
-        return dap_handle_command_connect(dev);
-    case DAP_COMMAND_DISCONNECT:
-        return dap_handle_command_disconnect(dev);
-    case DAP_COMMAND_TRANSFER_CONFIGURE:
-        return dap_handle_command_transfer_configure(dev);
-    case DAP_COMMAND_TRANSFER:
-        return dap_handle_command_transfer(dev);
-    case DAP_COMMAND_TRANSFER_BLOCK:
-        return dap_handle_command_transfer_block(dev);
-    case DAP_COMMAND_TRANSFER_ABORT:
-        return dap_handle_command_transfer_abort(dev);
-    case DAP_COMMAND_WRITE_ABORT:
-        return dap_handle_command_write_abort(dev);
-    case DAP_COMMAND_DELAY:
-        return dap_handle_command_delay(dev);
-    case DAP_COMMAND_RESET_TARGET:
-        return dap_handle_command_reset_target(dev);
-    case DAP_COMMAND_SWJ_PINS:
-        return dap_handle_command_swj_pins(dev);
-    case DAP_COMMAND_SWJ_CLOCK:
-        return dap_handle_command_swj_clock(dev);
-    case DAP_COMMAND_SWJ_SEQUENCE:
-        return dap_handle_command_swj_sequence(dev);
-    case DAP_COMMAND_SWD_CONFIGURE:
-        return dap_handle_command_swd_configure(dev);
-    case DAP_COMMAND_JTAG_SEQUENCE:
-        return dap_handle_command_jtag_sequence(dev);
-    case DAP_COMMAND_JTAG_CONFIGURE:
-        return dap_handle_command_jtag_configure(dev);
-    case DAP_COMMAND_JTAG_IDCODE:
-        return dap_handle_command_jtag_idcode(dev);
-    case DAP_COMMAND_SWO_TRANSPORT:
-        return dap_handle_command_swo_transport(dev);
-    case DAP_COMMAND_SWO_MODE:
-        return dap_handle_command_swo_mode(dev);
-    case DAP_COMMAND_SWO_BAUDRATE:
-        return dap_handle_command_swo_baudrate(dev);
-    case DAP_COMMAND_SWO_CONTROL:
-        return dap_handle_command_swo_control(dev);
-    case DAP_COMMAND_SWO_STATUS:
-        return dap_handle_command_swo_status(dev);
-    case DAP_COMMAND_SWO_DATA:
-        return dap_handle_command_swo_data(dev);
-    case DAP_COMMAND_SWD_SEQUENCE:
-        return dap_handle_command_swd_sequence(dev);
-    case DAP_COMMAND_SWO_EXTENDED_STATUS:
-        return dap_handle_command_swo_extended_status(dev);
-    case DAP_COMMAND_UART_TRANSPORT:
-    case DAP_COMMAND_UART_CONFIGURE:
-    case DAP_COMMAND_UART_TRANSFER:
-    case DAP_COMMAND_UART_CONTROL:
-    case DAP_COMMAND_UART_STATUS:
-        /* no intention on implementing the DAP UART commands, can just be interfaced over the
-         * CDC-ACM virtual com port interface */
-        return -ENOTSUP;
-    default:
-        LOG_ERR("unsupported command 0x%x", command);
-        return -ENOTSUP;
-    }
-}
-
 int32_t dap_handle_request(const struct device *dev) {
-    const struct dap_config *config = dev->config;
+    struct dap_data *data = dev->data;
 
     /* this will usually just run once, unless an atomic command is being used */
     uint8_t num_commands = 1;
@@ -158,7 +130,7 @@ int32_t dap_handle_request(const struct device *dev) {
 
         /* data should be available at the front of the ring buffer before calling this handler */
         uint8_t command = 0xff;
-        CHECK_EQ(ring_buf_get(config->request_buf, &command, 1), 1, -EMSGSIZE);
+        CHECK_EQ(ring_buf_get(&data->buf.request, &command, 1), 1, -EMSGSIZE);
 
         if (command == DAP_COMMAND_QUEUE_COMMANDS) {
             queued_commands = true;
@@ -167,22 +139,82 @@ int32_t dap_handle_request(const struct device *dev) {
             command = DAP_COMMAND_EXECUTE_COMMANDS;
         }
         if (command == DAP_COMMAND_EXECUTE_COMMANDS) {
-            CHECK_EQ(ring_buf_get(config->request_buf, &num_commands, 1), 1, -EMSGSIZE);
-            CHECK_EQ(ring_buf_put(config->response_buf, &command, 1), 1, -ENOBUFS);
-            CHECK_EQ(ring_buf_put(config->response_buf, &num_commands, 1), 1, -ENOBUFS);
+            CHECK_EQ(ring_buf_get(&data->buf.request, &num_commands, 1), 1, -EMSGSIZE);
+            CHECK_EQ(ring_buf_put(&data->buf.response, &command, 1), 1, -ENOBUFS);
+            CHECK_EQ(ring_buf_put(&data->buf.response, &num_commands, 1), 1, -ENOBUFS);
             /* get the next command for processing */
-            CHECK_EQ(ring_buf_get(config->request_buf, &command, 1), 1, -EMSGSIZE);
+            CHECK_EQ(ring_buf_get(&data->buf.request, &command, 1), 1, -EMSGSIZE);
         }
 
-        int32_t size = dap_handle_single_request(dev, command);
-        if (size < 0) {
-            return size;
+        int32_t ret;
+        if (command == DAP_COMMAND_INFO) {
+            ret = dap_handle_command_info(dev);
+        } else if (command == DAP_COMMAND_HOST_STATUS) {
+            ret = dap_handle_command_host_status(dev);
+        } else if (command == DAP_COMMAND_CONNECT) {
+            ret = dap_handle_command_connect(dev);
+        } else if (command == DAP_COMMAND_DISCONNECT) {
+            ret = dap_handle_command_disconnect(dev);
+        } else if (command == DAP_COMMAND_TRANSFER_CONFIGURE) {
+            ret = dap_handle_command_transfer_configure(dev);
+        } else if (command == DAP_COMMAND_TRANSFER) {
+            ret = dap_handle_command_transfer(dev);
+        } else if (command == DAP_COMMAND_TRANSFER_BLOCK) {
+            ret = dap_handle_command_transfer_block(dev);
+        } else if (command == DAP_COMMAND_TRANSFER_ABORT) {
+            ret = dap_handle_command_transfer_abort(dev);
+        } else if (command == DAP_COMMAND_WRITE_ABORT) {
+            ret = dap_handle_command_write_abort(dev);
+        } else if (command == DAP_COMMAND_DELAY) {
+            ret = dap_handle_command_delay(dev);
+        } else if (command == DAP_COMMAND_RESET_TARGET) {
+            ret = dap_handle_command_reset_target(dev);
+        } else if (command == DAP_COMMAND_SWJ_PINS) {
+            ret = dap_handle_command_swj_pins(dev);
+        } else if (command == DAP_COMMAND_SWJ_CLOCK) {
+            ret = dap_handle_command_swj_clock(dev);
+        } else if (command == DAP_COMMAND_SWJ_SEQUENCE) {
+            ret = dap_handle_command_swj_sequence(dev);
+        } else if (command == DAP_COMMAND_SWD_CONFIGURE) {
+            ret = dap_handle_command_swd_configure(dev);
+        } else if (command == DAP_COMMAND_JTAG_SEQUENCE) {
+            ret = dap_handle_command_jtag_sequence(dev);
+        } else if (command == DAP_COMMAND_JTAG_CONFIGURE) {
+            ret = dap_handle_command_jtag_configure(dev);
+        } else if (command == DAP_COMMAND_JTAG_IDCODE) {
+            ret = dap_handle_command_jtag_idcode(dev);
+        } else if (command == DAP_COMMAND_SWO_TRANSPORT) {
+            ret = dap_handle_command_swo_transport(dev);
+        } else if (command == DAP_COMMAND_SWO_MODE) {
+            ret = dap_handle_command_swo_mode(dev);
+        } else if (command == DAP_COMMAND_SWO_BAUDRATE) {
+            ret = dap_handle_command_swo_baudrate(dev);
+        } else if (command == DAP_COMMAND_SWO_CONTROL) {
+            ret = dap_handle_command_swo_control(dev);
+        } else if (command == DAP_COMMAND_SWO_STATUS) {
+            ret = dap_handle_command_swo_status(dev);
+        } else if (command == DAP_COMMAND_SWO_DATA) {
+            ret = dap_handle_command_swo_data(dev);
+        } else if (command == DAP_COMMAND_SWD_SEQUENCE) {
+            ret = dap_handle_command_swd_sequence(dev);
+        } else if (command == DAP_COMMAND_SWO_EXTENDED_STATUS) {
+            ret = dap_handle_command_swo_extended_status(dev);
         } else {
-            num_commands--;
+            /* for DAP_COMMAND_UART_*, no intention of support, since the same functionality can be found 
+             * over the CDC-ACM virtual com port interface. any other command is totally unknown. 
+             */
+            LOG_ERR("unsupported command 0x%x", command);
+            ret = -ENOTSUP;
         }
+
+        if (ret < 0) {
+            return ret;
+        }
+        num_commands--;
+
     } while (num_commands > 0 || queued_commands);
 
-    return ring_buf_size_get(config->response_buf);
+    return ring_buf_size_get(&data->buf.response);
 }
 
 static void handle_running_led_timer(struct k_timer *timer) {
@@ -197,7 +229,6 @@ static void handle_running_led_timer(struct k_timer *timer) {
 static void swo_uart_isr(const struct device *dev, void *user_data) {
     const struct device *dap_dev = user_data;
     struct dap_data *data = dap_dev->data;
-    const struct dap_config *config = dap_dev->config;
 
     if (uart_err_check(dev) > 0) {
         data->swo.error = true;
@@ -205,7 +236,7 @@ static void swo_uart_isr(const struct device *dev, void *user_data) {
 
     while (uart_irq_update(dev) && uart_irq_rx_ready(dev)) {
         uint8_t *ptr;
-        uint32_t space = ring_buf_put_claim(config->swo_buf, &ptr, DAP_SWO_RING_BUF_SIZE);
+        uint32_t space = ring_buf_put_claim(&data->buf.swo, &ptr, DAP_SWO_RING_BUF_SIZE);
         if (space == 0) {
             data->swo.overrun = true;
             uint8_t drop;
@@ -222,20 +253,90 @@ static void swo_uart_isr(const struct device *dev, void *user_data) {
             read = 0;
         }
         /* should never fail since we always read less than the claim size */
-        FATAL_CHECK(ring_buf_put_finish(config->swo_buf, read) == 0, "swo buffer read fail");  
+        FATAL_CHECK(ring_buf_put_finish(&data->buf.swo, read) == 0, "swo buffer read fail");  
     }
 
     return;
 }
 
-sys_slist_t dap_devlist;
+void dap_thread_fn(void* arg1, void* arg2, void* arg3) {
+    ARG_UNUSED(arg2);
+    ARG_UNUSED(arg3);
+
+    const struct device *dev = (const struct device*) arg1;
+    struct dap_data *data = dev->data;
+    int32_t ret;
+
+    while (1) {
+        uint32_t wait_events;
+        if (data->thread.transport == DAP_TRANSPORT_NONE) {
+            wait_events = DAP_THREAD_EVENT_USB_CONNECT;
+        } else {
+            wait_events = DAP_THREAD_EVENT_READ_READY | DAP_THREAD_EVENT_DISCONNECT;
+        }
+        uint32_t events = k_event_wait(&data->thread.event, wait_events, true, K_FOREVER);
+
+        if ((events & DAP_THREAD_EVENT_DISCONNECT) != 0) {
+            /* reset will halt any in-progress transport transfers, and set transport to DAP_TRANSPORT_NONE */
+            ret = dap_reset(dev);
+            if (ret < 0) { LOG_ERR("reset failed with error %d", ret); }
+        }
+        
+        if ((events & DAP_THREAD_EVENT_USB_CONNECT) != 0) {
+            ret = dap_reset(dev);
+            if (ret < 0) { LOG_ERR("reset failed with error %d", ret); }
+            data->thread.transport = DAP_TRANSPORT_USB;
+            dap_usb_recv_begin(dev);
+        }
+
+        if ((events & DAP_THREAD_EVENT_READ_READY) != 0) {
+            /* the transport at this time has made sure that we should run the commands available
+             * within the buffer (i.e. the last request wasn't a DAP_COMMAND_QUEUE_COMMANDS)
+             */
+            ret = dap_handle_request(dev);
+            if (ret < 0) {
+                LOG_ERR("handle request failed with error %d", ret);
+                /* commands that failed or aren't implemented get a simple 0xff reponse byte, and we also
+                * reset the request buffer since they are probably in a bad state */
+                ring_buf_reset(&data->buf.request);
+                ring_buf_reset(&data->buf.response);
+                uint8_t response = DAP_COMMAND_RESPONSE_ERROR;
+                /* since just reset, this should only ever fail if the ring buffer is size 0 */
+                FATAL_CHECK(ring_buf_put(&data->buf.response, &response, 1) == 1, "response buf is size 0");
+            }
+            /* write the response back to the host */
+            if (data->thread.transport == DAP_TRANSPORT_USB) {
+                dap_usb_send(dev);
+            }
+            /* wait for the response to be sent and the buffer to be free */
+            uint32_t write_complete_event = k_event_wait(
+                &data->thread.event,
+                DAP_THREAD_EVENT_WRITE_COMPLETE | DAP_THREAD_EVENT_DISCONNECT,
+                true,
+                K_SECONDS(30)
+            );
+            if ((write_complete_event & DAP_THREAD_EVENT_WRITE_COMPLETE) == 0) {
+                LOG_ERR("transport send timed out");
+                ret = dap_reset(dev);
+                if (ret < 0) { LOG_ERR("reset failed with error %d", ret); }
+            } else {
+                /* ensure both buffers are clear before waiting on the next read, which allows us to always 
+                 * start a new request at the begging of the ring buffer (skipping the 'ring' part)
+                 */
+                ring_buf_reset(&data->buf.request);
+                ring_buf_reset(&data->buf.response);
+            }
+            /* restart the next read request, whether or not the previous one succeeded, until disconnect */
+            if (data->thread.transport == DAP_TRANSPORT_USB) {
+                dap_usb_recv_begin(dev);
+            }
+        }
+    }
+}
 
 static int32_t dap_init(const struct device *dev) {
     struct dap_data *data = dev->data;
     const struct dap_config *config = dev->config;
-
-    data->dev = dev;
-    sys_slist_append(&dap_devlist, &data->devlist_node);
 
     /* determine whether we have shared or independent status led */
     if (config->led_connect_gpio.port == config->led_running_gpio.port &&
@@ -259,50 +360,54 @@ static int32_t dap_init(const struct device *dev) {
     uart_irq_tx_disable(config->swo_uart_dev);
     uart_irq_callback_user_data_set(config->swo_uart_dev, swo_uart_isr, (void*) dev);
 
-    return dap_reset(dev);
-}
+    ring_buf_init(&data->buf.request, sizeof(data->buf.request_bytes), data->buf.request_bytes);
+    ring_buf_init(&data->buf.response, sizeof(data->buf.response_bytes), data->buf.response_bytes);
+    ring_buf_init(&data->buf.swo, sizeof(data->buf.swo_bytes), data->buf.swo_bytes);
 
-#define DT_DRV_COMPAT rice_dap
+    int32_t ret = dap_reset(dev);
+    if (ret < 0) { return ret; }
 
-#define DAP_DT_DEVICE_DEFINE(idx)                                           \
-                                                                            \
-    static uint8_t dap_ep_buffer_##idx[DAP_BULK_EP_MPS];                    \
-    RING_BUF_DECLARE(dap_request_buf_##idx, DAP_RING_BUF_SIZE);             \
-    RING_BUF_DECLARE(dap_respones_buf_##idx, DAP_RING_BUF_SIZE);            \
-    RING_BUF_DECLARE(dap_swo_buf_##idx, DAP_SWO_RING_BUF_SIZE);             \
-                                                                            \
-    DAP_USB_CONFIG_DEFINE(dap_usb_config_##idx, idx);                       \
-                                                                            \
-    PINCTRL_DT_INST_DEFINE(idx);                                            \
-                                                                            \
-    struct dap_data dap_data_##idx;                                         \
-    const struct dap_config dap_config_##idx = {                            \
-        .ep_buf = dap_ep_buffer_##idx,                                      \
-        .request_buf = &dap_request_buf_##idx,                              \
-        .response_buf = &dap_respones_buf_##idx,                            \
-        .usb_config = &dap_usb_config_##idx,                                \
-        .tck_swclk_gpio = GPIO_DT_SPEC_INST_GET(idx, tck_swclk_gpios),      \
-        .tms_swdio_gpio = GPIO_DT_SPEC_INST_GET(idx, tms_swdio_gpios),      \
-        .tdo_gpio = GPIO_DT_SPEC_INST_GET(idx, tdo_gpios),                  \
-        .tdi_gpio = GPIO_DT_SPEC_INST_GET(idx, tdi_gpios),                  \
-        .nreset_gpio = GPIO_DT_SPEC_INST_GET(idx, nreset_gpios),            \
-        .vtref_gpio = GPIO_DT_SPEC_INST_GET(idx, vtref_gpios),              \
-        .led_connect_gpio = GPIO_DT_SPEC_INST_GET(idx, led_connect_gpios),  \
-        .led_running_gpio = GPIO_DT_SPEC_INST_GET(idx, led_running_gpios),  \
-        .swo_uart_dev = DEVICE_DT_GET(DT_INST_PHANDLE(idx, swo_uart)),      \
-        .swo_buf = &dap_swo_buf_##idx,                                      \
-        .pinctrl_config = PINCTRL_DT_INST_DEV_CONFIG_GET(idx),              \
-    };                                                                      \
-                                                                            \
-    DEVICE_DT_INST_DEFINE(                                                  \
-        idx,                                                                \
-        dap_init,                                                           \
-        NULL,                                                               \
-        &dap_data_##idx,                                                    \
-        &dap_config_##idx,                                                  \
-        APPLICATION,                                                        \
-        40,                                                                 \
-        NULL,                                                               \
+    /* threading initialization */
+    k_event_init(&data->thread.event);
+    k_thread_create(
+        &data->thread.driver,
+        dap_thread_stack,
+        K_THREAD_STACK_SIZEOF(dap_thread_stack),
+        dap_thread_fn,
+        (void*) dev,
+        NULL,
+        NULL,
+        CONFIG_MAIN_THREAD_PRIORITY + 1,
+        0,
+        K_NO_WAIT
     );
 
-DT_INST_FOREACH_STATUS_OKAY(DAP_DT_DEVICE_DEFINE);
+    return 0;
+}
+
+PINCTRL_DT_DEFINE(DAP_DT_NODE);
+
+struct dap_data dap_data;
+const struct dap_config dap_config = {
+    .tck_swclk_gpio = GPIO_DT_SPEC_GET(DAP_DT_NODE, tck_swclk_gpios),
+    .tms_swdio_gpio = GPIO_DT_SPEC_GET(DAP_DT_NODE, tms_swdio_gpios),
+    .tdo_gpio = GPIO_DT_SPEC_GET(DAP_DT_NODE, tdo_gpios),
+    .tdi_gpio = GPIO_DT_SPEC_GET(DAP_DT_NODE, tdi_gpios),
+    .nreset_gpio = GPIO_DT_SPEC_GET(DAP_DT_NODE, nreset_gpios),
+    .vtref_gpio = GPIO_DT_SPEC_GET(DAP_DT_NODE, vtref_gpios),
+    .led_connect_gpio = GPIO_DT_SPEC_GET(DAP_DT_NODE, led_connect_gpios),
+    .led_running_gpio = GPIO_DT_SPEC_GET(DAP_DT_NODE, led_running_gpios),
+    .swo_uart_dev = DEVICE_DT_GET(DT_PHANDLE(DAP_DT_NODE, swo_uart)),
+    .pinctrl_config = PINCTRL_DT_DEV_CONFIG_GET(DAP_DT_NODE),
+};
+
+DEVICE_DT_DEFINE(
+    DAP_DT_NODE,
+    dap_init,
+    NULL,
+    &dap_data,
+    &dap_config,
+    APPLICATION,
+    40,
+    NULL,
+);
