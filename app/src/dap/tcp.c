@@ -12,7 +12,6 @@ LOG_MODULE_DECLARE(dap, CONFIG_DAP_LOG_LEVEL);
 #define DAP_TCP_EVENT_SEND                  (BIT(1))
 #define DAP_TCP_EVENT_STOP                  (BIT(2))
 
-/* TODO: for now this supports only IPv4, but we want to support IPv6 as well in the future */
 int32_t dap_tcp_init(const struct device *dev) {
     struct dap_data *data = dev->data;
     int32_t ret;
@@ -26,10 +25,11 @@ int32_t dap_tcp_init(const struct device *dev) {
 		CONFIG_DAP_TCP_PORT
 	);
 
-    struct sockaddr_in sock_addr = {
-		.sin_family = AF_INET,
-		.sin_addr = INADDR_ANY_INIT,
-		.sin_port = sys_cpu_to_be16(CONFIG_DAP_TCP_PORT),
+	/* an IPv6 socket will still allow IPv4 connections using an IPv4-mapped IPv6 address */
+	struct sockaddr_in6 sock_addr = {
+		.sin6_family = AF_INET6,
+		.sin6_addr = IN6ADDR_ANY_INIT,
+		.sin6_port = sys_cpu_to_be16(CONFIG_DAP_TCP_PORT),
 	};
 
     data->tcp.bind_sock = zsock_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
