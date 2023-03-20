@@ -1,6 +1,8 @@
 import re
 import usb.util
 
+from fixtures.dap import Dap
+
 def test_device_descriptor(usb_device):
     # USB composite device
     assert(usb_device.bDeviceClass == 0xEF)
@@ -96,7 +98,11 @@ def test_vcp_interface_descriptor(usb_device):
     assert(in_ep is not None)
     assert(in_ep.bmAttributes == 0x02)
 
-def test_dap_interface_transfer_sizes(dap):
+def test_dap_interface_transfer_sizes(usb_device):
+    # depending on the usb_device fixture here instead of dap directly means this will be skipped
+    # if we are running on the tcp transport
+    dap = Dap(usb_device=usb_device)
+
     # send a command with a length exactly 512-bytes (high-speed USB max)
     command = b'\x7f\xab' + b'\x09\x00\x00' * 168 + b'\x00\xff' * 3
     response = b'\x7f\xab' + b'\x09\x00' * 168 + b'\x00\x02\x00\x02' * 3

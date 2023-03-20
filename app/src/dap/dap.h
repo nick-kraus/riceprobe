@@ -76,12 +76,14 @@ BUILD_ASSERT(DT_NUM_INST_STATUS_OKAY(rice_dap) == 1);
 /* thread events */
 #define DAP_THREAD_EVENT_DISCONNECT         (BIT(0))
 #define DAP_THREAD_EVENT_USB_CONNECT        (BIT(1))
-#define DAP_THREAD_EVENT_READ_READY         (BIT(2))
-#define DAP_THREAD_EVENT_WRITE_COMPLETE     (BIT(3))
+#define DAP_THREAD_EVENT_TCP_CONNECT        (BIT(2))
+#define DAP_THREAD_EVENT_READ_READY         (BIT(3))
+#define DAP_THREAD_EVENT_WRITE_COMPLETE     (BIT(4))
 
 /* all supported transports */
 #define DAP_TRANSPORT_NONE                  ((uint8_t) 0)
 #define DAP_TRANSPORT_USB                   ((uint8_t) 1)
+#define DAP_TRANSPORT_TCP                   ((uint8_t) 2)
 
 struct dap_data {
     /* shared swd and jtag state */
@@ -155,8 +157,15 @@ struct dap_data {
     } buf;
 
     struct {
+        int32_t bind_sock;
+        struct k_event event;
+    } tcp;
+
+    struct {
         /* primary driver thread, handles all dap I/O */
         struct k_thread driver;
+        /* for waiting on network transport events */
+        struct k_thread tcp;
         /* events for the main driver thread to wait on */
         struct k_event event;
         /* which transport is currently configured, if any */

@@ -22,12 +22,15 @@ class OpenOCD:
     # terminator character for tcl commands
     TERM = b'\x1a'
 
-    def __init__(self, exec=None, transport='swd', tcl_port=6666, rtt_port=7777):
+    def __init__(self, exec=None, transport='swd'):
         # openocd server initialization
         self.exec = exec if exec is not None else shutil.which('openocd')
         self.transport = transport
-        self.tcl_port = tcl_port
-        self.rtt_port = rtt_port
+        # don't use default ports, in case other instances of openocd are running
+        self.gdb_port = 13333
+        self.telnet_port = 14444
+        self.tcl_port = 16666
+        self.rtt_port = 17777
         self.process = None
 
         # socket for connection to openocd tcl interface
@@ -43,7 +46,9 @@ class OpenOCD:
     def start(self):
         # startup the openocd server
         openocd_args = [self.exec]
-        # make sure to use the expected port
+        # make sure to use the expected ports
+        openocd_args.extend(['-c', f'gdb_port {self.gdb_port}'])
+        openocd_args.extend(['-c', f'telnet_port {self.telnet_port}'])
         openocd_args.extend(['-c', f'tcl_port {self.tcl_port}'])
         for command in self.PROBE_CONFIG:
             openocd_args.extend(['-c', command])
@@ -56,9 +61,10 @@ class OpenOCD:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
-        time.sleep(0.1)
+        time.sleep(0.05)
         # connect over the tcl interface
         self.tcl_sock.connect((self.ip, self.tcl_port))
+        time.sleep(0.05)
         # ensure we can send a command, and receive input back
         self.send(b'version')
 

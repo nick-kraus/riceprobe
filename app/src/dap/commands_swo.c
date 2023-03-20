@@ -48,7 +48,7 @@ int32_t dap_handle_command_swo_transport(const struct device *dev) {
 
     uint8_t response[] = {DAP_COMMAND_SWO_TRANSPORT, status};
     CHECK_EQ(ring_buf_put(&data->buf.response, response, 2), 2, -ENOBUFS);
-    return ring_buf_size_get(&data->buf.response);
+    return 0;
 }
 
 int32_t dap_handle_command_swo_mode(const struct device *dev) {
@@ -77,7 +77,7 @@ int32_t dap_handle_command_swo_mode(const struct device *dev) {
 end: ;
     uint8_t response[] = {DAP_COMMAND_SWO_MODE, status};
     CHECK_EQ(ring_buf_put(&data->buf.response, response, 2), 2, -ENOBUFS);
-    return ring_buf_size_get(&data->buf.response);
+    return 0;
 }   
 
 int32_t dap_handle_command_swo_baudrate(const struct device *dev) {
@@ -106,7 +106,7 @@ int32_t dap_handle_command_swo_baudrate(const struct device *dev) {
     }
 
     CHECK_EQ(ring_buf_put(&data->buf.response, (uint8_t*) &data->swo.baudrate, 4), 4, -ENOBUFS);
-    return ring_buf_size_get(&data->buf.response);
+    return 0;
 }
 
 int32_t dap_handle_command_swo_control(const struct device *dev) {
@@ -125,7 +125,7 @@ int32_t dap_handle_command_swo_control(const struct device *dev) {
 
     uint8_t response[] = {DAP_COMMAND_SWO_CONTROL, status};
     CHECK_EQ(ring_buf_put(&data->buf.response, response, 2), 2, -ENOBUFS);
-    return ring_buf_size_get(&data->buf.response);
+    return 0;
 }
 
 int32_t dap_handle_command_swo_status(const struct device *dev) {
@@ -141,7 +141,7 @@ int32_t dap_handle_command_swo_status(const struct device *dev) {
     
     CHECK_EQ(ring_buf_put(&data->buf.response, (uint8_t*) &data->swo.baudrate, 4), 4, -ENOBUFS);
 
-    return ring_buf_size_get(&data->buf.response);
+    return 0;
 }
 
 int32_t dap_handle_command_swo_extended_status(const struct device *dev) {
@@ -163,7 +163,7 @@ int32_t dap_handle_command_swo_extended_status(const struct device *dev) {
         CHECK_EQ(ring_buf_put(&data->buf.response, (uint8_t*) &data->swo.baudrate, 4), 4, -ENOBUFS);
     }
 
-    return ring_buf_size_get(&data->buf.response);
+    return 0;
 }
 
 int32_t dap_handle_command_swo_data(const struct device *dev) {
@@ -202,5 +202,5 @@ int32_t dap_handle_command_swo_data(const struct device *dev) {
         ring_buf_space_get(&data->buf.response) > 0
     );
 
-    return ring_buf_size_get(&data->buf.response);
+    return 0;
 }

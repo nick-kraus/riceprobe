@@ -33,10 +33,15 @@ static void dap_usb_write_cb(uint8_t ep, int32_t size, void *priv) {
     const struct device *dev = priv;
     struct dap_data *data = dev->data;
 
+    int32_t ret = ring_buf_get_finish(&data->buf.response, size);
+    if (ret < 0) {
+        LOG_ERR("response buffer read finish failed with error %d", ret);
+    }
+
     k_event_post(&data->thread.event, DAP_THREAD_EVENT_WRITE_COMPLETE);
 }
 
-void dap_usb_recv_begin(const struct device *dev);
+int32_t dap_usb_recv_begin(const struct device *dev);
 static void dap_usb_read_cb(uint8_t ep, int32_t size, void *priv) {
 	const struct device *dev = priv;
     struct dap_data *data = dev->data;
@@ -44,38 +49,35 @@ static void dap_usb_read_cb(uint8_t ep, int32_t size, void *priv) {
     int32_t ret = ring_buf_put_finish(&data->buf.request, size);
     if (ret < 0) {
         LOG_ERR("not enough space in request buffer, dropped bytes");
+        return;
     }
 
     if (size > 0) {
         /* signal that data is ready to process, except if we receive a DAP Queue Commands request,
-         * in which case we don't immediately process the data
-         */
+         * in which case we don't immediately process the data */
         if (data->buf.request_tail[0] != DAP_COMMAND_QUEUE_COMMANDS) {
             k_event_post(&data->thread.event, DAP_THREAD_EVENT_READ_READY);
         } else {
             /* continue to read data from the transport until we have a full request to process */
-            dap_usb_recv_begin(dev);
+            if ((ret = dap_usb_recv_begin(dev)) < 0) LOG_ERR("usb receive begin failed with error %d", ret);
         }
     }
 }
 
-void dap_usb_send(const struct device *dev) {
+int32_t dap_usb_send(const struct device *dev) {
     struct dap_data *data = dev->data;
-    if (data->thread.transport != DAP_TRANSPORT_USB) { return; }
 
     /* because the buffer is reset before population, the full length should be available
-     * from a single buffer pointer
-     */
+     * from a single buffer pointer */
     uint8_t *ptr;
     uint32_t size = ring_buf_size_get(&data->buf.response);
     uint32_t claim_size = ring_buf_get_claim(&data->buf.response, &ptr, size);
     if (claim_size < size) {
         LOG_ERR("only %d bytes available in buffer for response size %d", claim_size, size);
-        ring_buf_reset(&data->buf.response);
-        return;
+        return -ENOBUFS;
     }
 
-	usb_transfer(
+	return usb_transfer(
 		DAP_USB_IN_EP_ADDR,
 		ptr,
 		size,
@@ -85,34 +87,34 @@ void dap_usb_send(const struct device *dev) {
 	);
 }
 
-void dap_usb_send_stop(void) {
-    usb_cancel_transfer(DAP_USB_IN_EP_ADDR);
-}
-
-void dap_usb_recv_begin(const struct device *dev) {
+int32_t dap_usb_recv_begin(const struct device *dev) {
     struct dap_data *data = dev->data;
-    if (data->thread.transport != DAP_TRANSPORT_USB) { return; }
 
     uint32_t request_space = ring_buf_put_claim(
         &data->buf.request,
         &data->buf.request_tail,
-        DAP_RING_BUF_SIZE
+        DAP_MAX_PACKET_SIZE
     );
-    /* never accept more than the maximum packet size */
-    request_space = MIN(request_space, DAP_MAX_PACKET_SIZE);
 
-    usb_transfer(
-        DAP_USB_OUT_EP_ADDR,
-        data->buf.request_tail,
-        request_space,
-        USB_TRANS_READ,
-        dap_usb_read_cb,
-        (void*) dev
-    );
+    if (request_space == 0) {
+        return -ENOBUFS;
+    } else {
+        return usb_transfer(
+            DAP_USB_OUT_EP_ADDR,
+            data->buf.request_tail,
+            request_space,
+            USB_TRANS_READ,
+            dap_usb_read_cb,
+            (void*) dev
+        );
+    }
 }
 
-void dap_usb_recv_stop(void) {
+void dap_usb_stop(const struct device *dev) {
+    ARG_UNUSED(dev);
+
     usb_cancel_transfer(DAP_USB_OUT_EP_ADDR);
+    usb_cancel_transfer(DAP_USB_IN_EP_ADDR);
 }
 
 static void dap_usb_interface_config(struct usb_desc_header *head, uint8_t bInterfaceNumber) {

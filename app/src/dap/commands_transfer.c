@@ -52,7 +52,7 @@ int32_t dap_handle_command_transfer_configure(const struct device *dev) {
 
     uint8_t response[] = {DAP_COMMAND_TRANSFER_CONFIGURE, DAP_COMMAND_RESPONSE_OK};
     CHECK_EQ(ring_buf_put(&data->buf.response, response, 2), 2, -ENOBUFS);
-    return ring_buf_size_get(&data->buf.response);
+    return 0;
 }
 
 uint8_t jtag_transfer(const struct device *dev, uint8_t request, uint32_t *transfer_data) {
@@ -446,7 +446,7 @@ end:
         *response_response = transfer_ack;
     }
 
-    return ring_buf_size_get(&data->buf.response);
+    return 0;
 }
 
 int32_t dap_handle_command_transfer_block(const struct device *dev) {
@@ -537,11 +537,11 @@ end:
         CHECK_EQ(ring_buf_get_finish(&data->buf.request, request_remaining), 0, -EMSGSIZE);
     }
 
-    return ring_buf_size_get(&data->buf.response);
+    return 0;
 }
 
 int32_t dap_handle_command_transfer_abort(const struct device *dev) {
-    /* TODO: eventually we should separate reading data from the USB from replying to the requests,
+    /* TODO: eventually we should separate reading data from the transport from replying to the requests,
      * so that we can actually scan for the abort request and cancel an in-progress transfer */
 
     return 0;
@@ -576,5 +576,5 @@ int32_t dap_handle_command_write_abort(const struct device *dev) {
 end: ;
     uint8_t response[] = {DAP_COMMAND_WRITE_ABORT, status};
     CHECK_EQ(ring_buf_put(&data->buf.response, response, 2), 2, -ENOBUFS);
-    return ring_buf_size_get(&data->buf.response);
+    return 0;
 }

@@ -12,7 +12,9 @@
 LOG_MODULE_REGISTER(dap, CONFIG_DAP_LOG_LEVEL);
 
 /* stack space for the dap driver thread */
-K_THREAD_STACK_DEFINE(dap_thread_stack, 2048);
+K_THREAD_STACK_DEFINE(dap_driver_thread_stack, 4096);
+/* stack space for the tcp transport thread */
+K_THREAD_STACK_DEFINE(dap_tcp_thread_stack, 2048);
 
 /* command specific handlers declarations */
 int32_t dap_handle_command_info(const struct device *dev);
@@ -43,10 +45,23 @@ int32_t dap_handle_command_swd_sequence(const struct device *dev);
 int32_t dap_handle_command_swo_extended_status(const struct device *dev);
 
 /* transport declarations */
-void dap_usb_recv_begin(const struct device *dev);
-void dap_usb_recv_stop(void);
-void dap_usb_send(const struct device *dev);
-void dap_usb_send_stop(void);
+int32_t dap_usb_recv_begin(const struct device *dev);
+int32_t dap_usb_send(const struct device *dev);
+void dap_usb_stop(const struct device *dev);
+int32_t dap_tcp_init(const struct device *dev);
+int32_t dap_tcp_recv_begin(const struct device *dev);
+int32_t dap_tcp_send(const struct device *dev);
+void dap_tcp_stop(const struct device *dev);
+void dap_tcp_thread_fn(void* arg1, void* arg2, void* arg3);
+
+static void dap_transport_buf_reset(const struct device *dev) {
+    struct dap_data *data = dev->data;
+
+    ring_buf_reset(&data->buf.request);
+    ring_buf_reset(&data->buf.response);
+    /* no data in the request buffer, tail should point to the very beginning */
+    data->buf.request_tail = data->buf.request_bytes;
+}
 
 int32_t dap_reset(const struct device *dev) {
     struct dap_data *data = dev->data;
@@ -55,7 +70,7 @@ int32_t dap_reset(const struct device *dev) {
     LOG_INF("resetting driver state");
 
     /* config the pinctrl settings for the tdo/swo pin, default to tdo functionality */
-    CHECK_EQ(pinctrl_apply_state(config->pinctrl_config, PINCTRL_STATE_TDO), 0, -EIO);
+    FATAL_CHECK(pinctrl_apply_state(config->pinctrl_config, PINCTRL_STATE_TDO) >= 0, "tdo pinctrl failed");
 
     /* jtag / swd gpios must be in a safe state on reset */
     FATAL_CHECK(gpio_pin_configure_dt(&config->tck_swclk_gpio, GPIO_INPUT) >= 0, "tck swclk config failed");
@@ -66,8 +81,10 @@ int32_t dap_reset(const struct device *dev) {
 
     /* deselect any current transport */
     data->thread.transport = DAP_TRANSPORT_NONE;
-    dap_usb_recv_stop();
-    dap_usb_send_stop();
+    dap_usb_stop(dev);
+    dap_tcp_stop(dev);
+    /* reset thread events */
+    k_event_set(&data->thread.event, 0);
 
     /* set all internal state to sane defaults */
     data->swj.port = DAP_PORT_DISABLED;
@@ -106,10 +123,9 @@ int32_t dap_reset(const struct device *dev) {
         .data_bits = UART_CFG_DATA_BITS_8,
         .flow_ctrl = UART_CFG_FLOW_CTRL_NONE,
     };
-    CHECK_EQ(uart_configure(config->swo_uart_dev, &uart_config), 0, -EIO);
+    FATAL_CHECK(uart_configure(config->swo_uart_dev, &uart_config) >= 0, "uart config failed");
 
-    ring_buf_reset(&data->buf.request);
-    ring_buf_reset(&data->buf.response);
+    dap_transport_buf_reset(dev);
     ring_buf_reset(&data->buf.swo);
 
     return 0;
@@ -201,20 +217,20 @@ int32_t dap_handle_request(const struct device *dev) {
             ret = dap_handle_command_swo_extended_status(dev);
         } else {
             /* for DAP_COMMAND_UART_*, no intention of support, since the same functionality can be found 
-             * over the CDC-ACM virtual com port interface. any other command is totally unknown. 
-             */
+             * over the CDC-ACM virtual com port interface. any other command is totally unknown. */
             LOG_ERR("unsupported command 0x%x", command);
             ret = -ENOTSUP;
         }
 
         if (ret < 0) {
+            LOG_ERR("handle command 0x%x failed with error %d", command, ret);
             return ret;
         }
         num_commands--;
 
     } while (num_commands > 0 || queued_commands);
 
-    return ring_buf_size_get(&data->buf.response);
+    return 0;
 }
 
 static void handle_running_led_timer(struct k_timer *timer) {
@@ -259,77 +275,114 @@ static void swo_uart_isr(const struct device *dev, void *user_data) {
     return;
 }
 
+static int32_t dap_transport_recv_begin(const struct device *dev) {
+    struct dap_data *data = dev->data;
+    int32_t ret;
+
+    if (data->thread.transport == DAP_TRANSPORT_USB) {
+        ret = dap_usb_recv_begin(dev);
+    } else if (data->thread.transport == DAP_TRANSPORT_TCP) {
+        ret = dap_tcp_recv_begin(dev);
+    } else {
+        LOG_ERR("no transport configured for next request");
+        return -ENOTCONN;
+    }
+
+    if (ret < 0) LOG_ERR("receive begin failed with error %d", ret);
+    return ret;
+}
+
+static int32_t dap_transport_send(const struct device *dev) {
+    struct dap_data *data = dev->data;
+    int32_t ret;
+
+    if (data->thread.transport == DAP_TRANSPORT_USB) {
+        ret = dap_usb_send(dev);
+    } else if (data->thread.transport == DAP_TRANSPORT_TCP) {
+        ret = dap_tcp_send(dev);
+    } else {
+        LOG_ERR("no transport configured for response");
+        return -ENOTCONN;
+    }
+
+    if (ret < 0) LOG_ERR("send begin failed with error %d", ret);
+    return ret;
+}
+
 void dap_thread_fn(void* arg1, void* arg2, void* arg3) {
     ARG_UNUSED(arg2);
     ARG_UNUSED(arg3);
 
     const struct device *dev = (const struct device*) arg1;
     struct dap_data *data = dev->data;
-    int32_t ret;
 
     while (1) {
         uint32_t wait_events;
         if (data->thread.transport == DAP_TRANSPORT_NONE) {
-            wait_events = DAP_THREAD_EVENT_USB_CONNECT;
+            wait_events = DAP_THREAD_EVENT_USB_CONNECT | DAP_THREAD_EVENT_TCP_CONNECT;
         } else {
             wait_events = DAP_THREAD_EVENT_READ_READY | DAP_THREAD_EVENT_DISCONNECT;
         }
-        uint32_t events = k_event_wait(&data->thread.event, wait_events, true, K_FOREVER);
+        uint32_t events = k_event_wait(&data->thread.event, wait_events, false, K_FOREVER);
 
+        /* reset will halt any in-progress transport transfers, and set transport to DAP_TRANSPORT_NONE */
         if ((events & DAP_THREAD_EVENT_DISCONNECT) != 0) {
-            /* reset will halt any in-progress transport transfers, and set transport to DAP_TRANSPORT_NONE */
-            ret = dap_reset(dev);
-            if (ret < 0) { LOG_ERR("reset failed with error %d", ret); }
+            k_event_set_masked(&data->thread.event, 0, DAP_THREAD_EVENT_DISCONNECT);
+            dap_reset(dev);
+            continue;
         }
         
         if ((events & DAP_THREAD_EVENT_USB_CONNECT) != 0) {
-            ret = dap_reset(dev);
-            if (ret < 0) { LOG_ERR("reset failed with error %d", ret); }
+            k_event_set_masked(&data->thread.event, 0, DAP_THREAD_EVENT_USB_CONNECT);
             data->thread.transport = DAP_TRANSPORT_USB;
-            dap_usb_recv_begin(dev);
+            if (dap_transport_recv_begin(dev) < 0) dap_reset(dev);
+        }
+
+        if ((events & DAP_THREAD_EVENT_TCP_CONNECT) != 0) {
+            k_event_set_masked(&data->thread.event, 0, DAP_THREAD_EVENT_TCP_CONNECT);
+            data->thread.transport = DAP_TRANSPORT_TCP;
+            if (dap_transport_recv_begin(dev) < 0) dap_reset(dev);
         }
 
         if ((events & DAP_THREAD_EVENT_READ_READY) != 0) {
+            k_event_set_masked(&data->thread.event, 0, DAP_THREAD_EVENT_READ_READY);
             /* the transport at this time has made sure that we should run the commands available
-             * within the buffer (i.e. the last request wasn't a DAP_COMMAND_QUEUE_COMMANDS)
-             */
-            ret = dap_handle_request(dev);
-            if (ret < 0) {
-                LOG_ERR("handle request failed with error %d", ret);
+             * within the buffer (i.e. the last request wasn't a DAP_COMMAND_QUEUE_COMMANDS) */
+            if (dap_handle_request(dev) < 0) {
                 /* commands that failed or aren't implemented get a simple 0xff reponse byte, and we also
-                * reset the request buffer since they are probably in a bad state */
-                ring_buf_reset(&data->buf.request);
-                ring_buf_reset(&data->buf.response);
+                 * reset the request buffer since they are probably in a bad state */
+                dap_transport_buf_reset(dev);
                 uint8_t response = DAP_COMMAND_RESPONSE_ERROR;
-                /* since just reset, this should only ever fail if the ring buffer is size 0 */
                 FATAL_CHECK(ring_buf_put(&data->buf.response, &response, 1) == 1, "response buf is size 0");
             }
-            /* write the response back to the host */
-            if (data->thread.transport == DAP_TRANSPORT_USB) {
-                dap_usb_send(dev);
+
+            if (dap_transport_send(dev) < 0) {
+                dap_reset(dev);
+                continue;
             }
+
             /* wait for the response to be sent and the buffer to be free */
             uint32_t write_complete_event = k_event_wait(
                 &data->thread.event,
                 DAP_THREAD_EVENT_WRITE_COMPLETE | DAP_THREAD_EVENT_DISCONNECT,
-                true,
+                false,
                 K_SECONDS(30)
             );
-            if ((write_complete_event & DAP_THREAD_EVENT_WRITE_COMPLETE) == 0) {
+            if ((write_complete_event & DAP_THREAD_EVENT_DISCONNECT) != 0) {
+                dap_reset(dev);
+                continue;
+            } else if ((write_complete_event & DAP_THREAD_EVENT_WRITE_COMPLETE) == 0) {
                 LOG_ERR("transport send timed out");
-                ret = dap_reset(dev);
-                if (ret < 0) { LOG_ERR("reset failed with error %d", ret); }
-            } else {
-                /* ensure both buffers are clear before waiting on the next read, which allows us to always 
-                 * start a new request at the begging of the ring buffer (skipping the 'ring' part)
-                 */
-                ring_buf_reset(&data->buf.request);
-                ring_buf_reset(&data->buf.response);
+                dap_reset(dev);
+                continue;
             }
-            /* restart the next read request, whether or not the previous one succeeded, until disconnect */
-            if (data->thread.transport == DAP_TRANSPORT_USB) {
-                dap_usb_recv_begin(dev);
-            }
+            k_event_set_masked(&data->thread.event, 0, DAP_THREAD_EVENT_WRITE_COMPLETE);
+
+            /* ensure both buffers are clear before waiting on the next read, which allows us to always 
+             * start a new request at the begging of the ring buffer (skipping the 'ring' part) */
+            dap_transport_buf_reset(dev);
+            /* restart the next read request, whether or not the previous one succeeded */
+            if (dap_transport_recv_begin(dev) < 0) dap_reset(dev);
         }
     }
 }
@@ -337,6 +390,7 @@ void dap_thread_fn(void* arg1, void* arg2, void* arg3) {
 static int32_t dap_init(const struct device *dev) {
     struct dap_data *data = dev->data;
     const struct dap_config *config = dev->config;
+    int32_t ret;
 
     /* determine whether we have shared or independent status led */
     if (config->led_connect_gpio.port == config->led_running_gpio.port &&
@@ -355,7 +409,7 @@ static int32_t dap_init(const struct device *dev) {
     /* vtref is only ever an input, doesn't need reconfiguration in dap_reset */
     FATAL_CHECK(gpio_pin_configure_dt(&config->vtref_gpio, GPIO_INPUT) >= 0, "vtref config failed");
 
-    if (!device_is_ready(config->swo_uart_dev)) { return -ENODEV; }
+    if (!device_is_ready(config->swo_uart_dev)) return -ENODEV;
     uart_irq_rx_disable(config->swo_uart_dev);
     uart_irq_tx_disable(config->swo_uart_dev);
     uart_irq_callback_user_data_set(config->swo_uart_dev, swo_uart_isr, (void*) dev);
@@ -364,15 +418,15 @@ static int32_t dap_init(const struct device *dev) {
     ring_buf_init(&data->buf.response, sizeof(data->buf.response_bytes), data->buf.response_bytes);
     ring_buf_init(&data->buf.swo, sizeof(data->buf.swo_bytes), data->buf.swo_bytes);
 
-    int32_t ret = dap_reset(dev);
-    if (ret < 0) { return ret; }
+    if ((ret = dap_tcp_init(dev)) < 0) return ret;
+    if ((ret = dap_reset(dev)) < 0) return ret;
 
     /* threading initialization */
     k_event_init(&data->thread.event);
     k_thread_create(
         &data->thread.driver,
-        dap_thread_stack,
-        K_THREAD_STACK_SIZEOF(dap_thread_stack),
+        dap_driver_thread_stack,
+        K_THREAD_STACK_SIZEOF(dap_driver_thread_stack),
         dap_thread_fn,
         (void*) dev,
         NULL,
@@ -380,6 +434,18 @@ static int32_t dap_init(const struct device *dev) {
         CONFIG_MAIN_THREAD_PRIORITY + 1,
         0,
         K_NO_WAIT
+    );
+    k_thread_create(
+        &data->thread.tcp,
+        dap_tcp_thread_stack,
+        K_THREAD_STACK_SIZEOF(dap_tcp_thread_stack),
+        dap_tcp_thread_fn,
+        (void*) dev,
+        NULL,
+        NULL,
+        CONFIG_MAIN_THREAD_PRIORITY + 2,
+        0,
+        K_MSEC(10)
     );
 
     return 0;

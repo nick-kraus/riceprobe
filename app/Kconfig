@@ -10,6 +10,18 @@ config REPO_VERSION_MINOR
 config REPO_VERSION_PATCH
     int "Repository semver-compatible patch version number"
 
+config DAP_TCP_PORT
+    int "Binding port for Dap driver TCP socket transport"
+    default 30047
+
+config IO_TCP_PORT
+    int "Binding port for IO driver TCP socket transport"
+    default 30059
+
+config VCP_TCP_PORT
+    int "Binding port for Virtual COM Port driver TCP socket transport"
+    default 30071
+
 module = DAP
 module-str = dap
 source "subsys/logging/Kconfig.template.log_config"

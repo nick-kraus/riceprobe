@@ -138,7 +138,7 @@ int32_t dap_handle_command_jtag_configure(const struct device *dev) {
 end: ;
     uint8_t response[] = {DAP_COMMAND_JTAG_CONFIGURE, status};
     CHECK_EQ(ring_buf_put(&data->buf.response, response, 2), 2, -ENOBUFS);
-    return ring_buf_size_get(&data->buf.response);
+    return 0;
 }
 
 int32_t dap_handle_command_jtag_sequence(const struct device *dev) {
@@ -207,7 +207,7 @@ int32_t dap_handle_command_jtag_sequence(const struct device *dev) {
     }
 
     *command_status = status;
-    return ring_buf_size_get(&data->buf.response);
+    return 0;
 }
 
 int32_t dap_handle_command_jtag_idcode(const struct device *dev) {
@@ -257,5 +257,5 @@ end: ;
     uint8_t response[] = {DAP_COMMAND_JTAG_IDCODE, status, 0, 0, 0, 0};
     memcpy(&response[2], (uint8_t*) &idcode, sizeof(idcode));
     CHECK_EQ(ring_buf_put(&data->buf.response, response, 6), 6, -ENOBUFS);
-    return ring_buf_size_get(&data->buf.response);
+    return 0;
 }

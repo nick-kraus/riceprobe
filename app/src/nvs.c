@@ -14,13 +14,16 @@ LOG_MODULE_REGISTER(nvs);
 #define NVS_MFG_VERSION     0x0101
 
 static int32_t nvs_init_status;
+/* values directly stored in NVS */
 static char nvs_serial_number[32];
 static uint8_t nvs_uuid[16];
+/* derived from above values */
+char nvs_dns_sd_txt_record[68];
 
 int32_t nvs_get_serial_number(char *sn, uint32_t len) {
     if (nvs_init_status != 0) {
         return -ENODEV;
-    } if (strlen(nvs_serial_number) >= len) {
+    } if (len <= strlen(nvs_serial_number)) {
         return -ENOBUFS;
     }
 
@@ -31,7 +34,7 @@ int32_t nvs_get_serial_number(char *sn, uint32_t len) {
 int32_t nvs_get_uuid(uint8_t *uuid, uint32_t len) {
     if (nvs_init_status != 0) {
         return -ENODEV;
-    } else if (sizeof(nvs_uuid) >= len) {
+    } else if (len < sizeof(nvs_uuid)) {
         return -ENOBUFS;
     }
 
@@ -93,6 +96,32 @@ int32_t nvs_init(const struct device *dev) {
     }
 
     flash_area_close(mfg_fa);
+
+    /* dns-sd txt records from the various interfaces are all identical, ideal to
+	 * create one copy here and share between all services. see rfc 6763 for the
+	 * format of the txt record */
+    uint8_t entry_idx = 0;
+    /* first entry is serial number, length is strlen("serial=") + strlen(serial) */
+    snprintk(
+        &nvs_dns_sd_txt_record[entry_idx],
+        sizeof(nvs_dns_sd_txt_record) - entry_idx,
+        "%cserial=%s",
+        7 + strlen(nvs_serial_number),
+        nvs_serial_number
+    );
+    entry_idx = strlen(nvs_dns_sd_txt_record);
+    /* second entry is uuid, length is strlen("uuid=") + 36 (uuid string length) */
+    snprintk(
+        &nvs_dns_sd_txt_record[entry_idx],
+        sizeof(nvs_dns_sd_txt_record) - entry_idx,
+        "%cuuid=%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+        5 + 36,
+        nvs_uuid[0], nvs_uuid[1], nvs_uuid[2], nvs_uuid[3], 
+        nvs_uuid[4], nvs_uuid[5], nvs_uuid[6], nvs_uuid[7], 
+        nvs_uuid[8], nvs_uuid[9], nvs_uuid[10], nvs_uuid[11], 
+        nvs_uuid[12], nvs_uuid[13], nvs_uuid[14], nvs_uuid[15]
+    );
+
     nvs_init_status = 0;
     return nvs_init_status;
 }

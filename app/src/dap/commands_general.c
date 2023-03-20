@@ -60,7 +60,6 @@ int32_t dap_handle_command_info(const struct device *dev) {
         CHECK_EQ(space, vendor_name_len, -ENOBUFS);
         strncpy(ptr, vendor_name, space);
         CHECK_EQ(ring_buf_put_finish(&data->buf.response, space), 0, -ENOBUFS);
-        return ring_buf_size_get(&data->buf.response);
     } else if (id == info_product_name) {
         const char *product_name = CONFIG_USB_DEVICE_PRODUCT;
         const uint8_t product_name_len = sizeof(CONFIG_USB_DEVICE_PRODUCT);
@@ -69,7 +68,6 @@ int32_t dap_handle_command_info(const struct device *dev) {
         CHECK_EQ(space, product_name_len, -ENOBUFS);
         strncpy(ptr, product_name, space);
         CHECK_EQ(ring_buf_put_finish(&data->buf.response, space), 0, -ENOBUFS);
-        return ring_buf_size_get(&data->buf.response);
     } else if (id == info_serial_number) {
         char serial[sizeof(CONFIG_USB_DEVICE_SN)];
         CHECK_EQ(nvs_get_serial_number(serial, sizeof(serial)), 0, -EINVAL);
@@ -79,7 +77,6 @@ int32_t dap_handle_command_info(const struct device *dev) {
         CHECK_EQ(space, serial_len, -ENOBUFS);
         strncpy(ptr, serial, space);
         CHECK_EQ(ring_buf_put_finish(&data->buf.response, space), 0, -ENOBUFS);
-        return ring_buf_size_get(&data->buf.response);
     } else if (id == info_dap_protocol_version) {
         const char *protocol_version = DAP_PROTOCOL_VERSION;
         const uint8_t protocol_version_len = sizeof(DAP_PROTOCOL_VERSION);
@@ -88,7 +85,6 @@ int32_t dap_handle_command_info(const struct device *dev) {
         CHECK_EQ(space, protocol_version_len, -ENOBUFS);
         strncpy(ptr, protocol_version, space);
         CHECK_EQ(ring_buf_put_finish(&data->buf.response, space), 0, -ENOBUFS);
-        return ring_buf_size_get(&data->buf.response);
     } else if (id == info_target_device_vendor ||
                id == info_target_device_name ||
                id == info_target_board_vendor ||
@@ -96,7 +92,6 @@ int32_t dap_handle_command_info(const struct device *dev) {
         /* not an on-board debug unit, just return no string */
         const uint8_t response = 0;
         CHECK_EQ(ring_buf_put(&data->buf.response, &response, 1), 1, -ENOBUFS);
-        return ring_buf_size_get(&data->buf.response);
     } else if (id == info_product_firmware_version) {
         const char *firmware_version = CONFIG_REPO_VERSION_STRING;
         const uint8_t firmware_version_len = sizeof(CONFIG_REPO_VERSION_STRING);
@@ -105,7 +100,6 @@ int32_t dap_handle_command_info(const struct device *dev) {
         CHECK_EQ(space, firmware_version_len, -ENOBUFS);
         strncpy(ptr, firmware_version, space);
         CHECK_EQ(ring_buf_put_finish(&data->buf.response, space), 0, -ENOBUFS);
-        return ring_buf_size_get(&data->buf.response);
     } else if (id == info_capabilities) {
         const uint8_t capabilities_len = 1;
         const uint8_t capabilities_info0 = caps_support_swd |
@@ -118,41 +112,36 @@ int32_t dap_handle_command_info(const struct device *dev) {
                                            caps_no_uart_dap_port_support;
         const uint8_t response[2] = { capabilities_len, capabilities_info0};
         CHECK_EQ(ring_buf_put(&data->buf.response, response, 2), 2, -ENOBUFS);
-        return ring_buf_size_get(&data->buf.response);
     } else if (id == info_test_domain_timer) {
         /* not supported by this debug unit, just return a reasonable default */
         const uint8_t response[5] = { 0x08, 0x00, 0x00, 0x00, 0x00 };
         CHECK_EQ(ring_buf_put(&data->buf.response, response, 5), 5, -ENOBUFS);
-        return ring_buf_size_get(&data->buf.response);
     } else if (id == info_uart_rx_buffer_size ||
                id == info_uart_tx_buffer_size) {
         const uint32_t rx_buf_size = VCP_RING_BUF_SIZE;
         uint8_t response[5] = { 0x04, 0x00, 0x00, 0x00, 0x00 };
         bytecpy(response + 1, &rx_buf_size, 4);
         CHECK_EQ(ring_buf_put(&data->buf.response, response, 5), 5, -ENOBUFS);
-        return ring_buf_size_get(&data->buf.response);
     } else if (id == info_swo_buffer_size) {
         const uint32_t swo_buffer_size = DAP_SWO_RING_BUF_SIZE;
         uint8_t response[5] = { 0x04, 0x00, 0x00, 0x00, 0x00 };
         bytecpy(response + 1, &swo_buffer_size, 4);
         CHECK_EQ(ring_buf_put(&data->buf.response, response, 5), 5, -ENOBUFS);
-        return ring_buf_size_get(&data->buf.response);
     } else if (id == info_max_packet_count) {
         const uint8_t max_packets = (uint8_t) (DAP_RING_BUF_SIZE / DAP_MAX_PACKET_SIZE);
         uint8_t response[2] = { 0x01, max_packets };
         CHECK_EQ(ring_buf_put(&data->buf.response, response, 2), 2, -ENOBUFS);
-        return ring_buf_size_get(&data->buf.response);
     } else if (id == info_max_packet_size) {
         const uint16_t packet_size = DAP_MAX_PACKET_SIZE;
         uint8_t response[3] = { 0x02, 0x00, 0x00 };
         bytecpy(response + 1, &packet_size, 2);
         CHECK_EQ(ring_buf_put(&data->buf.response, response, 3), 3, -ENOBUFS);
-        return ring_buf_size_get(&data->buf.response);
     } else {
         /* unsupported info responses just have a length of 0 */
         CHECK_EQ(ring_buf_put(&data->buf.response, &((uint8_t) {0}), 1), 1, -ENOBUFS);
-        return ring_buf_size_get(&data->buf.response);
     }
+
+    return 0;
 }
 
 int32_t dap_handle_command_host_status(const struct device *dev) {
@@ -196,7 +185,7 @@ int32_t dap_handle_command_host_status(const struct device *dev) {
 
     uint8_t response[] = {DAP_COMMAND_HOST_STATUS, response_status};
     CHECK_EQ(ring_buf_put(&data->buf.response, response, 2), 2, -ENOBUFS);
-    return ring_buf_size_get(&data->buf.response);
+    return 0;
 }
 
 int32_t dap_handle_command_connect(const struct device *dev) {
@@ -264,7 +253,7 @@ int32_t dap_handle_command_connect(const struct device *dev) {
 end: ;
     uint8_t response[] = {DAP_COMMAND_CONNECT, response_port};
     CHECK_EQ(ring_buf_put(&data->buf.response, response, 2), 2, -ENOBUFS);
-    return ring_buf_size_get(&data->buf.response);
+    return 0;
 }
 
 int32_t dap_handle_command_disconnect(const struct device *dev) {
@@ -288,7 +277,7 @@ int32_t dap_handle_command_disconnect(const struct device *dev) {
 
     uint8_t response[] = {DAP_COMMAND_DISCONNECT, status};
     CHECK_EQ(ring_buf_put(&data->buf.response, response, 2), 2, -ENOBUFS);
-    return ring_buf_size_get(&data->buf.response);
+    return 0;
 }
 
 int32_t dap_handle_command_delay(const struct device *dev) {
@@ -300,7 +289,7 @@ int32_t dap_handle_command_delay(const struct device *dev) {
 
     uint8_t response[] = {DAP_COMMAND_DELAY, DAP_COMMAND_RESPONSE_OK};
     CHECK_EQ(ring_buf_put(&data->buf.response, response, 2), 2, -ENOBUFS);
-    return ring_buf_size_get(&data->buf.response);
+    return 0;
 }
 
 int32_t dap_handle_command_reset_target(const struct device *dev) {
@@ -309,7 +298,7 @@ int32_t dap_handle_command_reset_target(const struct device *dev) {
     /* device specific target reset sequence is not implemented for this debug unit */
     uint8_t response[] = {DAP_COMMAND_RESET_TARGET, DAP_COMMAND_RESPONSE_OK, 0x00};
     CHECK_EQ(ring_buf_put(&data->buf.response, response, 3), 3, -ENOBUFS);
-    return ring_buf_size_get(&data->buf.response);
+    return 0;
 }
 
 int32_t dap_handle_command_swj_pins(const struct device *dev) {
@@ -372,7 +361,7 @@ int32_t dap_handle_command_swj_pins(const struct device *dev) {
         (gpio_pin_get_dt(&config->nreset_gpio) << pin_nreset_shift);
     uint8_t response[] = {DAP_COMMAND_SWJ_PINS, pin_input};
     CHECK_EQ(ring_buf_put(&data->buf.response, response, 2), 2, -ENOBUFS);
-    return ring_buf_size_get(&data->buf.response);
+    return 0;
 }
 
 int32_t dap_handle_command_swj_clock(const struct device *dev) {
@@ -388,7 +377,7 @@ int32_t dap_handle_command_swj_clock(const struct device *dev) {
     uint8_t status = clock == 0 ? DAP_COMMAND_RESPONSE_ERROR : DAP_COMMAND_RESPONSE_OK;
     uint8_t response[] = {DAP_COMMAND_SWJ_CLOCK, status};
     CHECK_EQ(ring_buf_put(&data->buf.response, response, 2), 2, -ENOBUFS);
-    return ring_buf_size_get(&data->buf.response);
+    return 0;
 }
 
 int32_t dap_handle_command_swj_sequence(const struct device *dev) {
@@ -416,5 +405,5 @@ int32_t dap_handle_command_swj_sequence(const struct device *dev) {
 
     uint8_t response[] = {DAP_COMMAND_SWJ_SEQUENCE, DAP_COMMAND_RESPONSE_OK};
     CHECK_EQ(ring_buf_put(&data->buf.response, response, 2), 2, -ENOBUFS);
-    return ring_buf_size_get(&data->buf.response);
+    return 0;
 }

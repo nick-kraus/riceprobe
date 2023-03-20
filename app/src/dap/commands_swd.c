@@ -55,7 +55,7 @@ int32_t dap_handle_command_swd_configure(const struct device *dev) {
 
     uint8_t response[] = {DAP_COMMAND_SWD_CONFIGURE, DAP_COMMAND_RESPONSE_OK};
     CHECK_EQ(ring_buf_put(&data->buf.response, response, 2), 2, -ENOBUFS);
-    return ring_buf_size_get(&data->buf.response);
+    return 0;
 }
 
 int32_t dap_handle_command_swd_sequence(const struct device *dev) {
@@ -147,5 +147,5 @@ int32_t dap_handle_command_swd_sequence(const struct device *dev) {
     }
 
     *command_status = status;
-    return ring_buf_size_get(&data->buf.response);
+    return 0;
 }
