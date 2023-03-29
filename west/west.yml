@@ -14,35 +14,34 @@ manifest:
 
   projects:
     - name: zephyr
-      remote: nick-kraus
-      revision: 88cf0ad5065771866504e1482280cf53560c4d82
+      revision: v3.3.0
       west-commands: scripts/west-commands.yml
 
     # projects below are lifted from zephyr 88cf0ad506 west.yml, with unused projects removed
     - name: hal_atmel
-      revision: 43c73d862a78cd5a18a6e24b58cf6980016dbe9e
+      revision: d45adfb6897aba323cac29cdda8070ce4f23f014
       path: modules/hal/atmel
 
     - name: hal_stm32
-      revision: 642e199c59828137dc6b1c7044a289d4269886d1
+      revision: b916f9a01c665194fbbdd6a67a0f37b4e0a7e78c
       path: modules/hal/stm32
 
     - name: cmsis
-      revision: 093de61c2a7d12dc9253daf8692f61f793a9254a
+      revision: 74981bf893e8b10931464b9945e2143d99a3f0a3
       path: modules/hal/cmsis
 
     - name: mbedtls
-      revision: 7fed49c9b9f983ad6416986661ef637459723bcb
+      revision: 6e166050075688fd3cf3d0cb3fc34a1c52df2496
       path: modules/crypto/mbedtls
 
     - name: mcuboot
-      revision: cfec947e0f8be686d02c73104a3b1ad0b5dcf1e6
+      revision: 750678e33819b95756203e5db1ba827baee35708
       path: bootloader/mcuboot
 
     - name: picolibc
       path: modules/lib/picolibc
-      revision: 04ada5951cbaf8e7b17f8226ce31cb6837c28ba7
+      revision: 98e59b70d6ef8eb18f7dccc3d39cecaa0658fa4f
 
     - name: segger
-      revision: d4e568a920b4bd087886170a5624c167b2d0665e
+      revision: e2ff2200556e8a8f962921444275c04971a2bb3d
       path: modules/debug/segger
