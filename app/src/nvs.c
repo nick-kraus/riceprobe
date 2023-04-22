@@ -13,86 +13,74 @@ LOG_MODULE_REGISTER(nvs);
 #define NVS_MFG_TAG         0x7A5A
 #define NVS_MFG_VERSION     0x0101
 
-static int32_t nvs_init_status;
-/* values directly stored in NVS */
-static char nvs_serial_number[32];
-static uint8_t nvs_uuid[16];
-/* derived from above values */
-char nvs_dns_sd_txt_record[68];
+static struct {
+    char serial_number[32];
+    uint8_t uuid[16];
+} nvs;
 
-int32_t nvs_get_serial_number(char *sn, uint32_t len) {
-    if (nvs_init_status != 0) {
-        return -ENODEV;
-    } if (len <= strlen(nvs_serial_number)) {
+/* this value unfortunately can't be in the above struct because the DNS-SD
+ * services are registered in a macro. */
+char nvs_dns_txt_record[68];
+
+int32_t nvs_get_serial_number(char *buf, size_t buf_len) {
+    if (buf_len <= strlen(nvs.serial_number)) {
         return -ENOBUFS;
     }
 
-    strncpy(sn, nvs_serial_number, len);
+    strncpy(buf, nvs.serial_number, buf_len);
     return 0;
 }
 
-int32_t nvs_get_uuid(uint8_t *uuid, uint32_t len) {
-    if (nvs_init_status != 0) {
-        return -ENODEV;
-    } else if (len < sizeof(nvs_uuid)) {
+int32_t nvs_get_uuid(char *buf, size_t buf_len) {
+    if (buf_len < sizeof(nvs.uuid)) {
         return -ENOBUFS;
     }
 
-    memcpy(uuid, nvs_uuid, len);
+    memcpy(buf, nvs.uuid, buf_len);
     return 0;
 }
 
-int32_t nvs_init(const struct device *dev) {
-    ARG_UNUSED(dev);
-
+int32_t nvs_init(void) {
     const struct flash_area *mfg_fa;
     int32_t ret = flash_area_open(FIXED_PARTITION_ID(manufacturing_partition), &mfg_fa);
     if (ret < 0) {
-        LOG_ERR("flash area open failed with error %d", ret);
-        nvs_init_status = -EIO;
-        return nvs_init_status;
+        LOG_ERR("flash open failed with error %d", ret);
+        return -EIO;
     }
 
     uint16_t mfg_tag;
     ret = flash_area_read(mfg_fa, NVS_MFG_TAG_ADDRESS, &mfg_tag, sizeof(mfg_tag));
     if (ret < 0) {
-        LOG_ERR("flash area read failed with error %d", ret);
-        nvs_init_status = -EIO;
-        return nvs_init_status;
+        LOG_ERR("flash read failed with error %d", ret);
+        return -EIO;
     } else if (mfg_tag != NVS_MFG_TAG) {
-        LOG_ERR("found incorrect manufacturing tag %u", mfg_tag);
-        nvs_init_status = -EINVAL;
-        return nvs_init_status;
+        LOG_ERR("found incorrect manufacturing tag 0x%x", mfg_tag);
+        return -EINVAL;
     }
 
     uint16_t mfg_version;
     ret = flash_area_read(mfg_fa, NVS_MFG_VERSION_ADDRESS, &mfg_version, sizeof(mfg_version));
     if (ret < 0) {
-        LOG_ERR("flash area read failed with error %d", ret);
-        nvs_init_status = -EIO;
-        return nvs_init_status;
+        LOG_ERR("flash read failed with error %d", ret);
+        return -EIO;
     } else if (mfg_version != NVS_MFG_VERSION) {
         LOG_ERR("found unsupported manufacturing version %u", mfg_version);
-        nvs_init_status = -ENOTSUP;
-        return nvs_init_status;
+        return -ENOTSUP;
     }
 
-    ret = flash_area_read(mfg_fa, NVS_MFG_SERIAL_ADDRESS, &nvs_serial_number, sizeof(nvs_serial_number));
+    ret = flash_area_read(mfg_fa, NVS_MFG_SERIAL_ADDRESS, &nvs.serial_number, sizeof(nvs.serial_number));
     if (ret < 0) {
-        LOG_ERR("flash area read failed with error %d", ret);
-        nvs_init_status = -EIO;
-        return nvs_init_status;
-    } else if (nvs_serial_number[sizeof(nvs_serial_number) - 1] != '\0') {
+        LOG_ERR("flash read failed with error %d", ret);
+        return -EIO;
+    } else if (nvs.serial_number[sizeof(nvs.serial_number) - 1] != '\0') {
         LOG_ERR("serial number doesn't end with null terminator");
-        nvs_init_status = -EINVAL;
-        return nvs_init_status;
+        return -EINVAL;
     }
 
-    ret = flash_area_read(mfg_fa, NVS_MFG_UUID_ADDRESS, &nvs_uuid, sizeof(nvs_uuid));
+    ret = flash_area_read(mfg_fa, NVS_MFG_UUID_ADDRESS, &nvs.uuid, sizeof(nvs.uuid));
     if (ret < 0) {
-        LOG_ERR("flash area read failed with error %d", ret);
-        nvs_init_status = -EIO;
-        return nvs_init_status;
+        LOG_ERR("flash read failed with error %d", ret);
+        return -EIO;
     }
 
     flash_area_close(mfg_fa);
@@ -103,27 +91,24 @@ int32_t nvs_init(const struct device *dev) {
     uint8_t entry_idx = 0;
     /* first entry is serial number, length is strlen("serial=") + strlen(serial) */
     snprintk(
-        &nvs_dns_sd_txt_record[entry_idx],
-        sizeof(nvs_dns_sd_txt_record) - entry_idx,
+        &nvs_dns_txt_record[entry_idx],
+        sizeof(nvs_dns_txt_record) - entry_idx,
         "%cserial=%s",
-        7 + strlen(nvs_serial_number),
-        nvs_serial_number
+        7 + strlen(nvs.serial_number),
+        nvs.serial_number
     );
-    entry_idx = strlen(nvs_dns_sd_txt_record);
+    entry_idx = strlen(nvs_dns_txt_record);
     /* second entry is uuid, length is strlen("uuid=") + 36 (uuid string length) */
     snprintk(
-        &nvs_dns_sd_txt_record[entry_idx],
-        sizeof(nvs_dns_sd_txt_record) - entry_idx,
+        &nvs_dns_txt_record[entry_idx],
+        sizeof(nvs_dns_txt_record) - entry_idx,
         "%cuuid=%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
         5 + 36,
-        nvs_uuid[0], nvs_uuid[1], nvs_uuid[2], nvs_uuid[3], 
-        nvs_uuid[4], nvs_uuid[5], nvs_uuid[6], nvs_uuid[7], 
-        nvs_uuid[8], nvs_uuid[9], nvs_uuid[10], nvs_uuid[11], 
-        nvs_uuid[12], nvs_uuid[13], nvs_uuid[14], nvs_uuid[15]
+        nvs.uuid[0], nvs.uuid[1], nvs.uuid[2], nvs.uuid[3], 
+        nvs.uuid[4], nvs.uuid[5], nvs.uuid[6], nvs.uuid[7], 
+        nvs.uuid[8], nvs.uuid[9], nvs.uuid[10], nvs.uuid[11], 
+        nvs.uuid[12], nvs.uuid[13], nvs.uuid[14], nvs.uuid[15]
     );
 
-    nvs_init_status = 0;
-    return nvs_init_status;
+    return 0;
 }
-
-SYS_INIT(nvs_init, POST_KERNEL, 80);
