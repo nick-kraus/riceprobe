@@ -4,8 +4,8 @@ list(APPEND KCONFIG_ROOT "${CMAKE_CURRENT_LIST_DIR}/Kconfig")
 list(APPEND BOARD_ROOT "${CMAKE_CURRENT_LIST_DIR}")
 list(APPEND DTS_ROOT "${CMAKE_CURRENT_LIST_DIR}")
 
-# for now just build for the main board we are developing for
-set(BOARD rice_samv71b_xult)
+# if no other board set, default to 'rice_samv71b_xult'
+set(BOARD rice_samv71b_xult CACHE STRING "selected zephyr board")
 
 find_package(Zephyr REQUIRED HINTS "${CMAKE_CURRENT_SOURCE_DIR}/zephyr")
 enable_language(C)

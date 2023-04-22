@@ -4,11 +4,19 @@
 #include <zephyr/net/net_if.h>
 #include <zephyr/usb/usb_device.h>
 
+#include "nvs.h"
 #include "util.h"
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
 void main(void) {
+	int32_t ret;
+
+	if ((ret = nvs_init()) < 0) {
+		LOG_ERR("nvs initialization failed with error %d", ret);
+		return;
+	}
+
 	const struct device *dap_device = DEVICE_DT_GET(DT_NODELABEL(dap));
 	FATAL_CHECK(device_is_ready(dap_device), "failed to ready dap interface");
 

@@ -35,6 +35,7 @@
 *.i*86
 *.x86_64
 *.hex
+*.bin
 
 # Debug files
 *.dSYM/
@@ -49,6 +50,7 @@
 /tools/
 /zephyr/
 /build/
+/twister-out*/
 
 # Python
 __pycache__/

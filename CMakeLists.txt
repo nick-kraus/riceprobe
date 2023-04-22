@@ -15,7 +15,7 @@ execute_process(
 )
 string(STRIP ${REPO_VERSION_STRING} REPO_VERSION_STRING)
 set(REPO_VERSION_STRING "\"${REPO_VERSION_STRING}\"")
-if (NOT REPO_VERSION_STRING MATCHES "v[0-9]+.[0-9]+.[0-9]-[0-9]+-g[0-9a-fA-F]+")
+if(NOT REPO_VERSION_STRING MATCHES "v[0-9]+.[0-9]+.[0-9]-[0-9]+-g[0-9a-fA-F]+")
     message(FATAL_ERROR "REPO_VERSION_STRING \"${REPO_VERSION_STRING}\" is not in a semver-compatible format")
 else()
     message(STATUS "Repository version: ${REPO_VERSION_STRING}")

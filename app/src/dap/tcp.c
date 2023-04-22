@@ -21,7 +21,7 @@ int32_t dap_tcp_init(const struct device *dev) {
 		CONFIG_NET_HOSTNAME,
 		"_dap",
 		"local",
-		nvs_dns_sd_txt_record,
+		nvs_dns_txt_record,
 		CONFIG_DAP_TCP_PORT
 	);
 

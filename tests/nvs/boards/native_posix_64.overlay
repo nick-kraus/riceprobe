@@ -1,0 +1,23 @@
+&flashcontroller0 {
+    /delete-node/ flash@0;
+
+    flash0: flash@0 {
+        status = "okay";
+        compatible = "soc-nv-flash";
+        erase-block-size = <1>;
+        write-block-size = <1>;
+        reg = <0x0 0x200>;
+
+        partitions {
+            compatible = "fixed-partitions";
+            #address-cells = <1>;
+            #size-cells = <1>;
+
+            manufacturing_partition: partition@0 {
+                label = "manufacturing";
+                reg = <0x0 0x200>;
+                read-only;
+            };
+        };
+    };
+};
