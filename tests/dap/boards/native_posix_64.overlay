@@ -1,0 +1,74 @@
+/ {    
+    dap: dap {
+        label = "dap";
+        compatible = "rice,dap";
+
+        tck_swclk_gpios = <&gpio0 1 GPIO_ACTIVE_HIGH>;
+		tms_swdio_gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;
+		tdo_gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;
+		tdi_gpios = <&gpio0 4 GPIO_ACTIVE_HIGH>;
+		nreset_gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
+		vtref_gpios = <&gpio0 6 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>;
+		led_connect_gpios = <&gpio0 7 GPIO_ACTIVE_HIGH>;
+		led_running_gpios = <&gpio0 8 GPIO_ACTIVE_HIGH>;
+
+        swo_uart = <&uart2>;
+
+        /* by default the tdo/swo pin is configured as a GPIO input, but must be switched
+		 * to a UART input if SWO is used */
+		pinctrl-0 = <&dap_pinctrl_tdo_swo_gpio>;
+		pinctrl-1 = <&dap_pinctrl_tdo_swo_uart>;
+		pinctrl-names = "tdo", "swo";
+    };
+
+    pinctrl: pinctrl {
+        compatible = "vnd,pinctrl-test";
+
+        dap_pinctrl_tdo_swo_gpio: dap_pinctrl_tdo_swo_gpio {
+            group1 {
+                pins = <0>;
+            };
+        };
+        dap_pinctrl_tdo_swo_uart: dap_pinctrl_tdo_swo_uart {
+            group1 {
+                pins = <1>;
+            };
+        };
+    };
+
+    uart2: uart2 {
+        compatible = "zephyr,uart-emul";
+		status = "okay";
+		current-speed = <115200>;
+		rx-fifo-size = <256>;
+		tx-fifo-size = <256>;
+    };
+};
+
+&flashcontroller0 {
+    /delete-node/ flash@0;
+
+    flash0: flash@0 {
+        status = "okay";
+        compatible = "soc-nv-flash";
+        erase-block-size = <1>;
+        write-block-size = <1>;
+        reg = <0x0 0x200>;
+
+        partitions {
+            compatible = "fixed-partitions";
+            #address-cells = <1>;
+            #size-cells = <1>;
+
+            manufacturing_partition: partition@0 {
+                label = "manufacturing";
+                reg = <0x0 0x200>;
+                read-only;
+            };
+        };
+    };
+};
+
+&gpio0 {
+	ngpios = <9>;
+};

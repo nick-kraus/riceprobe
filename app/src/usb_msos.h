@@ -50,10 +50,10 @@
         return_dev;                                                                     \
     })
 
-void usb_winusb_set_func0_interface(uint8_t intf);
-void usb_winusb_set_func1_interface(uint8_t intf);
+void usb_msos_set_func0_interface(uint8_t intf);
+void usb_msos_set_func1_interface(uint8_t intf);
 
-int32_t usb_winusb_custom_handle_req(struct usb_setup_packet *pSetup, int32_t *len, uint8_t **data);
-int32_t usb_winusb_vendor_handle_req(struct usb_setup_packet *pSetup, int32_t *len, uint8_t **data);
+int32_t usb_msos_custom_handle_req(struct usb_setup_packet *pSetup, int32_t *len, uint8_t **data);
+int32_t usb_msos_vendor_handle_req(struct usb_setup_packet *pSetup, int32_t *len, uint8_t **data);
 
 #endif /* __USB_H__ */

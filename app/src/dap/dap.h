@@ -7,9 +7,7 @@
 #include <zephyr/sys/ring_buffer.h>
 #include <zephyr/usb/usb_device.h>
 
-/* ensure we have one and exactly one dap driver in the devicetree */
-BUILD_ASSERT(DT_NUM_INST_STATUS_OKAY(rice_dap) == 1);
-#define DAP_DT_NODE DT_COMPAT_GET_ANY_STATUS_OKAY(rice_dap)
+#include "dap/transport.h"
 
 /* size of the internal buffers in bytes */
 #define DAP_RING_BUF_SIZE       (2048)
@@ -73,19 +71,22 @@ BUILD_ASSERT(DT_NUM_INST_STATUS_OKAY(rice_dap) == 1);
 #define DAP_COMMAND_QUEUE_COMMANDS          ((uint8_t) 0x7e)
 #define DAP_COMMAND_EXECUTE_COMMANDS        ((uint8_t) 0x7f)
 
-/* thread events */
-#define DAP_THREAD_EVENT_DISCONNECT         (BIT(0))
-#define DAP_THREAD_EVENT_USB_CONNECT        (BIT(1))
-#define DAP_THREAD_EVENT_TCP_CONNECT        (BIT(2))
-#define DAP_THREAD_EVENT_READ_READY         (BIT(3))
-#define DAP_THREAD_EVENT_WRITE_COMPLETE     (BIT(4))
+struct dap_driver {
+    struct {
+        struct gpio_dt_spec tck_swclk;
+        struct gpio_dt_spec tms_swdio;
+        struct gpio_dt_spec tdo;
+        struct gpio_dt_spec tdi;
+        struct gpio_dt_spec nreset;
+        struct gpio_dt_spec vtref;
+        struct gpio_dt_spec led_connect;
+        struct gpio_dt_spec led_running;
 
-/* all supported transports */
-#define DAP_TRANSPORT_NONE                  ((uint8_t) 0)
-#define DAP_TRANSPORT_USB                   ((uint8_t) 1)
-#define DAP_TRANSPORT_TCP                   ((uint8_t) 2)
+        const struct device *swo_uart;
 
-struct dap_data {
+        const struct pinctrl_dev_config *pinctrl;
+    } io;
+
     /* shared swd and jtag state */
     struct {
         /* current configuration state of the port */
@@ -146,8 +147,6 @@ struct dap_data {
     } led;
 
     struct {
-        /* points to the start of the command at the buffer tail, once a request has been received */
-        uint8_t *request_tail;
         uint8_t request_bytes[DAP_RING_BUF_SIZE];
         struct ring_buf request;
         uint8_t response_bytes[DAP_RING_BUF_SIZE];
@@ -156,36 +155,7 @@ struct dap_data {
         struct ring_buf swo;
     } buf;
 
-    struct {
-        int32_t bind_sock;
-        struct k_event event;
-    } tcp;
-
-    struct {
-        /* primary driver thread, handles all dap I/O */
-        struct k_thread driver;
-        /* for waiting on network transport events */
-        struct k_thread tcp;
-        /* events for the main driver thread to wait on */
-        struct k_event event;
-        /* which transport is currently configured, if any */
-        uint8_t transport;
-    } thread;
-};
-
-struct dap_config {
-    struct gpio_dt_spec tck_swclk_gpio;
-    struct gpio_dt_spec tms_swdio_gpio;
-    struct gpio_dt_spec tdo_gpio;
-    struct gpio_dt_spec tdi_gpio;
-    struct gpio_dt_spec nreset_gpio;
-    struct gpio_dt_spec vtref_gpio;
-    struct gpio_dt_spec led_connect_gpio;
-    struct gpio_dt_spec led_running_gpio;
-
-    const struct device *swo_uart_dev;
-
-    const struct pinctrl_dev_config *pinctrl_config;
+    struct dap_transport *transport;
 };
 
 #endif /* __DAP_PRIV_H__ */

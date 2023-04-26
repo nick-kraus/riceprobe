@@ -5,9 +5,9 @@
 #include <zephyr/usb/class/usb_cdc.h>
 #include <usb_descriptor.h>
 
-#include "../usb.h"
 #include "vcp/usb.h"
 #include "vcp/vcp.h"
+#include "usb_msos.h"
 #include "util.h"
 
 LOG_MODULE_DECLARE(vcp, CONFIG_VCP_LOG_LEVEL);

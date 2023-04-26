@@ -6,7 +6,7 @@
 #include <zephyr/usb/class/usb_cdc.h>
 #include <usb_descriptor.h>
 
-#include "../usb.h"
+#include "usb_msos.h"
 
 /* usb descriptor max packet size */
 #if CONFIG_USB_DC_HAS_HS_SUPPORT
@@ -67,8 +67,8 @@ void io_usb_status_cb(struct usb_cfg_data *cfg, enum usb_dc_status_code status, 
         .cb_usb_status = io_usb_status_cb,                                                          \
         .interface = {                                                                              \
             .class_handler = NULL,                                                                  \
-            .custom_handler = usb_winusb_custom_handle_req,                                         \
-            .vendor_handler = usb_winusb_vendor_handle_req,                                         \
+            .custom_handler = usb_msos_custom_handle_req,                                           \
+            .vendor_handler = usb_msos_vendor_handle_req,                                           \
         },                                                                                          \
         .num_endpoints = ARRAY_SIZE(io_usb_ep_data_##idx),                                          \
         .endpoint = io_usb_ep_data_##idx,                                                           \

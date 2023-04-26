@@ -13,18 +13,17 @@ manifest:
       url-base: git@github.com:nick-kraus
 
   projects:
-    # TODO: move to next release when possible (v3.4.x)
     - name: zephyr
-      revision: 8dda1fe154d0dfa282a0f9a2e3de85d06e174eb8
+      revision: v3.4.0-rc2
       west-commands: scripts/west-commands.yml
 
-    # projects below are lifted from zephyr 8dda1fe154 west.yml, with unused projects removed
+    # projects below are lifted from zephyr v3.4.0-rc2 west.yml, with unused projects removed
     - name: hal_atmel
       revision: 5ab43007eda3f380c125f957f03638d2e8d1144d
       path: modules/hal/atmel
 
     - name: hal_stm32
-      revision: 5c79d0c7c4f7094e19959f0bc542ebc35db44002
+      revision: c865374fc83d93416c0f380e6310368ff55d6ce2
       path: modules/hal/stm32
 
     - name: cmsis
@@ -32,11 +31,11 @@ manifest:
       path: modules/hal/cmsis
 
     - name: mbedtls
-      revision: 4e1f66df894dc622da7bcd3884016a6ace08e9ea
+      revision: 6e7841e5a08eb5da3c82dbc8b6b6d82ae4b7d2a0
       path: modules/crypto/mbedtls
 
     - name: mcuboot
-      revision: 143485e35b8da7d234677d8920a28f5ea03f6d09
+      revision: a6aef32619455cb1697c42d66db489c1608f8410
       path: bootloader/mcuboot
 
     - name: net-tools
@@ -44,9 +43,9 @@ manifest:
       path: tools/net-tools
 
     - name: picolibc
-      revision: 0694a78fc08b3300c7db79602c46ba0a64428c8e
+      revision: d07c38ff051386f8e09a143ea0a6c1d6d66dd1d8
       path: modules/lib/picolibc
 
     - name: segger
-      revision: e2ff2200556e8a8f962921444275c04971a2bb3d
+      revision: 4bfaf28a11c3e5ec29badac744fab6d2f342749e
       path: modules/debug/segger
