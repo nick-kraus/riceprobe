@@ -1,0 +1,17 @@
+tests:
+  dap.test_info_command:
+    platform_allow: native_posix_64
+  dap.test_host_status:
+    platform_allow: native_posix_64
+  dap.test_delay:
+    platform_allow: native_posix_64
+  dap.test_reset_target:
+    platform_allow: native_posix_64
+  dap.test_disconnect_connect:
+    platform_allow: native_posix_64
+  dap.test_swj_pins:
+    platform_allow: native_posix_64
+  dap.test_swj_clock_sequence:
+    platform_allow: native_posix_64
+  dap.test_atomic:
+    platform_allow: native_posix_64

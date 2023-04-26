@@ -1,0 +1,21 @@
+config REPO_VERSION_STRING
+    string "Repository semver-compatible version string"
+    default "v987.654.321-99-ba5eba11-dirty"
+
+config PRODUCT_MANUFACTURER
+    string "Name of the product manufacturer"
+    default "Nick Kraus"
+
+config PRODUCT_DESCRIPTOR
+    string "Short descriptor of the product"
+    default "RICEProbe IO CMSIS-DAP"
+
+config PRODUCT_SERIAL_FORMAT
+    string "Defines the format and length of the product serial number"
+    default "MMMM-YYWWNNNNNNC"
+
+module = DAP
+module-str = dap
+source "subsys/logging/Kconfig.template.log_config"
+
+source "Kconfig.zephyr"

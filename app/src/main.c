@@ -9,6 +9,8 @@
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
+int32_t dap_init(void);
+
 void main(void) {
 	int32_t ret;
 
@@ -17,8 +19,10 @@ void main(void) {
 		return;
 	}
 
-	const struct device *dap_device = DEVICE_DT_GET(DT_NODELABEL(dap));
-	FATAL_CHECK(device_is_ready(dap_device), "failed to ready dap interface");
+	if ((ret = dap_init()) < 0) {
+		LOG_ERR("dap initialization failed with error %d", ret);
+		return;
+	}
 
 	const struct device *io_device = DEVICE_DT_GET(DT_NODELABEL(io));
 	FATAL_CHECK(device_is_ready(io_device), "failed to ready io interface");

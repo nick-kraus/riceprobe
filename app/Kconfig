@@ -22,6 +22,32 @@ config VCP_TCP_PORT
     int "Binding port for Virtual COM Port driver TCP socket transport"
     default 30071
 
+config PRODUCT_MANUFACTURER
+    string "Name of the product manufacturer"
+    default "Nick Kraus"
+
+config PRODUCT_DESCRIPTOR
+    string "Short descriptor of the product"
+    default "RICEProbe IO CMSIS-DAP"
+
+config PRODUCT_SERIAL_FORMAT
+    string "Defines the format and length of the product serial number"
+    default "MMMM-YYWWNNNNNNC"
+
+# USB descriptor values should inherit from the project descriptors
+if USB_DEVICE_STACK
+
+config USB_DEVICE_MANUFACTURER
+    default PRODUCT_MANUFACTURER
+
+config USB_DEVICE_PRODUCT
+    default PRODUCT_DESCRIPTOR
+
+config USB_DEVICE_SN
+    default PRODUCT_SERIAL_FORMAT
+
+endif # USB_DEVICE_STACK
+
 module = DAP
 module-str = dap
 source "subsys/logging/Kconfig.template.log_config"
