@@ -1,0 +1,45 @@
+name: ci
+run-name: Continuous Integration
+
+on: [push]
+
+jobs:
+  ci:
+    runs-on: ubuntu-22.04
+    container:
+      image: docker://ghcr.io/zephyrproject-rtos/ci:v0.26.4
+      options: '--entrypoint /bin/bash'
+    env:
+      ZEPHYR_SDK_INSTALL_DIR: /opt/toolchains/zephyr-sdk-0.16.1
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: West init
+        run: |
+          # The owner UID of the action workspace may not be the same as the container UID, causing
+          # git problems. Remove this workaround when GitHub has a permanent fix for this issue.
+          git config --global --add safe.directory ${GITHUB_WORKSPACE}
+          west init -l west
+          west update
+          west forall -c 'git reset --hard HEAD'
+
+      - name: Build
+        run: west build --board=rice_samv71b_xult
+      - name: Build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: firmware
+          path: ${{ github.workspace }}/build/zephyr/riceprobe_v*
+          if-no-files-found: error
+
+      - name: Twister
+        run: west twister --force-color --inline-logs --timestamps --verbose --testsuite-root tests/
+      - name: Twister artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-report
+          path: ${{ github.workspace }}/twister-out/twister*
+          if-no-files-found: error
