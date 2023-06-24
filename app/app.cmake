@@ -7,6 +7,9 @@ list(APPEND DTS_ROOT "${CMAKE_CURRENT_LIST_DIR}")
 # if no other board set, default to 'rice_samv71b_xult'
 set(BOARD rice_samv71b_xult CACHE STRING "selected zephyr board")
 
+# firmware output file name
+set(CONFIG_KERNEL_BIN_NAME \"riceprobe_${REPO_VERSION_STRING}\" CACHE STRING "build output filename" FORCE)
+
 find_package(Zephyr REQUIRED HINTS "${CMAKE_CURRENT_SOURCE_DIR}/zephyr")
 enable_language(C)
 
