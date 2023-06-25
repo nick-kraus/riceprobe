@@ -1,7 +1,12 @@
 name: ci
 run-name: Continuous Integration
 
-on: [push]
+on:
+  push:
+    branches:
+      - 'main'
+  pull_request:
+    types: [opened, reopened, edited]
 
 jobs:
   ci:
