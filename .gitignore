@@ -45,11 +45,8 @@
 
 # Zephyr
 /.west/
-/bootloader/
-/modules/
-/tools/
-/zephyr/
 /build/
+/firmware/modules/
 /twister-out*/
 
 # Python

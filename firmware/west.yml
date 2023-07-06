@@ -2,9 +2,6 @@ manifest:
   defaults:
     remote: zephyrproject-rtos
 
-  self:
-    path: app
-
   remotes:
     - name: zephyrproject-rtos
       url-base: https://github.com/zephyrproject-rtos
@@ -14,38 +11,35 @@ manifest:
 
   projects:
     - name: zephyr
-      revision: v3.4.0-rc2
+      revision: v3.4.0
+      path: firmware/modules/zephyr
       west-commands: scripts/west-commands.yml
 
-    # projects below are lifted from zephyr v3.4.0-rc2 west.yml, with unused projects removed
+    # projects below are lifted from zephyr v3.4.0 west.yml, with unused projects removed
     - name: hal_atmel
       revision: 5ab43007eda3f380c125f957f03638d2e8d1144d
-      path: modules/hal/atmel
+      path: firmware/modules/hal/atmel
 
     - name: hal_stm32
       revision: c865374fc83d93416c0f380e6310368ff55d6ce2
-      path: modules/hal/stm32
+      path: firmware/modules/hal/stm32
 
     - name: cmsis
       revision: 74981bf893e8b10931464b9945e2143d99a3f0a3
-      path: modules/hal/cmsis
+      path: firmware/modules/hal/cmsis
 
     - name: mbedtls
       revision: 6e7841e5a08eb5da3c82dbc8b6b6d82ae4b7d2a0
-      path: modules/crypto/mbedtls
+      path: firmware/modules/crypto/mbedtls
 
     - name: mcuboot
-      revision: a6aef32619455cb1697c42d66db489c1608f8410
-      path: bootloader/mcuboot
-
-    - name: net-tools
-      revision: e0828aa9629b533644dc96ff6d1295c939bd713c
-      path: tools/net-tools
+      revision: 74c4d1c52fd51d07904b27a7aa9b2303e896a4e3
+      path: firmware/modules/mcuboot
 
     - name: picolibc
       revision: d07c38ff051386f8e09a143ea0a6c1d6d66dd1d8
-      path: modules/lib/picolibc
+      path: firmware/modules/lib/picolibc
 
     - name: segger
       revision: 4bfaf28a11c3e5ec29badac744fab6d2f342749e
-      path: modules/debug/segger
+      path: firmware/modules/debug/segger
