@@ -27,12 +27,12 @@ jobs:
           # The owner UID of the action workspace may not be the same as the container UID, causing
           # git problems. Remove this workaround when GitHub has a permanent fix for this issue.
           git config --global --add safe.directory ${GITHUB_WORKSPACE}
-          west init -l west
+          west init -l firmware
           west update
           west forall -c 'git reset --hard HEAD'
 
       - name: Build
-        run: west build --board=rice_samv71b_xult
+        run: west build --board=rice_samv71b_xult firmware/
       - name: Build artifacts
         uses: actions/upload-artifact@v3
         with:
@@ -41,7 +41,7 @@ jobs:
           if-no-files-found: error
 
       - name: Twister
-        run: west twister --force-color --inline-logs --timestamps --verbose --testsuite-root tests/
+        run: west twister --force-color --inline-logs --timestamps --verbose --testsuite-root firmware/tests/
       - name: Twister artifacts
         uses: actions/upload-artifact@v3
         with:

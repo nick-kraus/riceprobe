@@ -1,15 +1,6 @@
 config REPO_VERSION_STRING
     string "Repository semver-compatible version string"
 
-config REPO_VERSION_MAJOR
-    int "Repository semver-compatible major version number"
-
-config REPO_VERSION_MINOR
-    int "Repository semver-compatible minor version number"
-
-config REPO_VERSION_PATCH
-    int "Repository semver-compatible patch version number"
-
 config DAP_TCP_PORT
     int "Binding port for Dap driver TCP socket transport"
     default 30047

@@ -1,9 +1,0 @@
-tests:
-  nvs.test_nvs_init:
-    platform_allow: native_posix_64
-  nvs.test_nvs_serial:
-    platform_allow: native_posix_64
-  nvs.test_nvs_uuid:
-    platform_allow: native_posix_64
-  nvs.test_nvs_dns_sd:
-    platform_allow: native_posix_64

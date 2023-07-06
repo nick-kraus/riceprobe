@@ -11,14 +11,23 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
 int32_t dap_init(void);
 
-void main(void) {
-	int32_t ret;
-
-	if ((ret = nvs_init()) < 0) {
-		LOG_ERR("nvs initialization failed with error %d", ret);
-		return;
+static int32_t early_init_ret = 0;
+/* runs before main and many zephyr subsystems, to satisfy dependencies for those systems */
+int32_t early_init(void) {
+   if ((early_init_ret = nvs_init()) < 0) {
+        LOG_ERR("nvs initialization failed with error %d", early_init_ret);
+        return early_init_ret;
 	}
 
+	return 0;
+}
+/* may need to adjust level and priority based on what system dependencies are pre-empted */
+SYS_INIT(early_init, POST_KERNEL, 80);
+
+void main(void) {
+	if (early_init_ret < 0) { return; }
+
+	int32_t ret;
 	if ((ret = dap_init()) < 0) {
 		LOG_ERR("dap initialization failed with error %d", ret);
 		return;
