@@ -1,5 +1,5 @@
-name: ci
-run-name: Continuous Integration
+name: firmware
+run-name: RICEProbe Firmware CI
 
 on:
   push:
@@ -36,7 +36,7 @@ jobs:
       - name: Build artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: firmware
+          name: firmware-build
           path: ${{ github.workspace }}/build/zephyr/riceprobe_v*
           if-no-files-found: error
 
@@ -45,6 +45,6 @@ jobs:
       - name: Twister artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: test-report
+          name: firmware-test-report
           path: ${{ github.workspace }}/twister-out/twister*
           if-no-files-found: error

@@ -1,21 +1,21 @@
 # RICEProbe
 
-This repository contains the firmware for the RICEProbe (Remote In-Circuit Emulator Probe) product.
+This repository contains the firmware and host utilities for the RICEProbe, a **R**emote **I**n-**C**ircuit **E**mulator Probe.
 
-## Building the Firmware
+## Probe Firmware
 
-The firmware is built using the Zephyr RTOS Projects build tool, [west](https://docs.zephyrproject.org/latest/develop/west/index.html). In order to prepare the repository for a first time build, it must be initialized, using the commands `west init -l west` and `west update`.
+The firmware is built off of the Zephyr RTOS, using its meta-tool [west](https://docs.zephyrproject.org/latest/develop/west/index.html).
 
-Once the repository is initialized, a clean build can be ran with the command `west build -p`, which will use the default board (rice_samv71b_xult). To specify a non-default board to build for, use the command `west build -p -b={board_name}`.
+In order to build the firmware, the steps outlined in the [Zephyr Getting Started Guide](https://docs.zephyrproject.org/latest/develop/getting_started/index.html) must be followed. Once that is complete, the following commands will build the firmware from a fresh repository:
 
-## Running Tests
+```bash
+# initialize the repository and download all zephyr modules
+west init -l firmware
+west update
+# build the firmware for the riceprobe development board
+west build -b=rice_samv71b_xult firmware
+```
 
-The RICEProbe integration tests are written in [Python](https://www.python.org/) and are orchestrated with [Pytest](https://docs.pytest.org/). To run the test suite run the command `pytest`.
-
-## Building Documentation
+## Documentation
 
 Project level documentation is built with [MkDocs](https://www.mkdocs.org/). The documentation content is written in simple markdown files and can be read through an editor, or viewed through a local webserver after running the command `mkdocs serve`.
-
-## Building the Manufacturing Application
-
-The manufacturing flow for the RICEProbe includes a different application for programming manufacturing data into the flash of each device. To build this application instead of the default, run the command `west build -p=always mfg`.
