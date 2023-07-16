@@ -1,25 +1,7 @@
-#ifndef __TEST_UTIL_H__
-#define __TEST_UTIL_H__
+#ifndef __UTIL_PRINT_H__
+#define __UTIL_PRINT_H__
 
 #include <ctype.h>
-
-#if CONFIG_GPIO_EMUL
-
-#include <zephyr/drivers/gpio/gpio_emul.h>
-
-static inline int32_t gpio_emul_input_set_dt(struct gpio_dt_spec *gpio, int32_t val) {
-    return gpio_emul_input_set(gpio->port, gpio->pin, val);
-}
-
-static inline int32_t gpio_emul_output_get_dt(struct gpio_dt_spec *gpio) {
-    return gpio_emul_output_get(gpio->port, gpio->pin);
-}
-
-static inline int32_t gpio_emul_flags_get_dt(struct gpio_dt_spec *gpio, gpio_flags_t *flags) {
-    return gpio_emul_flags_get(gpio->port, gpio->pin, flags);
-}
-
-#endif /* CONFIG_GPIO_EMUL */
 
 /* prints two buffers as a hexdump, while highlighting their differences */
 static inline void hex_diff_printk(uint8_t *received, uint8_t *expected, size_t len) {
@@ -55,4 +37,4 @@ static inline void hex_diff_printk(uint8_t *received, uint8_t *expected, size_t 
     }
 }
 
-#endif /* __TEST_UTIL_H__ */
+#endif /* __UTIL_PRINT_H__ */

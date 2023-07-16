@@ -30,6 +30,8 @@ static inline void busy_wait_nanos(uint32_t nanos) {
     );
 
     while (true) {
+        /* native posix platforms don't progress time unless sleep functions are called */
+        IF_ENABLED(CONFIG_ARCH_POSIX, (k_busy_wait(1);));
         uint32_t current = k_cycle_get_32();
         /* the subtraction handles uint32 overflow */ 
         if ((current - start) >= wait) {

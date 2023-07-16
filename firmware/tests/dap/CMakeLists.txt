@@ -10,6 +10,9 @@ find_package(Zephyr REQUIRED HINTS "${PROJECT_DIR}/firmware/modules/zephyr")
 project(test_dap)
 
 target_sources(app PRIVATE
+    "src/dap_io.c"
+    "src/dap_target_emul.c"
+    "src/dap_transport.c"
     "src/main.c"
     "src/test_general.c"
     "${PROJECT_DIR}/firmware/src/dap/dap.c"
@@ -22,8 +25,8 @@ target_sources(app PRIVATE
 )
 
 target_include_directories(app PRIVATE
-    "${PROJECT_DIR}/firmware"
     "${PROJECT_DIR}/firmware/src"
+    "${PROJECT_DIR}/firmware/tests"
 )
 
 zephyr_linker_sources(DATA_SECTIONS
