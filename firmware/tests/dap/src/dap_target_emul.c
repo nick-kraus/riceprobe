@@ -11,6 +11,8 @@ static struct {
     uint64_t last_clk_cycle;
     /* average clock period measured in nanoseconds */
     uint64_t clk_period_avg;
+    /* bistream of tms/swdio values */
+    uint8_t tms_swdio_val[128];
 } dap_target_emul;
 
 static void dap_target_emul_handler(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins) {
@@ -29,6 +31,10 @@ static void dap_target_emul_handler(const struct device *port, struct gpio_callb
     }
     dap_target_emul.last_clk_cycle = new_clk;
 
+    uint16_t bitstream_byte_idx = dap_target_emul.clk_cycles / 8;
+    uint8_t bitstream_bit_idx = dap_target_emul.clk_cycles % 8;
+    
+    dap_target_emul.tms_swdio_val[bitstream_byte_idx] |= gpio_pin_get_dt(dap_io_tms_swdio) << bitstream_bit_idx;
     dap_target_emul.clk_cycles++;
 }
 
@@ -40,6 +46,7 @@ void dap_target_emul_reset(void) {
     dap_target_emul.clk_cycles = 0;
     dap_target_emul.last_clk_cycle = 0;
     dap_target_emul.clk_period_avg = 0;
+    memset(dap_target_emul.tms_swdio_val, 0, sizeof(dap_target_emul.tms_swdio_val));
 }
 
 void dap_target_emul_start(void) {
@@ -56,4 +63,8 @@ void dap_target_emul_end(void) {
 
 uint64_t dap_target_emul_avg_clk_period(void) {
     return dap_target_emul.clk_period_avg;
+}
+
+uint8_t* dap_target_emul_tms_swdio_val(void) {
+    return dap_target_emul.tms_swdio_val;
 }

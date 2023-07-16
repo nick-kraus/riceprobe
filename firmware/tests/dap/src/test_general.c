@@ -214,14 +214,18 @@ ZTEST(dap, test_swj_clock_sequence) {
 
     /* make sure tck/swclk actually switches at 100 KHz */
     assert_dap_command_expect("\x11\xa0\x86\x01\x00", "\x11\x00");
-    assert_dap_command_expect("\x12\x04\x00", "\x12\x00");
+    assert_dap_command_expect("\x12\x10\xab\xcd", "\x12\x00");
     assert_dap_target_clk_period_equal(10000);
+    /* check tms/swdio data */
+    assert_dap_target_tms_swdio_equal("\xab\xcd");
     dap_target_emul_reset();
 
     /* check same thing for 20 KHz */
     assert_dap_command_expect("\x11\x20\x4e\x00\x00", "\x11\x00");
-    assert_dap_command_expect("\x12\x04\x00", "\x12\x00");
+    assert_dap_command_expect("\x12\x10\x13\x57", "\x12\x00");
     assert_dap_target_clk_period_equal(50000);
+    /* check tms/swdio data */
+    assert_dap_target_tms_swdio_equal("\x13\x57");
     dap_target_emul_end();
     
     assert_dap_command_expect("\x03", "\x03\x00");
