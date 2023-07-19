@@ -2,7 +2,10 @@
 #include <zephyr/kernel.h>
 #include <zephyr/ztest.h>
 
+#include "dap_io.h"
 #include "dap_target_emul.h"
+#include "dap_transport.h"
+#include "util/gpio.h"
 
 static uint8_t nvs_data[] = {
     /* manufacturing tag (0x7A5A, little-endian) */
@@ -40,4 +43,13 @@ static void *dap_tests_setup(void) {
     return NULL;
 }
 
-ZTEST_SUITE(dap, NULL, dap_tests_setup, NULL, NULL, NULL);
+static void dap_tests_before(void *fixture) {
+    /* no mode (swd / jtag) configured */
+    assert_dap_command_expect("\x03", "\x03\x00");
+    /* target reference voltage low */
+    assert_gpio_emul_input_set(dap_io_vtref, 0);
+    /* target emulator disabled */
+    dap_target_emul_end();
+}
+
+ZTEST_SUITE(dap, NULL, dap_tests_setup, dap_tests_before, NULL, NULL);

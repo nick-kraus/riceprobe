@@ -140,7 +140,6 @@ ZTEST(dap, test_disconnect_connect) {
 
     /* ensure the 'default' mode is JTAG */
     assert_dap_command_expect("\x02\x00", "\x02\x02");
-    assert_dap_command_expect("\x03", "\x03\x00");
 
     /* incomplete command request */
     assert_dap_command_expect("\x02", "\xff");
@@ -148,6 +147,7 @@ ZTEST(dap, test_disconnect_connect) {
 
 ZTEST(dap, test_swj_pins) {
     /* start in JTAG mode, where all pins but TDO are output */
+    assert_gpio_emul_input_set(dap_io_vtref, 1);
     assert_dap_command_expect("\x02\x02", "\x02\x02");
     /* make sure to start with all pins, input or output, low */
     assert_gpio_emul_input_set(dap_io_tdo, 0);
@@ -197,8 +197,6 @@ ZTEST(dap, test_swj_pins) {
     assert_dap_command_expect("\x10", "\xff");
     assert_dap_command_expect("\x10\x00", "\xff");
     assert_dap_command_expect("\x10\x00\xff\xff", "\xff");
-
-    assert_dap_command_expect("\x03", "\x03\x00");
 }
 
 ZTEST(dap, test_swj_clock_sequence) {
@@ -215,6 +213,7 @@ ZTEST(dap, test_swj_clock_sequence) {
     /* make sure tck/swclk actually switches at 100 KHz */
     assert_dap_command_expect("\x11\xa0\x86\x01\x00", "\x11\x00");
     assert_dap_command_expect("\x12\x10\xab\xcd", "\x12\x00");
+    assert_dap_target_clk_cycles_equal(16);
     assert_dap_target_clk_period_equal(10000);
     /* check tms/swdio data */
     assert_dap_target_tms_swdio_equal("\xab\xcd");
@@ -222,13 +221,16 @@ ZTEST(dap, test_swj_clock_sequence) {
 
     /* check same thing for 20 KHz */
     assert_dap_command_expect("\x11\x20\x4e\x00\x00", "\x11\x00");
-    assert_dap_command_expect("\x12\x10\x13\x57", "\x12\x00");
+    assert_dap_command_expect("\x12\x20\x13\x57\x9b\xdf", "\x12\x00");
+    assert_dap_target_clk_cycles_equal(32);
     assert_dap_target_clk_period_equal(50000);
     /* check tms/swdio data */
     assert_dap_target_tms_swdio_equal("\x13\x57");
-    dap_target_emul_end();
     
-    assert_dap_command_expect("\x03", "\x03\x00");
+    /* incomplete command request */
+    assert_dap_command_expect("\x11\x00\x00", "\xff");
+    assert_dap_command_expect("\x12", "\xff");
+    assert_dap_command_expect("\x12\x10", "\xff");
 }
 
 ZTEST(dap, test_atomic) {

@@ -15,6 +15,7 @@ target_sources(app PRIVATE
     "src/dap_transport.c"
     "src/main.c"
     "src/test_general.c"
+    "src/test_jtag.c"
     "${PROJECT_DIR}/firmware/src/dap/dap.c"
     "${PROJECT_DIR}/firmware/src/dap/commands_general.c"
     "${PROJECT_DIR}/firmware/src/dap/commands_jtag.c"
