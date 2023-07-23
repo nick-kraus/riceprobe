@@ -43,6 +43,7 @@ target_sources(app PRIVATE
     "src/io/usb.c"
     "src/vcp/usb.c"
     "src/vcp/vcp.c"
+    "src/utf8.c"
 )
 
 target_include_directories(app PRIVATE
