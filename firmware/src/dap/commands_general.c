@@ -195,7 +195,7 @@ int32_t dap_handle_command_connect(struct dap_driver *dap) {
         goto end;
     }
 
-    if (port == 1) {
+    if (port == 0 || port == 1) {
         /* tdo is configured as uart but capture not enabled */
         swo_capture_control(dap, false);
         if (pinctrl_apply_state(dap->io.pinctrl, PINCTRL_STATE_SWO) != 0) { goto end; }
@@ -216,7 +216,7 @@ int32_t dap_handle_command_connect(struct dap_driver *dap) {
         FATAL_CHECK(gpio_pin_configure_dt(&dap->io.tdi, GPIO_INPUT) >= 0, "tdi config failed");
         dap->swj.port = DAP_PORT_SWD;
         response_port = 1;
-    } else {
+    } else if (port == 2) {
         /* tdo pinctrl must be configured as gpio, and uart capture disabled */
         swo_capture_control(dap, false);
         if (pinctrl_apply_state(dap->io.pinctrl, PINCTRL_STATE_TDO) != 0) { goto end; }
@@ -240,6 +240,9 @@ int32_t dap_handle_command_connect(struct dap_driver *dap) {
         FATAL_CHECK(gpio_pin_configure_dt(&dap->io.tdo, GPIO_INPUT | GPIO_PULL_UP) >= 0, "tdo config failed");
         dap->swj.port = DAP_PORT_JTAG;
         response_port = 2;
+    } else {
+        /* unsupported port, respond with failed initialization */
+        goto end;
     }
     LOG_INF("configured port io as %s", port == 1 ? "SWD" : "JTAG");
 

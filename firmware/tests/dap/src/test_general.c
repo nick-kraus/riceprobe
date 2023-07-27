@@ -138,8 +138,9 @@ ZTEST(dap, test_disconnect_connect) {
     assert_gpio_emul_has_flag(dap_io_nreset, GPIO_OUTPUT);
     assert_dap_command_expect("\x03", "\x03\x00");
 
-    /* ensure the 'default' mode is JTAG */
-    assert_dap_command_expect("\x02\x00", "\x02\x02");
+    /* some host software (probe-rs is an exapmle) will tell the probe to enter its default mode while
+     * expecting it to end in SWD mode, without verifying, so ensure the default mode is SWD */
+    assert_dap_command_expect("\x02\x00", "\x02\x01");
 
     /* incomplete command request */
     assert_dap_command_expect("\x02", "\xff");
