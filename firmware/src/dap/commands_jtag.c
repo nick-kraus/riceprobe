@@ -135,9 +135,8 @@ int32_t dap_handle_command_jtag_sequence(struct dap_driver *dap) {
 
     CHECK_EQ(ring_buf_put(&dap->buf.response, &((uint8_t) {DAP_COMMAND_JTAG_SEQUENCE}), 1), 1, -EMSGSIZE);
     /* need a pointer to this item because we will write to it after trying the rest of the command */
-    uint8_t *command_status = NULL;
-    CHECK_EQ(ring_buf_put_claim(&dap->buf.response, &command_status, 1), 1, -ENOBUFS);
-    *command_status = 0;
+    uint8_t *response_status = NULL;
+    CHECK_EQ(ring_buf_put_claim(&dap->buf.response, &response_status, 1), 1, -ENOBUFS);
     CHECK_EQ(ring_buf_put_finish(&dap->buf.response, 1), 0, -ENOBUFS);
 
     uint8_t seq_count = 0;
@@ -188,7 +187,7 @@ int32_t dap_handle_command_jtag_sequence(struct dap_driver *dap) {
         }
     }
 
-    *command_status = status;
+    memcpy(response_status, &status, 1);
     return 0;
 }
 

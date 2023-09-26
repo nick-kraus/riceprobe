@@ -268,14 +268,12 @@ uint8_t swd_transfer(struct dap_driver *dap, uint8_t request, uint32_t *transfer
 }
 
 static inline uint8_t port_transfer(struct dap_driver *dap, uint8_t request, uint32_t *transfer_data) {
-    uint8_t transfer_ack = 0;
+    uint8_t transfer_ack = TRANSFER_RESPONSE_FAULT;
     for (uint32_t i = 0; i < dap->transfer.wait_retries + 1; i++) {
         if (dap->swj.port == DAP_PORT_JTAG) {
             transfer_ack = jtag_transfer(dap, request, transfer_data);
         } else if (dap->swj.port == DAP_PORT_SWD) {
             transfer_ack = swd_transfer(dap, request, transfer_data);
-        } else {
-            return TRANSFER_RESPONSE_FAULT;
         }
         if (transfer_ack != TRANSFER_RESPONSE_ACK_WAIT) { break; }
     }
@@ -298,9 +296,7 @@ int32_t dap_handle_command_transfer(struct dap_driver *dap) {
     uint8_t *response_count = NULL;
     uint8_t *response_response = NULL;
     CHECK_EQ(ring_buf_put_claim(&dap->buf.response, &response_count, 1), 1, -ENOBUFS);
-    *response_count = 0;
     CHECK_EQ(ring_buf_put_claim(&dap->buf.response, &response_response, 1), 1, -ENOBUFS);
-    *response_response = 0;
     CHECK_EQ(ring_buf_put_finish(&dap->buf.response, 2), 0, -ENOBUFS);
 
     /* transfer acknowledge and data storage */
@@ -317,6 +313,8 @@ int32_t dap_handle_command_transfer(struct dap_driver *dap) {
     /* number of transfers */
     uint8_t count = 0;
     CHECK_EQ(ring_buf_get(&dap->buf.request, &count, 1), 1, -EMSGSIZE);
+    /* number of completed transfers */
+    uint8_t completed_count = 0;
 
     if (dap->swj.port == DAP_PORT_DISABLED) {
         goto end;
@@ -400,11 +398,13 @@ int32_t dap_handle_command_transfer(struct dap_driver *dap) {
             }
         }
 
-        *response_count += 1;
+        completed_count++;
     }
-    *response_response = transfer_ack;
 
 end:
+    memcpy(response_count, &completed_count, 1);
+    memcpy(response_response, &transfer_ack, 1);
+
     /* process remaining (canceled) request bytes */
     while (count > 0) {
         count--;
@@ -429,7 +429,7 @@ end:
             CHECK_EQ(ring_buf_put(&dap->buf.response, (uint8_t*) &transfer_data, 4), 4, -ENOBUFS);
         }
 
-        *response_response = transfer_ack;
+        memcpy(response_response, &transfer_ack, 1);
     }
 
     return 0;
@@ -438,12 +438,11 @@ end:
 int32_t dap_handle_command_transfer_block(struct dap_driver *dap) {
     CHECK_EQ(ring_buf_put(&dap->buf.response, &((uint8_t) {DAP_COMMAND_TRANSFER_BLOCK}), 1), 1, -ENOBUFS);
     /* need a pointer to these items because we will write to them after trying the rest of the command */
-    uint16_t *response_count = NULL;
+    uint8_t *response_count = NULL;
     uint8_t *response_response = NULL;
-    CHECK_EQ(ring_buf_put_claim(&dap->buf.response, (uint8_t**) &response_count, 2), 2, -ENOBUFS);
-    *response_count = 0;
+    /* response_count is a uint16_t value, but we need to interact through uint8_t pointers for alignment reasons */
+    CHECK_EQ(ring_buf_put_claim(&dap->buf.response, &response_count, 2), 2, -ENOBUFS);
     CHECK_EQ(ring_buf_put_claim(&dap->buf.response, &response_response, 1), 1, -ENOBUFS);
-    *response_response = 0;
     CHECK_EQ(ring_buf_put_finish(&dap->buf.response, 3), 0, -ENOBUFS);
 
     /* transfer acknowledge and data storage */
@@ -455,6 +454,8 @@ int32_t dap_handle_command_transfer_block(struct dap_driver *dap) {
     /* number of words transferred */
     uint16_t count = 0;
     CHECK_EQ(ring_buf_get(&dap->buf.request, (uint8_t*) &count, 2), 2, -EMSGSIZE);
+    /* number of completed transfers */
+    uint16_t completed_count = 0;
     /* transfer request metadata */
     uint8_t request = 0;
     CHECK_EQ(ring_buf_get(&dap->buf.request, &request, 1), 1, -EMSGSIZE);
@@ -493,7 +494,7 @@ int32_t dap_handle_command_transfer_block(struct dap_driver *dap) {
             transfer_ack = port_transfer(dap, request, &transfer_data);
             if (transfer_ack != TRANSFER_RESPONSE_ACK_OK) { goto end; }
             CHECK_EQ(ring_buf_put(&dap->buf.response, (uint8_t*) &transfer_data, 4), 4, -ENOBUFS);
-            *response_count += 1;
+            completed_count++;
         }
     } else {
         /* write transfer */
@@ -503,16 +504,18 @@ int32_t dap_handle_command_transfer_block(struct dap_driver *dap) {
             CHECK_EQ(ring_buf_get(&dap->buf.request, (uint8_t*) &transfer_data, 4), 4, -EMSGSIZE);
             transfer_ack = port_transfer(dap, request, &transfer_data);
             if (transfer_ack != TRANSFER_RESPONSE_ACK_OK) { goto end; }
-            *response_count += 1;
+            completed_count++;
         }
         /* get ack of last write */
         port_set_ir(dap, &request_ir, JTAG_IR_DPACC);
         request = DP_ADDR_RDBUFF | TRANSFER_REQUEST_RnW;
         transfer_ack = port_transfer(dap, request, &transfer_data);
     }
-    *response_response = transfer_ack;
 
 end:
+    memcpy(response_count, &completed_count, 2);
+    memcpy(response_response, &transfer_ack, 1);
+
     /* process remaining (canceled) request bytes */
     if (count > 0 && (request & TRANSFER_REQUEST_RnW) == 0) {
         uint8_t *temp = NULL;

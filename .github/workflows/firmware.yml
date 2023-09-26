@@ -42,13 +42,15 @@ jobs:
 
       - name: Twister
         run: |
-          # install 'twister v2' plugin for pytest
-          pip install git+https://github.com/zephyrproject-rtos/twister.git@490e434
-          # run the actual native posix tests
-          pytest --twister --zephyr-base=$(pwd)/firmware/modules/zephyr --platform=native_posix_64 -v firmware/tests
+          west twister --enable-asan --enable-lsan --enable-ubsan --coverage --coverage-tool=lcov \
+            --inline-logs --platform=native_posix_64 --testsuite-root=firmware/tests
       - name: Twister artifacts
         uses: actions/upload-artifact@v3
         with:
           name: firmware-test-report
-          path: ${{ github.workspace }}/twister-out/twister*
+          path: |
+            ${{ github.workspace }}/twister-out/coverage/
+            ${{ github.workspace }}/twister-out/coverage*
+            ${{ github.workspace }}/twister-out/testplan*
+            ${{ github.workspace }}/twister-out/twister*
           if-no-files-found: error

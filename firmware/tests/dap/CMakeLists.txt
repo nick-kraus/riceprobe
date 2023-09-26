@@ -11,11 +11,13 @@ project(test_dap)
 
 target_sources(app PRIVATE
     "src/dap_io.c"
-    "src/dap_target_emul.c"
+    "src/dap_emul.c"
     "src/dap_transport.c"
     "src/main.c"
     "src/test_general.c"
     "src/test_jtag.c"
+    "src/test_swd.c"
+    "src/test_transfer.c"
     "${PROJECT_DIR}/firmware/src/dap/dap.c"
     "${PROJECT_DIR}/firmware/src/dap/commands_general.c"
     "${PROJECT_DIR}/firmware/src/dap/commands_jtag.c"

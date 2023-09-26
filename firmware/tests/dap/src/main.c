@@ -3,7 +3,7 @@
 #include <zephyr/ztest.h>
 
 #include "dap_io.h"
-#include "dap_target_emul.h"
+#include "dap_emul.h"
 #include "dap_transport.h"
 #include "util/gpio.h"
 
@@ -32,7 +32,7 @@ static void *dap_tests_setup(void) {
     zassert_ok(flash_area_write(fa, 0, nvs_data, sizeof(nvs_data)));
     flash_area_close(fa);
 
-    dap_target_emul_init();
+    dap_emul_init();
 
     zassert_ok(nvs_init());
     zassert_ok(dap_init());
@@ -49,7 +49,7 @@ static void dap_tests_before(void *fixture) {
     /* target reference voltage low */
     assert_gpio_emul_input_set(dap_io_vtref, 0);
     /* target emulator disabled */
-    dap_target_emul_end();
+    dap_emul_end();
 }
 
 ZTEST_SUITE(dap, NULL, dap_tests_setup, dap_tests_before, NULL, NULL);

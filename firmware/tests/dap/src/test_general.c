@@ -1,7 +1,7 @@
 #include <zephyr/drivers/gpio/gpio_emul.h>
 #include <zephyr/ztest.h>
 
-#include "dap_target_emul.h"
+#include "dap_emul.h"
 #include "dap_transport.h"
 #include "dap_io.h"
 #include "util/gpio.h"
@@ -142,6 +142,9 @@ ZTEST(dap, test_disconnect_connect) {
      * expecting it to end in SWD mode, without verifying, so ensure the default mode is SWD */
     assert_dap_command_expect("\x02\x00", "\x02\x01");
 
+    /* unsupported ports should respond with a failure */
+    assert_dap_command_expect("\x02\x03", "\x02\x00");
+
     /* incomplete command request */
     assert_dap_command_expect("\x02", "\xff");
 }
@@ -209,24 +212,33 @@ ZTEST(dap, test_swj_clock_sequence) {
     /* anything else should be okay */
     assert_dap_command_expect("\x11\xff\xff\xff\xff", "\x11\x00");
 
-    dap_target_emul_start();
-
     /* make sure tck/swclk actually switches at 100 KHz */
+    dap_emul_start();
     assert_dap_command_expect("\x11\xa0\x86\x01\x00", "\x11\x00");
     assert_dap_command_expect("\x12\x10\xab\xcd", "\x12\x00");
-    assert_dap_target_clk_cycles_equal(16);
-    assert_dap_target_clk_period_equal(10000);
+    assert_dap_emul_clk_cycles(16);
+    assert_dap_emul_clk_period(10000);
     /* check tms/swdio data */
-    assert_dap_target_tms_swdio_equal("\xab\xcd");
-    dap_target_emul_reset();
+    assert_dap_emul_tms_swdio_out("\xab\xcd");
 
     /* check same thing for 20 KHz */
+    dap_emul_reset();
     assert_dap_command_expect("\x11\x20\x4e\x00\x00", "\x11\x00");
     assert_dap_command_expect("\x12\x20\x13\x57\x9b\xdf", "\x12\x00");
-    assert_dap_target_clk_cycles_equal(32);
-    assert_dap_target_clk_period_equal(50000);
+    assert_dap_emul_clk_cycles(32);
+    assert_dap_emul_clk_period(50000);
     /* check tms/swdio data */
-    assert_dap_target_tms_swdio_equal("\x13\x57");
+    assert_dap_emul_tms_swdio_out("\x13\x57");
+
+    /* sequence length of 256 encoded as '0' */
+    dap_emul_reset();
+    assert_dap_command_expect(
+        "\x12\x00"
+        "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+        "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
+        "\x12\x00"
+    );
+    assert_dap_emul_clk_cycles(256);
     
     /* incomplete command request */
     assert_dap_command_expect("\x11\x00\x00", "\xff");

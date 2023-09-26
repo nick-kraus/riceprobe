@@ -154,8 +154,8 @@ int32_t dap_handle_command_swo_extended_status(struct dap_driver *dap) {
 }
 
 int32_t dap_handle_command_swo_data(struct dap_driver *dap) {
-    uint16_t count = 0;
-    CHECK_EQ(ring_buf_get(&dap->buf.request, (uint8_t*) &count, 2), 2, -EMSGSIZE);
+    uint16_t max_count = 0;
+    CHECK_EQ(ring_buf_get(&dap->buf.request, (uint8_t*) &max_count, 2), 2, -EMSGSIZE);
     CHECK_EQ(ring_buf_put(&dap->buf.response, &((uint8_t) {DAP_COMMAND_SWO_DATA}), 1), 1, -ENOBUFS);
 
     uint8_t trace_capture = dap->swo.capture ? 0x01 : 0x00;
@@ -165,27 +165,30 @@ int32_t dap_handle_command_swo_data(struct dap_driver *dap) {
     CHECK_EQ(ring_buf_put(&dap->buf.response, &trace_status, 1), 1, -ENOBUFS);
 
     /* need a pointer to this item because we will write to it after finding out how much data to read */
-    uint16_t *response_count = NULL;
-    CHECK_EQ(ring_buf_put_claim(&dap->buf.response, (uint8_t**) &response_count, 2), 2, -ENOBUFS);
-    *response_count = 0;
+    uint8_t *response_count = NULL;
+    CHECK_EQ(ring_buf_put_claim(&dap->buf.response, &response_count, 2), 2, -ENOBUFS);
     CHECK_EQ(ring_buf_put_finish(&dap->buf.response, 2), 0, -ENOBUFS);
+
+    /* actual count of bytes retreived from the SWO buffer */
+    uint16_t count;
 
     /* we may need to process a claim multiple times, in case our copies overlap a ring buffer gap */
     do {
         uint8_t *swo_ptr;
-        uint32_t swo_read = ring_buf_get_claim(&dap->buf.swo, &swo_ptr, count);
+        uint32_t swo_read_size = ring_buf_get_claim(&dap->buf.swo, &swo_ptr, max_count);
         uint8_t *response_ptr;
-        uint32_t response_write = ring_buf_put_claim(&dap->buf.response, &response_ptr, swo_read);
-        memcpy(response_ptr, swo_ptr, response_write);
-        int32_t get_ret = ring_buf_get_finish(&dap->buf.swo, response_write);
-        int32_t put_ret = ring_buf_put_finish(&dap->buf.response, response_write);
+        uint32_t response_write_size = ring_buf_put_claim(&dap->buf.response, &response_ptr, swo_read_size);
+        memcpy(response_ptr, swo_ptr, response_write_size);
+        int32_t get_ret = ring_buf_get_finish(&dap->buf.swo, response_write_size);
+        int32_t put_ret = ring_buf_put_finish(&dap->buf.response, response_write_size);
         if (get_ret != 0 || put_ret != 0) { return -ENOBUFS; }
-        *response_count += response_write;
+        count += (uint16_t) response_write_size;
     } while (
-        *response_count < count &&
+        count < max_count &&
         ring_buf_size_get(&dap->buf.swo) > 0 &&
         ring_buf_space_get(&dap->buf.response) > 0
     );
 
+    memcpy(response_count, &count, 2);
     return 0;
 }
