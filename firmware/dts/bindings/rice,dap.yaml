@@ -45,16 +45,20 @@ properties:
       required: true
       description: Connect LED GPIO Pin.
 
-        Outputs the connection status of the debug probe.
-
     led_running_gpios:
       type: phandle-array
       required: true
-      description: Connect LED GPIO Pin.
-
-        Outputs the running status of the debug probe.
+      description: Running LED GPIO Pin.
 
     swo_uart:
       type: phandle
       required: true
       description: SWO UART Device.
+
+    pinctrl-jtag:
+      type: phandles
+      description: JTAG pinctrl state node.
+
+    pinctrl-swd:
+      type: phandles
+      description: SWD pinctrl state node.

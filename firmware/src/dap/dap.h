@@ -27,11 +27,6 @@
 /* maximum number of devices supported on the JTAG chain */
 #define DAP_JTAG_MAX_DEVICE_COUNT   4
 
-/* pinctrl state for tdo/swo pin as gpio */
-#define PINCTRL_STATE_TDO       ((uint8_t) 0)
-/* pinctrl state for tdo/swo pin as uart rx */
-#define PINCTRL_STATE_SWO       ((uint8_t) 1)
-
 /* possible status responses to commands */
 #define DAP_COMMAND_RESPONSE_OK     ((uint8_t) 0x00)
 #define DAP_COMMAND_RESPONSE_ERROR  ((uint8_t) 0xff)
@@ -83,9 +78,11 @@ struct dap_driver {
         struct gpio_dt_spec led_running;
 
         const struct device *swo_uart;
-
-        const struct pinctrl_dev_config *pinctrl;
     } io;
+    struct {
+        pinctrl_soc_pin_t jtag_state_pins[1];
+        pinctrl_soc_pin_t swd_state_pins[1];
+    } pinctrl;
 
     /* shared swd and jtag state */
     struct {
@@ -157,5 +154,10 @@ struct dap_driver {
 
     struct dap_transport *transport;
 };
+
+/* used to configure the tdo/swo pin to one of the two states defined in struct dap_driver */
+static inline int32_t dap_configure_pin(const pinctrl_soc_pin_t *pinctrl_state) {
+    return pinctrl_configure_pins(pinctrl_state, 1, PINCTRL_REG_NONE);
+}
 
 #endif /* __DAP_PRIV_H__ */

@@ -14,9 +14,6 @@ LOG_MODULE_REGISTER(dap, CONFIG_DAP_LOG_LEVEL);
 BUILD_ASSERT(DT_NUM_INST_STATUS_OKAY(rice_dap) == 1);
 #define DAP_DT_NODE DT_COMPAT_GET_ANY_STATUS_OKAY(rice_dap)
 
-/* TODO: try to move this into the dap struct, instead of as a singleton */
-PINCTRL_DT_DEFINE(DAP_DT_NODE);
-
 /* command handler declarations */
 int32_t dap_handle_command_info(struct dap_driver *dap);
 int32_t dap_handle_command_host_status(struct dap_driver *dap);
@@ -56,7 +53,10 @@ static struct dap_driver dap = {
         .led_connect = GPIO_DT_SPEC_GET(DAP_DT_NODE, led_connect_gpios),
         .led_running = GPIO_DT_SPEC_GET(DAP_DT_NODE, led_running_gpios),
         .swo_uart = DEVICE_DT_GET(DT_PHANDLE(DAP_DT_NODE, swo_uart)),
-        .pinctrl = PINCTRL_DT_DEV_CONFIG_GET(DAP_DT_NODE),
+    },
+    .pinctrl = {
+        .jtag_state_pins = Z_PINCTRL_STATE_PINS_INIT(DAP_DT_NODE, pinctrl_jtag),
+        .swd_state_pins = Z_PINCTRL_STATE_PINS_INIT(DAP_DT_NODE, pinctrl_swd),
     },
 };
 
@@ -104,7 +104,7 @@ int32_t dap_reset(struct dap_driver *dap) {
     LOG_INF("resetting driver state");
 
     /* config the pinctrl settings for the tdo/swo pin, default to tdo functionality */
-    FATAL_CHECK(pinctrl_apply_state(dap->io.pinctrl, PINCTRL_STATE_TDO) >= 0, "tdo pinctrl failed");
+    FATAL_CHECK(dap_configure_pin(dap->pinctrl.jtag_state_pins) == 0, "tdo/swo pinctrl failed");
 
     /* jtag / swd gpios must be in a safe state on reset */
     FATAL_CHECK(gpio_pin_configure_dt(&dap->io.tck_swclk, GPIO_INPUT) >= 0, "tck swclk config failed");

@@ -1,3 +1,5 @@
+#include <dt-bindings/pinctrl/pinctrl_posix.h>
+
 / {    
     dap: dap {
         label = "dap";
@@ -14,26 +16,16 @@
 
         swo_uart = <&uart2>;
 
-        /* by default the tdo/swo pin is configured as a GPIO input, but must be switched
-		 * to a UART input if SWO is used */
-		pinctrl-0 = <&dap_pinctrl_tdo_swo_gpio>;
-		pinctrl-1 = <&dap_pinctrl_tdo_swo_uart>;
-		pinctrl-names = "tdo", "swo";
+        pinctrl-jtag = <&tdo_swo_gpio>;
+		pinctrl-swd = <&tdo_swo_uart>;
     };
 
     pinctrl: pinctrl {
         compatible = "vnd,pinctrl-test";
 
-        dap_pinctrl_tdo_swo_gpio: dap_pinctrl_tdo_swo_gpio {
-            group1 {
-                pins = <0>;
-            };
-        };
-        dap_pinctrl_tdo_swo_uart: dap_pinctrl_tdo_swo_uart {
-            group1 {
-                pins = <1>;
-            };
-        };
+        /* dap tdo/swo */
+        tdo_swo_gpio: pin3_gpio { group1 { pins = <POSIX_PINMUX(3, POSIX_PINMUX_FUNC_GPIO)>; }; };
+        tdo_swo_uart: pin3_uart { group1 { pins = <POSIX_PINMUX(3, POSIX_PINMUX_FUNC_UART)>; }; };
     };
 
     uart2: uart2 {

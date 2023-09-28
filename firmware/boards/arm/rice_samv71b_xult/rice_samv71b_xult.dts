@@ -28,11 +28,8 @@
 
 		swo_uart = <&uart3>;
 
-		/* by default the tdo/swo pin is configured as a GPIO input, but must be switched
-		 * to a UART input if SWO is used */
-		pinctrl-0 = <&dap_pinctrl_tdo_swo_gpio>;
-		pinctrl-1 = <&dap_pinctrl_tdo_swo_uart>;
-		pinctrl-names = "tdo", "swo";
+		pinctrl-jtag = <&dap_pinctrl_tdo_swo_gpio>;
+		pinctrl-swd = <&dap_pinctrl_tdo_swo_uart>;
     };
 
     io: io {

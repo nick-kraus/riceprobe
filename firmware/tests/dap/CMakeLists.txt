@@ -4,12 +4,15 @@ set(PROJECT_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../")
 list(APPEND DTS_ROOT "${PROJECT_DIR}/firmware")
 
 # used to get <pinctrl_soc.h> in the right path before all zephyr libraries
-include_directories(SYSTEM "boards")
+include_directories(SYSTEM "boards/pinctrl/include")
+# used to allow pinctrl_posix.h defines in the devicetree
+list(APPEND DTS_ROOT "${CMAKE_CURRENT_LIST_DIR}/boards/pinctrl")
 
 find_package(Zephyr REQUIRED HINTS "${PROJECT_DIR}/firmware/modules/zephyr")
 project(test_dap)
 
 target_sources(app PRIVATE
+    "boards/pinctrl/pinctrl_posix.c"
     "src/dap_io.c"
     "src/dap_emul.c"
     "src/dap_transport.c"
