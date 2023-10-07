@@ -12,3 +12,5 @@ target_sources(app PRIVATE
 target_include_directories(app PRIVATE
     "${PROJECT_DIR}/firmware/src"
 )
+
+target_compile_options(app PRIVATE -Wall -Werror -fanalyzer)

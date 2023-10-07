@@ -94,8 +94,8 @@ void dap_tcp_thread_fn(void* arg1, void* arg2, void* arg3) {
 			}
 
 			k_event_post(&dap->thread.event, DAP_THREAD_EVENT_TCP_CONNECT);
-			uint64_t end = sys_clock_timeout_end_calc(K_SECONDS(10));
-			while (end - sys_clock_tick_get() > 0 && dap->thread.transport == DAP_TRANSPORT_NONE) {
+			k_timepoint_t end_time = sys_timepoint_calc(K_SECONDS(10));
+			while (!sys_timepoint_expired(end_time) && dap->thread.transport == DAP_TRANSPORT_NONE) {
 				k_sleep(K_MSEC(10));
 			}
 

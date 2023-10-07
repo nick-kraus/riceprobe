@@ -32,19 +32,19 @@ int32_t tcp_transport_init(void) {
 	};
 
 	if ((ret = zsock_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
-		LOG_ERR("socket initialize failed with error %d", *z_errno());
-		return -1 * *z_errno();
+		LOG_ERR("socket initialize failed with error %d", errno);
+		return -1 * errno;
 	}
     tcp_bind_sock = ret;
 
     if ((ret = zsock_bind(tcp_bind_sock, (struct sockaddr*) &sock_addr, sizeof(sock_addr))) < 0) {
-	    LOG_ERR("socket bind failed with error %d", *z_errno());
-	    return -1 * *z_errno();
+	    LOG_ERR("socket bind failed with error %d", errno);
+	    return -1 * errno;
 	}
 
 	if ((ret = zsock_listen(tcp_bind_sock, 4)) < 0) {
-	    LOG_ERR("socket listen failed with error %d", *z_errno());
-	    return -1 * *z_errno();
+	    LOG_ERR("socket listen failed with error %d", errno);
+	    return -1 * errno;
 	}
 
     return 0;
@@ -60,22 +60,22 @@ int32_t tcp_transport_configure(void) {
     int32_t ret;
 
     if ((ret = tcp_set_nonblocking(tcp_bind_sock, true)) < 0) {
-        LOG_ERR("socket nonblocking set failed with error %d", *z_errno());
-        return -1 * *z_errno();
+        LOG_ERR("socket nonblocking set failed with error %d", errno);
+        return -1 * errno;
     }
 
     struct sockaddr conn_addr;
     int32_t conn_addr_len = sizeof(conn_addr);
     if ((ret = zsock_accept(tcp_bind_sock, &conn_addr, &conn_addr_len)) < 0) {
         /* most likely situation is returning -EAGAIN here, when no connections are ready */
-        return -1 * *z_errno();
+        return -1 * errno;
     }
     tcp_conn_sock = ret;
 
     /* if we have a connection, make sure all remaining operations are blocking */
     if ((ret = tcp_set_nonblocking(tcp_bind_sock, true)) < 0) {
-        LOG_ERR("socket nonblocking set failed with error %d", *z_errno());
-        return -1 * *z_errno();
+        LOG_ERR("socket nonblocking set failed with error %d", errno);
+        return -1 * errno;
     }
 
     return 0;
@@ -92,9 +92,9 @@ int32_t tcp_transport_recv(uint8_t *read, size_t len) {
         zsock_close(tcp_conn_sock);
         return -ESHUTDOWN;
     } else if (received < 0) {
-        LOG_ERR("socket receive failed with error %d", *z_errno());
+        LOG_ERR("socket receive failed with error %d", errno);
         zsock_close(tcp_conn_sock);
-        return -1 * *z_errno();
+        return -1 * errno;
     } else if (received < 2) {
         LOG_ERR("failed to receive full request length from socket");
         zsock_close(tcp_conn_sock);
@@ -112,9 +112,9 @@ int32_t tcp_transport_recv(uint8_t *read, size_t len) {
             zsock_close(tcp_conn_sock);
             return -ESHUTDOWN;
         } else if (received < 0) {
-            LOG_ERR("socket receive failed with error %d", *z_errno());
+            LOG_ERR("socket receive failed with error %d", errno);
             zsock_close(tcp_conn_sock);
-            return -1 * *z_errno();
+            return -1 * errno;
         } else if (received < request_len) {
             LOG_ERR("failed to receive full request length from socket");
             zsock_close(tcp_conn_sock);
@@ -145,9 +145,9 @@ int32_t tcp_transport_send(uint8_t *send, size_t len) {
         zsock_close(tcp_conn_sock);
         return -ESHUTDOWN;
     } else if (sent < 0) {
-        LOG_ERR("socket send failed with error %d", *z_errno());
+        LOG_ERR("socket send failed with error %d", errno);
         zsock_close(tcp_conn_sock);
-        return -1 * *z_errno();
+        return -1 * errno;
     } else if (sent < response_len + 2) {
         LOG_ERR("failed to send full response to socket");
         zsock_close(tcp_conn_sock);

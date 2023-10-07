@@ -20,6 +20,7 @@ target_sources(app PRIVATE
     "src/test_general.c"
     "src/test_jtag.c"
     "src/test_swd.c"
+    "src/test_swo.c"
     "src/test_transfer.c"
     "${PROJECT_DIR}/firmware/src/dap/dap.c"
     "${PROJECT_DIR}/firmware/src/dap/commands_general.c"
@@ -34,6 +35,8 @@ target_include_directories(app PRIVATE
     "${PROJECT_DIR}/firmware/src"
     "${PROJECT_DIR}/firmware/tests"
 )
+
+target_compile_options(app PRIVATE -Wall -Werror -fanalyzer)
 
 zephyr_linker_sources(DATA_SECTIONS
     "${PROJECT_DIR}/firmware/src/dap/transport.ld"

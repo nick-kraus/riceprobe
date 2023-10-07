@@ -158,8 +158,8 @@ static int32_t vcp_init(const struct device *dev) {
         NULL,                                                   \
         &vcp_data_##idx,                                        \
         &vcp_config_##idx,                                      \
-        APPLICATION,                                            \
-        40,                                                     \
+        POST_KERNEL,                                            \
+        99,                                                     \
         NULL,                                                   \
     );
 

@@ -32,7 +32,7 @@
         compatible = "zephyr,uart-emul";
 		status = "okay";
 		current-speed = <115200>;
-		rx-fifo-size = <256>;
+		rx-fifo-size = <2048>;
 		tx-fifo-size = <256>;
     };
 };

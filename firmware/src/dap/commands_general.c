@@ -327,7 +327,7 @@ int32_t dap_handle_command_swj_pins(struct dap_driver *dap) {
     }
     /* all pins expect nreset are push-pull, don't wait on those */
     if ((delay_us > 0) && (pin_mask & BIT(pin_nreset_shift))) {
-        uint64_t delay_end = sys_clock_timeout_end_calc(K_USEC(delay_us));
+        k_timepoint_t delay_end_time = sys_timepoint_calc(K_USEC(delay_us));
         do {
             uint32_t nreset_val = gpio_pin_get_dt(&dap->io.nreset);
             if ((pin_output & BIT(pin_nreset_shift)) ^ (nreset_val << pin_nreset_shift)) {
@@ -335,7 +335,7 @@ int32_t dap_handle_command_swj_pins(struct dap_driver *dap) {
             } else {
                 break;
             }
-        } while (delay_end > k_uptime_ticks());
+        } while (!sys_timepoint_expired(delay_end_time));
     }
 
     uint8_t pin_input =

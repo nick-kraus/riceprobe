@@ -36,10 +36,10 @@ int32_t dap_handle_command_swo_transport(struct dap_driver *dap) {
 
     uint8_t transport = 0;
     CHECK_EQ(ring_buf_get(&dap->buf.request, &transport, 1), 1, -EMSGSIZE);
-    if (transport == SWO_TRANSPORT_ENDPOINT) {
-        status = DAP_COMMAND_RESPONSE_ERROR;
-    } else {
+    if (transport == SWO_TRANSPORT_COMMAND || transport == SWO_TRANSPORT_NONE) {
         dap->swo.transport = transport;
+    } else {
+        status = DAP_COMMAND_RESPONSE_ERROR;
     }
 
     uint8_t response[] = {DAP_COMMAND_SWO_TRANSPORT, status};
@@ -128,7 +128,8 @@ int32_t dap_handle_command_swo_status(struct dap_driver *dap) {
     uint8_t trace_status = trace_capture | trace_error | trace_overrun;
     CHECK_EQ(ring_buf_put(&dap->buf.response, &trace_status, 1), 1, -ENOBUFS);
     
-    CHECK_EQ(ring_buf_put(&dap->buf.response, (uint8_t*) &dap->swo.baudrate, 4), 4, -ENOBUFS);
+    uint32_t trace_count = ring_buf_size_get(&dap->buf.swo);
+    CHECK_EQ(ring_buf_put(&dap->buf.response, (uint8_t*) &trace_count, 4), 4, -ENOBUFS);
 
     return 0;
 }
@@ -147,7 +148,8 @@ int32_t dap_handle_command_swo_extended_status(struct dap_driver *dap) {
     }
     
     if ((control & BIT(1)) != 0) {
-        CHECK_EQ(ring_buf_put(&dap->buf.response, (uint8_t*) &dap->swo.baudrate, 4), 4, -ENOBUFS);
+        uint32_t trace_count = ring_buf_size_get(&dap->buf.swo);
+        CHECK_EQ(ring_buf_put(&dap->buf.response, (uint8_t*) &trace_count, 4), 4, -ENOBUFS);
     }
 
     return 0;
@@ -170,7 +172,7 @@ int32_t dap_handle_command_swo_data(struct dap_driver *dap) {
     CHECK_EQ(ring_buf_put_finish(&dap->buf.response, 2), 0, -ENOBUFS);
 
     /* actual count of bytes retreived from the SWO buffer */
-    uint16_t count;
+    uint16_t count = 0;
 
     /* we may need to process a claim multiple times, in case our copies overlap a ring buffer gap */
     do {

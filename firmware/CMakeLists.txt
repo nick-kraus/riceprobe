@@ -50,6 +50,8 @@ target_include_directories(app PRIVATE
     "src"
 )
 
+target_compile_options(app PRIVATE -Wall -Werror -fanalyzer)
+
 zephyr_linker_sources(DATA_SECTIONS
     "src/dap/transport.ld"
 )

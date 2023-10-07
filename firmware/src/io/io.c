@@ -69,8 +69,8 @@ static int32_t io_init(const struct device *dev) {
         NULL,                                           \
         &io_data_##idx,                                 \
         &io_config_##idx,                               \
-        APPLICATION,                                    \
-        40,                                             \
+        POST_KERNEL,                                    \
+        99,                                             \
         NULL,                                           \
     );
 

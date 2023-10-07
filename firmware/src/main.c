@@ -24,13 +24,13 @@ int32_t early_init(void) {
 /* may need to adjust level and priority based on what system dependencies are pre-empted */
 SYS_INIT(early_init, POST_KERNEL, 80);
 
-void main(void) {
-	if (early_init_ret < 0) { return; }
+int32_t main(void) {
+	if (early_init_ret < 0) { return early_init_ret; }
 
 	int32_t ret;
 	if ((ret = dap_init()) < 0) {
 		LOG_ERR("dap initialization failed with error %d", ret);
-		return;
+		return ret;
 	}
 
 	const struct device *io_device = DEVICE_DT_GET(DT_NODELABEL(io));
@@ -45,4 +45,5 @@ void main(void) {
 	net_dhcpv4_start(iface);
 
 	LOG_INF("Main Initialization Finished, Handling Requests Now!");
+	return 0;
 }
