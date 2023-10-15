@@ -11,11 +11,12 @@ manifest:
 
   projects:
     - name: zephyr
-      revision: 147cef6
+      remote: nick-kraus
+      revision: bfee2a42feeadc5eed4e6d8a70f029525b0b3a92
       path: firmware/modules/zephyr
       west-commands: scripts/west-commands.yml
 
-    # projects below are lifted from zephyr 147cef6 west.yml, with unused projects removed
+    # projects below are lifted from zephyr v3.5.0-rc2 west.yml, with unused projects removed
     - name: hal_atmel
       revision: 5ab43007eda3f380c125f957f03638d2e8d1144d
       path: firmware/modules/hal/atmel
@@ -33,7 +34,7 @@ manifest:
       path: firmware/modules/crypto/mbedtls
 
     - name: mcuboot
-      revision: 4fe28b3cf6d30c3e57d6a4f7ee3dba8617aa9a0a
+      revision: 13767d0b72eb14ce42eb8aad1e5a133ef66afc54
       path: firmware/modules/mcuboot
 
     - name: picolibc

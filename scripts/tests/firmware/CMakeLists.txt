@@ -12,4 +12,5 @@ project(target_firmware)
 
 target_sources(app PRIVATE
     "src/main.c"
+    "src/swo.c"
 )

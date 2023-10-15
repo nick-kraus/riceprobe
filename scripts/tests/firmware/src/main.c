@@ -6,6 +6,8 @@
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
+void swo_count_init(void);
+
 static const struct pwm_dt_spec pwm_led = PWM_DT_SPEC_GET(DT_ALIAS(pwm_led0));
 
 static struct k_timer led_fade_timer;
@@ -86,6 +88,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(test_subcmds,
 SHELL_CMD_REGISTER(test, &test_subcmds, "test commands", NULL);
 
 void main(void) {
+	swo_count_init();
 
 	if (!device_is_ready(pwm_led.dev)) {
 		LOG_ERR("PWM device %s not ready", pwm_led.dev->name);

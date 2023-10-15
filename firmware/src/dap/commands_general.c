@@ -37,11 +37,11 @@ int32_t dap_handle_command_info(struct dap_driver *dap) {
     /* capabilities byte 0 */
     const uint8_t caps_support_swd = 0x01;
     const uint8_t caps_support_jtag = 0x02;
-    const uint8_t caps_no_swo_uart_support = 0x00;
+    const uint8_t caps_support_swo_uart = 0x04;
     const uint8_t caps_no_swo_manchester_support = 0x00;
     const uint8_t caps_support_atomic_cmds = 0x10;
     const uint8_t caps_no_test_domain_timer_support = 0x00;
-    const uint8_t caps_no_swo_trace_support = 0x00;
+    const uint8_t caps_support_swo_trace = 0x40;
     const uint8_t caps_no_uart_dap_port_support = 0x00;
     /* we don't support the second capabilities byte, as certain debug software
      * doesn't properly support it and causes probe initialization failures */
@@ -103,11 +103,11 @@ int32_t dap_handle_command_info(struct dap_driver *dap) {
         const uint8_t capabilities_len = 1;
         const uint8_t capabilities_info0 = caps_support_swd |
                                            caps_support_jtag |
-                                           caps_no_swo_uart_support |
+                                           caps_support_swo_uart |
                                            caps_no_swo_manchester_support |
                                            caps_support_atomic_cmds |
                                            caps_no_test_domain_timer_support |
-                                           caps_no_swo_trace_support |
+                                           caps_support_swo_trace |
                                            caps_no_uart_dap_port_support;
         const uint8_t response[2] = { capabilities_len, capabilities_info0};
         CHECK_EQ(ring_buf_put(&dap->buf.response, response, 2), 2, -ENOBUFS);

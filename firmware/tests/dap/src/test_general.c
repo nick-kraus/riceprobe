@@ -24,7 +24,7 @@ ZTEST(dap, test_info_command) {
     /* product firmware version */
     assert_dap_command_expect("\x00\x09", "\x00\x1f" "v987.654.321-99-ba5eba11-dirty\0");
     /* CMSIS-DAP capabilities */
-    assert_dap_command_expect("\x00\xf0", "\x00\x01\x13");
+    assert_dap_command_expect("\x00\xf0", "\x00\x01\x57");
     /* test domain timer unsupported, uses the default unused value */
     assert_dap_command_expect("\x00\xf1", "\x00\x08\x00\x00\x00\x00");
     /* uart rx and tx buffer size */
