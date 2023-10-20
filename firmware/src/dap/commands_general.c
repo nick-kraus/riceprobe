@@ -2,6 +2,7 @@
 #include <zephyr/drivers/pinctrl.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/sys/byteorder.h>
 #include <zephyr/sys/ring_buffer.h>
 
 #include "dap/dap.h"
@@ -11,12 +12,7 @@
 
 LOG_MODULE_DECLARE(dap, CONFIG_DAP_LOG_LEVEL);
 
-/* supported version of the DAP protocol */
-#define DAP_PROTOCOL_VERSION    "2.1.1"
-
-void swo_capture_control(struct dap_driver *dap, bool enable);
-
-int32_t dap_handle_command_info(struct dap_driver *dap) {
+int32_t dap_handle_cmd_info(struct dap_driver *dap) {
     /* info subcommands */
     const uint8_t info_vendor_name = 0x01;
     const uint8_t info_product_name = 0x02;
@@ -34,6 +30,7 @@ int32_t dap_handle_command_info(struct dap_driver *dap) {
     const uint8_t info_swo_buffer_size = 0xfd;
     const uint8_t info_max_packet_count = 0xfe;
     const uint8_t info_max_packet_size = 0xff;
+
     /* capabilities byte 0 */
     const uint8_t caps_support_swd = 0x01;
     const uint8_t caps_support_jtag = 0x02;
@@ -46,59 +43,57 @@ int32_t dap_handle_command_info(struct dap_driver *dap) {
     /* we don't support the second capabilities byte, as certain debug software
      * doesn't properly support it and causes probe initialization failures */
 
+    /* supported version of the DAP protocol */
+    const char dap_protocol_version[] = "2.1.1";
+
     uint8_t id = 0;
-    CHECK_EQ(ring_buf_get(&dap->buf.request, &id, 1), 1, -EMSGSIZE);
-    CHECK_EQ(ring_buf_put(&dap->buf.response, &((uint8_t) {DAP_COMMAND_INFO}), 1), 1, -ENOBUFS);
+    if (ring_buf_get(&dap->buf.request, &id, 1) != 1) return -EMSGSIZE;
+    if (ring_buf_put(&dap->buf.response, &dap_cmd_info, 1) != 1) return -ENOBUFS;
 
     uint8_t *ptr;
+    uint32_t space;
     if (id == info_vendor_name) {
         const char *vendor_name = CONFIG_PRODUCT_MANUFACTURER;
-        const uint8_t vendor_name_len = sizeof(CONFIG_PRODUCT_MANUFACTURER);
-        CHECK_EQ(ring_buf_put(&dap->buf.response, &vendor_name_len, 1), 1, -ENOBUFS);
-        uint32_t space = ring_buf_put_claim(&dap->buf.response, &ptr, vendor_name_len);
-        CHECK_EQ(space, vendor_name_len, -ENOBUFS);
+        const uint8_t str_len = sizeof(CONFIG_PRODUCT_MANUFACTURER);
+        if (ring_buf_put(&dap->buf.response, &str_len, 1) != 1) return -ENOBUFS;
+        if ((space = ring_buf_put_claim(&dap->buf.response, &ptr, str_len)) != str_len) return -ENOBUFS;
         strncpy(ptr, vendor_name, space);
-        CHECK_EQ(ring_buf_put_finish(&dap->buf.response, space), 0, -ENOBUFS);
+        if (ring_buf_put_finish(&dap->buf.response, space) != 0) return -ENOBUFS;
     } else if (id == info_product_name) {
         const char *product_name = CONFIG_PRODUCT_DESCRIPTOR;
-        const uint8_t product_name_len = sizeof(CONFIG_PRODUCT_DESCRIPTOR);
-        CHECK_EQ(ring_buf_put(&dap->buf.response, &product_name_len, 1), 1, -ENOBUFS);
-        uint32_t space = ring_buf_put_claim(&dap->buf.response, &ptr, product_name_len);
-        CHECK_EQ(space, product_name_len, -ENOBUFS);
+        const uint8_t str_len = sizeof(CONFIG_PRODUCT_DESCRIPTOR);
+        if (ring_buf_put(&dap->buf.response, &str_len, 1) != 1) return -ENOBUFS;
+        if ((space = ring_buf_put_claim(&dap->buf.response, &ptr, str_len)) != str_len) return -ENOBUFS;
         strncpy(ptr, product_name, space);
-        CHECK_EQ(ring_buf_put_finish(&dap->buf.response, space), 0, -ENOBUFS);
+        if (ring_buf_put_finish(&dap->buf.response, space) != 0) return -ENOBUFS;
     } else if (id == info_serial_number) {
         char serial[sizeof(CONFIG_PRODUCT_SERIAL_FORMAT)];
-        CHECK_EQ(nvs_get_serial_number(serial, sizeof(serial)), 0, -EINVAL);
-        const uint8_t serial_len = sizeof(CONFIG_PRODUCT_SERIAL_FORMAT);
-        CHECK_EQ(ring_buf_put(&dap->buf.response, &serial_len, 1), 1, -ENOBUFS);
-        uint32_t space = ring_buf_put_claim(&dap->buf.response, &ptr, serial_len);
-        CHECK_EQ(space, serial_len, -ENOBUFS);
+        if (nvs_get_serial_number(serial, sizeof(serial)) < 0) return -EINVAL;
+        const uint8_t str_len = sizeof(CONFIG_PRODUCT_SERIAL_FORMAT);
+        if (ring_buf_put(&dap->buf.response, &str_len, 1) != 1) return -ENOBUFS;
+        if ((space = ring_buf_put_claim(&dap->buf.response, &ptr, str_len)) != str_len) return -ENOBUFS;
         strncpy(ptr, serial, space);
-        CHECK_EQ(ring_buf_put_finish(&dap->buf.response, space), 0, -ENOBUFS);
+        if (ring_buf_put_finish(&dap->buf.response, space) != 0) return -ENOBUFS;
     } else if (id == info_dap_protocol_version) {
-        const char *protocol_version = DAP_PROTOCOL_VERSION;
-        const uint8_t protocol_version_len = sizeof(DAP_PROTOCOL_VERSION);
-        CHECK_EQ(ring_buf_put(&dap->buf.response, &protocol_version_len, 1), 1, -ENOBUFS);
-        uint32_t space = ring_buf_put_claim(&dap->buf.response, &ptr, protocol_version_len);
-        CHECK_EQ(space, protocol_version_len, -ENOBUFS);
-        strncpy(ptr, protocol_version, space);
-        CHECK_EQ(ring_buf_put_finish(&dap->buf.response, space), 0, -ENOBUFS);
+        const uint8_t str_len = sizeof(dap_protocol_version);
+        if (ring_buf_put(&dap->buf.response, &str_len, 1) != 1) return -ENOBUFS;
+        if ((space = ring_buf_put_claim(&dap->buf.response, &ptr, str_len)) != str_len) return -ENOBUFS;
+        strncpy(ptr, dap_protocol_version, space);
+        if (ring_buf_put_finish(&dap->buf.response, space) != 0) return -ENOBUFS;
     } else if (id == info_target_device_vendor ||
                id == info_target_device_name ||
                id == info_target_board_vendor ||
                id == info_target_board_name) {
         /* not an on-board debug unit, just return no string */
         const uint8_t response = 0;
-        CHECK_EQ(ring_buf_put(&dap->buf.response, &response, 1), 1, -ENOBUFS);
+        if (ring_buf_put(&dap->buf.response, &response, 1) != 1) return -ENOBUFS;
     } else if (id == info_product_firmware_version) {
         const char *firmware_version = CONFIG_REPO_VERSION_STRING;
-        const uint8_t firmware_version_len = sizeof(CONFIG_REPO_VERSION_STRING);
-        CHECK_EQ(ring_buf_put(&dap->buf.response, &firmware_version_len, 1), 1, -ENOBUFS);
-        uint32_t space = ring_buf_put_claim(&dap->buf.response, &ptr, firmware_version_len);
-        CHECK_EQ(space, firmware_version_len, -ENOBUFS);
+        const uint8_t str_len = sizeof(CONFIG_REPO_VERSION_STRING);
+        if (ring_buf_put(&dap->buf.response, &str_len, 1) != 1) return -ENOBUFS;
+        if ((space = ring_buf_put_claim(&dap->buf.response, &ptr, str_len)) != str_len) return -ENOBUFS;
         strncpy(ptr, firmware_version, space);
-        CHECK_EQ(ring_buf_put_finish(&dap->buf.response, space), 0, -ENOBUFS);
+        if (ring_buf_put_finish(&dap->buf.response, space) != 0) return -ENOBUFS;
     } else if (id == info_capabilities) {
         const uint8_t capabilities_len = 1;
         const uint8_t capabilities_info0 = caps_support_swd |
@@ -110,47 +105,44 @@ int32_t dap_handle_command_info(struct dap_driver *dap) {
                                            caps_support_swo_trace |
                                            caps_no_uart_dap_port_support;
         const uint8_t response[2] = { capabilities_len, capabilities_info0};
-        CHECK_EQ(ring_buf_put(&dap->buf.response, response, 2), 2, -ENOBUFS);
+        if (ring_buf_put(&dap->buf.response, response, 2) != 2) return -ENOBUFS;
     } else if (id == info_test_domain_timer) {
         /* not supported by this debug unit, just return a reasonable default */
         const uint8_t response[5] = { 0x08, 0x00, 0x00, 0x00, 0x00 };
-        CHECK_EQ(ring_buf_put(&dap->buf.response, response, 5), 5, -ENOBUFS);
+        if (ring_buf_put(&dap->buf.response, response, 5) != 5) return -ENOBUFS;
     } else if (id == info_uart_rx_buffer_size ||
                id == info_uart_tx_buffer_size) {
-        const uint32_t rx_buf_size = VCP_RING_BUF_SIZE;
         uint8_t response[5] = { 0x04, 0x00, 0x00, 0x00, 0x00 };
-        bytecpy(response + 1, &rx_buf_size, 4);
-        CHECK_EQ(ring_buf_put(&dap->buf.response, response, 5), 5, -ENOBUFS);
+        sys_put_le32((VCP_RING_BUF_SIZE), &response[1]);
+        if (ring_buf_put(&dap->buf.response, response, 5) != 5) return -ENOBUFS;
     } else if (id == info_swo_buffer_size) {
-        const uint32_t swo_buffer_size = DAP_SWO_RING_BUF_SIZE;
         uint8_t response[5] = { 0x04, 0x00, 0x00, 0x00, 0x00 };
-        bytecpy(response + 1, &swo_buffer_size, 4);
-        CHECK_EQ(ring_buf_put(&dap->buf.response, response, 5), 5, -ENOBUFS);
+        sys_put_le32((DAP_SWO_RING_BUF_SIZE), &response[1]);
+        if (ring_buf_put(&dap->buf.response, response, 5) != 5) return -ENOBUFS;
     } else if (id == info_max_packet_count) {
-        const uint8_t max_packets = (uint8_t) (DAP_RING_BUF_SIZE / DAP_MAX_PACKET_SIZE);
-        uint8_t response[2] = { 0x01, max_packets };
-        CHECK_EQ(ring_buf_put(&dap->buf.response, response, 2), 2, -ENOBUFS);
+        uint8_t response[2] = { 0x01, (uint8_t) (DAP_RING_BUF_SIZE / DAP_MAX_PACKET_SIZE) };
+        if (ring_buf_put(&dap->buf.response, response, 2) != 2) return -ENOBUFS;
     } else if (id == info_max_packet_size) {
-        const uint16_t packet_size = DAP_MAX_PACKET_SIZE;
         uint8_t response[3] = { 0x02, 0x00, 0x00 };
-        bytecpy(response + 1, &packet_size, 2);
-        CHECK_EQ(ring_buf_put(&dap->buf.response, response, 3), 3, -ENOBUFS);
+        sys_put_le16((DAP_MAX_PACKET_SIZE), &response[1]);
+        if (ring_buf_put(&dap->buf.response, response, 3) != 3) return -ENOBUFS;
     } else {
         /* unsupported info responses just have a length of 0 */
-        CHECK_EQ(ring_buf_put(&dap->buf.response, &((uint8_t) {0}), 1), 1, -ENOBUFS);
+        const uint8_t response = 0;
+        if (ring_buf_put(&dap->buf.response, &response, 1) != 1) return -ENOBUFS;
     }
 
     return 0;
 }
 
-int32_t dap_handle_command_host_status(struct dap_driver *dap) {
+int32_t dap_handle_cmd_host_status(struct dap_driver *dap) {
     uint8_t type = 0, status = 0;
-    CHECK_EQ(ring_buf_get(&dap->buf.request, &type, 1), 1, -EMSGSIZE);
-    CHECK_EQ(ring_buf_get(&dap->buf.request, &status, 1), 1, -EMSGSIZE);
+    if (ring_buf_get(&dap->buf.request, &type, 1) != 1) return -EMSGSIZE;
+    if (ring_buf_get(&dap->buf.request, &status, 1) != 1) return -EMSGSIZE;
 
-    uint8_t response_status = DAP_COMMAND_RESPONSE_OK;
+    uint8_t response_status = dap_cmd_response_ok;
     if (type > 1 || status > 1) {
-        response_status = DAP_COMMAND_RESPONSE_ERROR;
+        response_status = dap_cmd_response_error;
     } else if (type == 0) {
         /* 'connect' status, but use the running led if combined */
         const struct gpio_dt_spec *led = dap->led.combined ?
@@ -179,14 +171,14 @@ int32_t dap_handle_command_host_status(struct dap_driver *dap) {
         }
     }
 
-    uint8_t response[] = {DAP_COMMAND_HOST_STATUS, response_status};
-    CHECK_EQ(ring_buf_put(&dap->buf.response, response, 2), 2, -ENOBUFS);
+    uint8_t response[] = {dap_cmd_host_status, response_status};
+    if (ring_buf_put(&dap->buf.response, response, 2) != 2) return -ENOBUFS;
     return 0;
 }
 
-int32_t dap_handle_command_connect(struct dap_driver *dap) {
+int32_t dap_handle_cmd_connect(struct dap_driver *dap) {
     uint8_t port = 0;
-    CHECK_EQ(ring_buf_get(&dap->buf.request, &port, 1), 1, -EMSGSIZE);
+    if (ring_buf_get(&dap->buf.request, &port, 1) != 1) return -EMSGSIZE;
 
     /* signifies a failed port initialization */
     uint8_t response_port = 0;
@@ -214,7 +206,7 @@ int32_t dap_handle_command_connect(struct dap_driver *dap) {
         );
         /* tdi unused in swd mode */
         FATAL_CHECK(gpio_pin_configure_dt(&dap->io.tdi, GPIO_INPUT) >= 0, "tdi config failed");
-        dap->swj.port = DAP_PORT_SWD;
+        dap->swj.port = dap_port_swd;
         response_port = 1;
     } else if (port == 2) {
         /* tdo pinctrl must be configured as gpio, and uart capture disabled */
@@ -238,7 +230,7 @@ int32_t dap_handle_command_connect(struct dap_driver *dap) {
             "nreset config failed"
         );
         FATAL_CHECK(gpio_pin_configure_dt(&dap->io.tdo, GPIO_INPUT | GPIO_PULL_UP) >= 0, "tdo config failed");
-        dap->swj.port = DAP_PORT_JTAG;
+        dap->swj.port = dap_port_jtag;
         response_port = 2;
     } else {
         /* unsupported port, respond with failed initialization */
@@ -247,19 +239,19 @@ int32_t dap_handle_command_connect(struct dap_driver *dap) {
     LOG_INF("configured port io as %s", port == 1 ? "SWD" : "JTAG");
 
 end: ;
-    uint8_t response[] = {DAP_COMMAND_CONNECT, response_port};
-    CHECK_EQ(ring_buf_put(&dap->buf.response, response, 2), 2, -ENOBUFS);
+    uint8_t response[] = {dap_cmd_connect, response_port};
+    if (ring_buf_put(&dap->buf.response, response, 2) != 2) return -ENOBUFS;
     return 0;
 }
 
-int32_t dap_handle_command_disconnect(struct dap_driver *dap) {
-    uint8_t status = DAP_COMMAND_RESPONSE_OK;
+int32_t dap_handle_cmd_disconnect(struct dap_driver *dap) {
+    uint8_t status = dap_cmd_response_ok;
 
     /* disable SWO if it is currently enabled */
     swo_capture_control(dap, false);
-    if (dap_configure_pin(dap->pinctrl.jtag_state_pins) != 0) { status = DAP_COMMAND_RESPONSE_ERROR; }
+    if (dap_configure_pin(dap->pinctrl.jtag_state_pins) != 0) { status = dap_cmd_response_error; }
 
-    dap->swj.port = DAP_PORT_DISABLED;
+    dap->swj.port = dap_port_disabled;
     FATAL_CHECK(gpio_pin_configure_dt(&dap->io.tck_swclk, GPIO_INPUT) >= 0, "tck swclk config failed");
     FATAL_CHECK(gpio_pin_configure_dt(&dap->io.tms_swdio, GPIO_INPUT) >= 0, "tms swdio config failed");
     FATAL_CHECK(gpio_pin_configure_dt(&dap->io.tdo, GPIO_INPUT) >= 0, "tdo config failed");
@@ -267,29 +259,29 @@ int32_t dap_handle_command_disconnect(struct dap_driver *dap) {
     FATAL_CHECK(gpio_pin_configure_dt(&dap->io.nreset, GPIO_INPUT) >= 0, "nreset config failed");
     LOG_INF("configured port io as HiZ");
 
-    uint8_t response[] = {DAP_COMMAND_DISCONNECT, status};
-    CHECK_EQ(ring_buf_put(&dap->buf.response, response, 2), 2, -ENOBUFS);
+    uint8_t response[] = {dap_cmd_disconnect, status};
+    if (ring_buf_put(&dap->buf.response, response, 2) != 2) return -ENOBUFS;
     return 0;
 }
 
-int32_t dap_handle_command_delay(struct dap_driver *dap) {
+int32_t dap_handle_cmd_delay(struct dap_driver *dap) {
     uint16_t delay_us = 0;
-    CHECK_EQ(ring_buf_get(&dap->buf.request, (uint8_t*) &delay_us, 2), 2, -EMSGSIZE);
-    k_busy_wait(delay_us);
+    if (ring_buf_get_le16(&dap->buf.request, &delay_us) < 0) return -EMSGSIZE;
+    k_sleep(K_USEC(delay_us));
 
-    uint8_t response[] = {DAP_COMMAND_DELAY, DAP_COMMAND_RESPONSE_OK};
-    CHECK_EQ(ring_buf_put(&dap->buf.response, response, 2), 2, -ENOBUFS);
+    uint8_t response[] = {dap_cmd_delay, dap_cmd_response_ok};
+    if (ring_buf_put(&dap->buf.response, response, 2) != 2) return -ENOBUFS;
     return 0;
 }
 
-int32_t dap_handle_command_reset_target(struct dap_driver *dap) {
+int32_t dap_handle_cmd_reset_target(struct dap_driver *dap) {
     /* device specific target reset sequence is not implemented for this debug unit */
-    uint8_t response[] = {DAP_COMMAND_RESET_TARGET, DAP_COMMAND_RESPONSE_OK, 0x00};
-    CHECK_EQ(ring_buf_put(&dap->buf.response, response, 3), 3, -ENOBUFS);
+    uint8_t response[] = {dap_cmd_reset_target, dap_cmd_response_ok, 0x00};
+    if (ring_buf_put(&dap->buf.response, response, 3) != 3) return -ENOBUFS;
     return 0;
 }
 
-int32_t dap_handle_command_swj_pins(struct dap_driver *dap) {
+int32_t dap_handle_cmd_swj_pins(struct dap_driver *dap) {
     /* command pin bitfields */
     const uint8_t pin_swclk_tck_shift = 0;
     const uint8_t pin_swdio_tms_shift = 1;
@@ -298,11 +290,11 @@ int32_t dap_handle_command_swj_pins(struct dap_driver *dap) {
     const uint8_t pin_nreset_shift = 7;
 
     uint8_t pin_output = 0;
+    if (ring_buf_get(&dap->buf.request, &pin_output, 1) != 1) return -EMSGSIZE;
     uint8_t pin_mask = 0;
+    if (ring_buf_get(&dap->buf.request, &pin_mask, 1) != 1) return -EMSGSIZE;
     uint32_t delay_us = 0;
-    CHECK_EQ(ring_buf_get(&dap->buf.request, &pin_output, 1), 1, -EMSGSIZE);
-    CHECK_EQ(ring_buf_get(&dap->buf.request, &pin_mask, 1), 1, -EMSGSIZE);
-    CHECK_EQ(ring_buf_get(&dap->buf.request, (uint8_t*) &delay_us, 4), 4, -EMSGSIZE);
+    if (ring_buf_get_le32(&dap->buf.request, &delay_us) < 0) return -EMSGSIZE;
 
     if ((pin_mask & BIT(pin_swclk_tck_shift)) != 0) {
         gpio_pin_set_dt(&dap->io.tck_swclk, (pin_output & BIT(pin_swclk_tck_shift)) == 0 ? 0 : 1);
@@ -344,28 +336,29 @@ int32_t dap_handle_command_swj_pins(struct dap_driver *dap) {
         (gpio_pin_get_dt(&dap->io.tdi) << pin_tdi_shift) |
         (gpio_pin_get_dt(&dap->io.tdo) << pin_tdo_shift) |
         (gpio_pin_get_dt(&dap->io.nreset) << pin_nreset_shift);
-    uint8_t response[] = {DAP_COMMAND_SWJ_PINS, pin_input};
-    CHECK_EQ(ring_buf_put(&dap->buf.response, response, 2), 2, -ENOBUFS);
+    uint8_t response[] = {dap_cmd_swj_pins, pin_input};
+    if (ring_buf_put(&dap->buf.response, response, 2) != 2) return -ENOBUFS;
     return 0;
 }
 
-int32_t dap_handle_command_swj_clock(struct dap_driver *dap) {
-    uint32_t clock = DAP_DEFAULT_SWJ_CLOCK_RATE;
-    CHECK_EQ(ring_buf_get(&dap->buf.request, (uint8_t*) &clock, 4), 4, -EMSGSIZE);
+int32_t dap_handle_cmd_swj_clock(struct dap_driver *dap) {
+    uint32_t clock = dap_default_swj_clock_rate;
+    if (ring_buf_get_le32(&dap->buf.request, &clock) < 0) return -EMSGSIZE;
+
     if (clock != 0) {
         dap->swj.clock = clock;
         dap->swj.delay_ns = 1000000000 / clock / 2;
     }
 
-    uint8_t status = clock == 0 ? DAP_COMMAND_RESPONSE_ERROR : DAP_COMMAND_RESPONSE_OK;
-    uint8_t response[] = {DAP_COMMAND_SWJ_CLOCK, status};
-    CHECK_EQ(ring_buf_put(&dap->buf.response, response, 2), 2, -ENOBUFS);
+    uint8_t status = clock == 0 ? dap_cmd_response_error : dap_cmd_response_ok;
+    uint8_t response[] = {dap_cmd_swj_clock, status};
+    if (ring_buf_put(&dap->buf.response, response, 2) != 2) return -ENOBUFS;
     return 0;
 }
 
-int32_t dap_handle_command_swj_sequence(struct dap_driver *dap) {
+int32_t dap_handle_cmd_swj_sequence(struct dap_driver *dap) {
     uint16_t count = 0;
-    CHECK_EQ(ring_buf_get(&dap->buf.request, (uint8_t*) &count, 1), 1, -EMSGSIZE);
+    if (ring_buf_get(&dap->buf.request, (uint8_t*) &count, 1) != 1) return -EMSGSIZE;
     if (count == 0) {
         count = 256;
     }
@@ -373,7 +366,7 @@ int32_t dap_handle_command_swj_sequence(struct dap_driver *dap) {
     uint8_t tms_swdio_bits = 0;
     for (uint16_t i = 0; i < count; i++) {
         if (i % 8 == 0) {
-            CHECK_EQ(ring_buf_get(&dap->buf.request, &tms_swdio_bits, 1), 1, -EMSGSIZE);
+            if (ring_buf_get(&dap->buf.request, &tms_swdio_bits, 1) != 1) return -EMSGSIZE;
         }
         gpio_pin_set_dt(&dap->io.tms_swdio, tms_swdio_bits & 0x01);
         gpio_pin_set_dt(&dap->io.tck_swclk, 0);
@@ -383,7 +376,7 @@ int32_t dap_handle_command_swj_sequence(struct dap_driver *dap) {
         tms_swdio_bits >>= 1;
     }
 
-    uint8_t response[] = {DAP_COMMAND_SWJ_SEQUENCE, DAP_COMMAND_RESPONSE_OK};
-    CHECK_EQ(ring_buf_put(&dap->buf.response, response, 2), 2, -ENOBUFS);
+    uint8_t response[] = {dap_cmd_swj_sequence, dap_cmd_response_ok};
+    if (ring_buf_put(&dap->buf.response, response, 2) != 2) return -ENOBUFS;
     return 0;
 }

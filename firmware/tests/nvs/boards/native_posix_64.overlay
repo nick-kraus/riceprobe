@@ -14,7 +14,6 @@
             #size-cells = <1>;
 
             manufacturing_partition: partition@0 {
-                label = "manufacturing";
                 reg = <0x0 0x200>;
                 read-only;
             };

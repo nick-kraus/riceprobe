@@ -14,7 +14,6 @@
 	};
 
     dap: dap {
-        label = "dap";
         compatible = "rice,dap";
 
 		tck_swclk_gpios = <&pioa 0 GPIO_ACTIVE_HIGH>;
@@ -33,12 +32,10 @@
     };
 
     io: io {
-        label = "io";
         compatible = "rice,io";
     };
 
     vcp: vcp {
-        label = "vcp";
         compatible = "rice,vcp";
         uart = <&usart1>;
     };
@@ -56,7 +53,6 @@
 
 		/* 64 KBytes */
 		boot_partition: partition@0 {
-			label = "mcuboot";
 			reg = <0x0 0x00010000>;
 			read-only;
 		};
@@ -65,25 +61,21 @@
 
 		/* 896 KBytes */
 		slot0_partition: partition@20000 {
-			label = "image-0";
 			reg = <0x00020000 0x000e0000>;
 		};
 
 		/* 896 KBytes */
 		slot1_partition: partition@100000 {
-			label = "image-1";
 			reg = <0x00100000 0x000e0000>;
 		};
 
 		/* 64 KBytes */
 		scratch_partition: partition@1e0000 {
-			label = "image-scratch";
 			reg = <0x001e0000 0x00010000>;
 		};
 
 		/* 512 Bytes */
 		manufacturing_partition: partition@1f0000 {
-			label = "manufacturing";
 			reg = <0x001f0000 0x00000200>;
 			read-only;
 		};

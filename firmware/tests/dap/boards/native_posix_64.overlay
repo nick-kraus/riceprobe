@@ -2,7 +2,6 @@
 
 / {    
     dap: dap {
-        label = "dap";
         compatible = "rice,dap";
 
         tck_swclk_gpios = <&gpio0 1 GPIO_ACTIVE_HIGH>;
@@ -53,7 +52,6 @@
             #size-cells = <1>;
 
             manufacturing_partition: partition@0 {
-                label = "manufacturing";
                 reg = <0x0 0x200>;
                 read-only;
             };

@@ -3,6 +3,7 @@
 #include <zephyr/drivers/uart.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/sys/ring_buffer.h>
 
 #include "dap/dap.h"
 #include "dap/transport.h"
@@ -13,34 +14,6 @@ LOG_MODULE_REGISTER(dap, CONFIG_DAP_LOG_LEVEL);
 /* ensure we have one and exactly one dap driver in the devicetree */
 BUILD_ASSERT(DT_NUM_INST_STATUS_OKAY(rice_dap) == 1);
 #define DAP_DT_NODE DT_COMPAT_GET_ANY_STATUS_OKAY(rice_dap)
-
-/* command handler declarations */
-int32_t dap_handle_command_info(struct dap_driver *dap);
-int32_t dap_handle_command_host_status(struct dap_driver *dap);
-int32_t dap_handle_command_connect(struct dap_driver *dap);
-int32_t dap_handle_command_disconnect(struct dap_driver *dap);
-int32_t dap_handle_command_transfer_configure(struct dap_driver *dap);
-int32_t dap_handle_command_transfer(struct dap_driver *dap);
-int32_t dap_handle_command_transfer_block(struct dap_driver *dap);
-int32_t dap_handle_command_transfer_abort(struct dap_driver *dap);
-int32_t dap_handle_command_write_abort(struct dap_driver *dap);
-int32_t dap_handle_command_delay(struct dap_driver *dap);
-int32_t dap_handle_command_reset_target(struct dap_driver *dap);
-int32_t dap_handle_command_swj_pins(struct dap_driver *dap);
-int32_t dap_handle_command_swj_clock(struct dap_driver *dap);
-int32_t dap_handle_command_swj_sequence(struct dap_driver *dap);
-int32_t dap_handle_command_swd_configure(struct dap_driver *dap);
-int32_t dap_handle_command_jtag_sequence(struct dap_driver *dap);
-int32_t dap_handle_command_jtag_configure(struct dap_driver *dap);
-int32_t dap_handle_command_jtag_idcode(struct dap_driver *dap);
-int32_t dap_handle_command_swo_transport(struct dap_driver *dap);
-int32_t dap_handle_command_swo_mode(struct dap_driver *dap);
-int32_t dap_handle_command_swo_baudrate(struct dap_driver *dap);
-int32_t dap_handle_command_swo_control(struct dap_driver *dap);
-int32_t dap_handle_command_swo_status(struct dap_driver *dap);
-int32_t dap_handle_command_swo_data(struct dap_driver *dap);
-int32_t dap_handle_command_swd_sequence(struct dap_driver *dap);
-int32_t dap_handle_command_swo_extended_status(struct dap_driver *dap);
 
 static struct dap_driver dap = {
     .io = {
@@ -116,9 +89,9 @@ int32_t dap_reset(struct dap_driver *dap) {
     dap->transport = NULL;
 
     /* set all internal state to sane defaults */
-    dap->swj.port = DAP_PORT_DISABLED;
-    dap->swj.clock = DAP_DEFAULT_SWJ_CLOCK_RATE;
-    dap->swj.delay_ns = 1000000000 / DAP_DEFAULT_SWJ_CLOCK_RATE / 2;
+    dap->swj.port = dap_port_disabled;
+    dap->swj.clock = dap_default_swj_clock_rate;
+    dap->swj.delay_ns = 1000000000 / dap_default_swj_clock_rate / 2;
     dap->jtag.count = 0;
     dap->jtag.index = 0;
     memset(dap->jtag.ir_length, 0, sizeof(dap->jtag.ir_length));
@@ -174,77 +147,51 @@ int32_t dap_handle_request(struct dap_driver *dap) {
 
         /* data should be available at the front of the ring buffer before calling this handler */
         uint8_t command = 0xff;
-        CHECK_EQ(ring_buf_get(&dap->buf.request, &command, 1), 1, -EMSGSIZE);
+        if (ring_buf_get(&dap->buf.request, &command, 1) != 1) return -EMSGSIZE;
 
-        if (command == DAP_COMMAND_QUEUE_COMMANDS) {
+        if (command == dap_cmd_queue_commands) {
             queued_commands = true;
             /* response of queued command is identical to execute commands, so replace the current
              * command to re-use the existing code path */
-            command = DAP_COMMAND_EXECUTE_COMMANDS;
+            command = dap_cmd_execute_commands;
         }
-        if (command == DAP_COMMAND_EXECUTE_COMMANDS) {
-            CHECK_EQ(ring_buf_get(&dap->buf.request, &num_commands, 1), 1, -EMSGSIZE);
-            CHECK_EQ(ring_buf_put(&dap->buf.response, &command, 1), 1, -ENOBUFS);
-            CHECK_EQ(ring_buf_put(&dap->buf.response, &num_commands, 1), 1, -ENOBUFS);
+        if (command == dap_cmd_execute_commands) {
+            if (ring_buf_get(&dap->buf.request, &num_commands, 1) != 1) return -EMSGSIZE;
+            if (ring_buf_put(&dap->buf.response, &command, 1) != 1) return -ENOBUFS;
+            if (ring_buf_put(&dap->buf.response, &num_commands, 1) != 1) return -ENOBUFS;
             /* get the next command for processing */
-            CHECK_EQ(ring_buf_get(&dap->buf.request, &command, 1), 1, -EMSGSIZE);
+            if (ring_buf_get(&dap->buf.request, &command, 1) != 1) return -EMSGSIZE;
         }
 
         int32_t ret;
-        if (command == DAP_COMMAND_INFO) {
-            ret = dap_handle_command_info(dap);
-        } else if (command == DAP_COMMAND_HOST_STATUS) {
-            ret = dap_handle_command_host_status(dap);
-        } else if (command == DAP_COMMAND_CONNECT) {
-            ret = dap_handle_command_connect(dap);
-        } else if (command == DAP_COMMAND_DISCONNECT) {
-            ret = dap_handle_command_disconnect(dap);
-        } else if (command == DAP_COMMAND_TRANSFER_CONFIGURE) {
-            ret = dap_handle_command_transfer_configure(dap);
-        } else if (command == DAP_COMMAND_TRANSFER) {
-            ret = dap_handle_command_transfer(dap);
-        } else if (command == DAP_COMMAND_TRANSFER_BLOCK) {
-            ret = dap_handle_command_transfer_block(dap);
-        } else if (command == DAP_COMMAND_TRANSFER_ABORT) {
-            ret = dap_handle_command_transfer_abort(dap);
-        } else if (command == DAP_COMMAND_WRITE_ABORT) {
-            ret = dap_handle_command_write_abort(dap);
-        } else if (command == DAP_COMMAND_DELAY) {
-            ret = dap_handle_command_delay(dap);
-        } else if (command == DAP_COMMAND_RESET_TARGET) {
-            ret = dap_handle_command_reset_target(dap);
-        } else if (command == DAP_COMMAND_SWJ_PINS) {
-            ret = dap_handle_command_swj_pins(dap);
-        } else if (command == DAP_COMMAND_SWJ_CLOCK) {
-            ret = dap_handle_command_swj_clock(dap);
-        } else if (command == DAP_COMMAND_SWJ_SEQUENCE) {
-            ret = dap_handle_command_swj_sequence(dap);
-        } else if (command == DAP_COMMAND_SWD_CONFIGURE) {
-            ret = dap_handle_command_swd_configure(dap);
-        } else if (command == DAP_COMMAND_JTAG_SEQUENCE) {
-            ret = dap_handle_command_jtag_sequence(dap);
-        } else if (command == DAP_COMMAND_JTAG_CONFIGURE) {
-            ret = dap_handle_command_jtag_configure(dap);
-        } else if (command == DAP_COMMAND_JTAG_IDCODE) {
-            ret = dap_handle_command_jtag_idcode(dap);
-        } else if (command == DAP_COMMAND_SWO_TRANSPORT) {
-            ret = dap_handle_command_swo_transport(dap);
-        } else if (command == DAP_COMMAND_SWO_MODE) {
-            ret = dap_handle_command_swo_mode(dap);
-        } else if (command == DAP_COMMAND_SWO_BAUDRATE) {
-            ret = dap_handle_command_swo_baudrate(dap);
-        } else if (command == DAP_COMMAND_SWO_CONTROL) {
-            ret = dap_handle_command_swo_control(dap);
-        } else if (command == DAP_COMMAND_SWO_STATUS) {
-            ret = dap_handle_command_swo_status(dap);
-        } else if (command == DAP_COMMAND_SWO_DATA) {
-            ret = dap_handle_command_swo_data(dap);
-        } else if (command == DAP_COMMAND_SWD_SEQUENCE) {
-            ret = dap_handle_command_swd_sequence(dap);
-        } else if (command == DAP_COMMAND_SWO_EXTENDED_STATUS) {
-            ret = dap_handle_command_swo_extended_status(dap);
-        } else {
-            /* for DAP_COMMAND_UART_*, no intention of support, since the same functionality can be found 
+        if (command == dap_cmd_info) { ret = dap_handle_cmd_info(dap); }
+        else if (command == dap_cmd_host_status) { ret = dap_handle_cmd_host_status(dap); }
+        else if (command == dap_cmd_connect) { ret = dap_handle_cmd_connect(dap); }
+        else if (command == dap_cmd_disconnect) { ret = dap_handle_cmd_disconnect(dap); }
+        else if (command == dap_cmd_transfer_configure) { ret = dap_handle_cmd_transfer_configure(dap); }
+        else if (command == dap_cmd_transfer) { ret = dap_handle_cmd_transfer(dap); }
+        else if (command == dap_cmd_transfer_block) { ret = dap_handle_cmd_transfer_block(dap); }
+        else if (command == dap_cmd_transfer_abort) { ret = dap_handle_cmd_transfer_abort(dap); }
+        else if (command == dap_cmd_write_abort) { ret = dap_handle_cmd_write_abort(dap); }
+        else if (command == dap_cmd_delay) { ret = dap_handle_cmd_delay(dap); }
+        else if (command == dap_cmd_reset_target) { ret = dap_handle_cmd_reset_target(dap); }
+        else if (command == dap_cmd_swj_pins) { ret = dap_handle_cmd_swj_pins(dap); }
+        else if (command == dap_cmd_swj_clock) { ret = dap_handle_cmd_swj_clock(dap); }
+        else if (command == dap_cmd_swj_sequence) { ret = dap_handle_cmd_swj_sequence(dap); }
+        else if (command == dap_cmd_swd_configure) { ret = dap_handle_cmd_swd_configure(dap); }
+        else if (command == dap_cmd_jtag_sequence) { ret = dap_handle_cmd_jtag_sequence(dap); }
+        else if (command == dap_cmd_jtag_configure) { ret = dap_handle_cmd_jtag_configure(dap); }
+        else if (command == dap_cmd_jtag_idcode) { ret = dap_handle_cmd_jtag_idcode(dap); }
+        else if (command == dap_cmd_swo_transport) { ret = dap_handle_cmd_swo_transport(dap); }
+        else if (command == dap_cmd_swo_mode) { ret = dap_handle_cmd_swo_mode(dap); }
+        else if (command == dap_cmd_swo_baudrate) { ret = dap_handle_cmd_swo_baudrate(dap); }
+        else if (command == dap_cmd_swo_control) { ret = dap_handle_cmd_swo_control(dap); }
+        else if (command == dap_cmd_swo_status) { ret = dap_handle_cmd_swo_status(dap); }
+        else if (command == dap_cmd_swo_data) { ret = dap_handle_cmd_swo_data(dap); }
+        else if (command == dap_cmd_swd_sequence) { ret = dap_handle_cmd_swd_sequence(dap); }
+        else if (command == dap_cmd_swo_extended_status) { ret = dap_handle_cmd_swo_extended_status(dap); } 
+        else {
+            /* for dap_cmd_uart_*, no intention of support, since the same functionality can be found 
              * over the CDC-ACM virtual com port interface. any other command is totally unknown. */
             LOG_ERR("unsupported command 0x%x", command);
             ret = -ENOTSUP;
@@ -297,14 +244,14 @@ void dap_thread_fn(void *arg1, void *arg2, void *arg3) {
             ring_buf_put_finish(&dap->buf.request, ret);
 
             /* not ready to process command, start the next receive */
-            if (*request == DAP_COMMAND_QUEUE_COMMANDS) continue;
+            if (*request == dap_cmd_queue_commands) continue;
 
             /* transport sends rely on having the full length of the response ring buffer from one pointer */
             ring_buf_reset(&dap->buf.response);
             if ((ret = dap_handle_request(dap)) < 0) {
                 /* commands that failed or aren't implemented get a simple 0xff reponse byte */
                 ring_buf_reset(&dap->buf.response);
-                uint8_t response = DAP_COMMAND_RESPONSE_ERROR;
+                uint8_t response = dap_cmd_response_error;
                 FATAL_CHECK(ring_buf_put(&dap->buf.response, &response, 1) == 1, "response buf is size 0");
             }
 

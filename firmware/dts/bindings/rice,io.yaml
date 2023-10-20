@@ -2,11 +2,7 @@ description: RICE I/O protocol driver
 
 compatible: "rice,io"
 
-properties:
-    label:
-      type: string
-      required: true
-    
+properties:    
     led_status_gpios:
       type: phandle-array
       required: false

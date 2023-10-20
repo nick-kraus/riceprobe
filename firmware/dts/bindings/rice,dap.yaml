@@ -6,10 +6,6 @@ include:
     - name: pinctrl-device.yaml
 
 properties:
-    label:
-      type: string
-      required: true
-
     tck_swclk_gpios:
       type: phandle-array
       required: true

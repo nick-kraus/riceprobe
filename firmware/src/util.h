@@ -2,6 +2,8 @@
 #define __UTIL_H__
 
 #include <zephyr/kernel.h>
+#include <zephyr/sys/byteorder.h>
+#include <zephyr/sys/ring_buffer.h>
 
 /* tests a condition, and triggers a kernel oops with a log message on failure */
 #define FATAL_CHECK(_cond, _msg)    \
@@ -10,14 +12,6 @@
             LOG_ERR(_msg);          \
             k_oops();               \
         }                           \
-    } while (0)
-
-/* tests if two expressions are equal, and return an error code if not */
-#define CHECK_EQ(_expr_a, _expr_b, _code)   \
-    do {                                    \
-        if ((_expr_a) != (_expr_b)) {       \
-            return _code;                   \
-        }                                   \
     } while (0)
 
 /* busy waits for a set amount of nanoseconds */
@@ -38,6 +32,31 @@ static inline void busy_wait_nanos(uint32_t nanos) {
             break;
         }
     }
+}
+
+/*
+ * convenience functions for ring buffers
+ */
+
+static inline int32_t ring_buf_get_le16(struct ring_buf *buf, uint16_t *value) {
+    uint8_t *ptr = NULL;
+    if (ring_buf_get_claim(buf, &ptr, 2) != 2) return -EMSGSIZE;
+    *value = sys_get_le16(ptr);
+    return ring_buf_get_finish(buf, 2);
+}
+
+static inline int32_t ring_buf_get_le32(struct ring_buf *buf, uint32_t *value) {
+    uint8_t *ptr = NULL;
+    if (ring_buf_get_claim(buf, &ptr, 4) != 4) return -EMSGSIZE;
+    *value = sys_get_le32(ptr);
+    return ring_buf_get_finish(buf, 4);
+}
+
+static inline int32_t ring_buf_put_le32(struct ring_buf *buf, uint32_t value) {
+    uint8_t *ptr = NULL;
+    if (ring_buf_put_claim(buf, &ptr, 4) != 4) return -ENOBUFS;
+    sys_put_le32(value, ptr);
+    return ring_buf_put_finish(buf, 4);
 }
 
 #endif /* __UTIL_H__ */

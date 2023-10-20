@@ -1,15 +1,13 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/sys/byteorder.h>
 #include <zephyr/sys/ring_buffer.h>
 
 #include "dap/dap.h"
 #include "util.h"
 
 LOG_MODULE_DECLARE(dap, CONFIG_DAP_LOG_LEVEL);
-
-/* jtag ir instructions */
-#define JTAG_IR_IDCODE                      ((uint8_t) 0x0e)
 
 void jtag_tck_cycle(struct dap_driver *dap) {
     gpio_pin_set_dt(&dap->io.tck_swclk, 0);
@@ -91,17 +89,17 @@ void jtag_set_ir(struct dap_driver *dap, uint32_t ir) {
     return;
 }
 
-int32_t dap_handle_command_jtag_configure(struct dap_driver *dap) {
-    uint8_t status = DAP_COMMAND_RESPONSE_OK;
+int32_t dap_handle_cmd_jtag_configure(struct dap_driver *dap) {
+    uint8_t status = dap_cmd_response_ok;
 
     uint8_t count = 0;
-    CHECK_EQ(ring_buf_get(&dap->buf.request, &count, 1), 1, -EMSGSIZE);
+    if (ring_buf_get(&dap->buf.request, &count, 1) != 1) return -EMSGSIZE;
     if (count > DAP_JTAG_MAX_DEVICE_COUNT) {
-        status = DAP_COMMAND_RESPONSE_ERROR;
+        status = dap_cmd_response_error;
         /* process remaining request bytes */
         uint8_t *temp = NULL;
-        CHECK_EQ(ring_buf_get_claim(&dap->buf.request, &temp, count), count, -EMSGSIZE);
-        CHECK_EQ(ring_buf_get_finish(&dap->buf.request, count), 0, -EMSGSIZE);
+        if (ring_buf_get_claim(&dap->buf.request, &temp, count) != count) return -EMSGSIZE;
+        if (ring_buf_get_finish(&dap->buf.request, count) != 0) return -EMSGSIZE;
         goto end;
     }
 
@@ -109,7 +107,7 @@ int32_t dap_handle_command_jtag_configure(struct dap_driver *dap) {
     dap->jtag.count = count;
     for (uint8_t i = 0; i < dap->jtag.count; i++) {
         uint8_t len = 0;
-        CHECK_EQ(ring_buf_get(&dap->buf.request, &len, 1), 1, -EMSGSIZE);
+        if (ring_buf_get(&dap->buf.request, &len, 1) != 1) return -EMSGSIZE;
         dap->jtag.ir_before[i] = ir_length_sum;
         ir_length_sum += len;
         dap->jtag.ir_length[i] = len;
@@ -120,30 +118,30 @@ int32_t dap_handle_command_jtag_configure(struct dap_driver *dap) {
     }
 
 end: ;
-    uint8_t response[] = {DAP_COMMAND_JTAG_CONFIGURE, status};
-    CHECK_EQ(ring_buf_put(&dap->buf.response, response, 2), 2, -ENOBUFS);
+    uint8_t response[] = {dap_cmd_jtag_configure, status};
+    if (ring_buf_put(&dap->buf.response, response, 2) != 2) return -ENOBUFS;
     return 0;
 }
 
-int32_t dap_handle_command_jtag_sequence(struct dap_driver *dap) {
-    uint8_t status = DAP_COMMAND_RESPONSE_OK;
+int32_t dap_handle_cmd_jtag_sequence(struct dap_driver *dap) {
+    uint8_t status = dap_cmd_response_ok;
 
     /* command info bitfield */
     const uint8_t info_tck_cycles_mask = 0x3f;
     const uint8_t info_tdo_capture_mask = 0x80;
     const uint8_t info_tms_value_shift = 6;
 
-    CHECK_EQ(ring_buf_put(&dap->buf.response, &((uint8_t) {DAP_COMMAND_JTAG_SEQUENCE}), 1), 1, -EMSGSIZE);
+    if (ring_buf_put(&dap->buf.response, &dap_cmd_jtag_sequence, 1) != 1) return -EMSGSIZE;
     /* need a pointer to this item because we will write to it after trying the rest of the command */
     uint8_t *response_status = NULL;
-    CHECK_EQ(ring_buf_put_claim(&dap->buf.response, &response_status, 1), 1, -ENOBUFS);
-    CHECK_EQ(ring_buf_put_finish(&dap->buf.response, 1), 0, -ENOBUFS);
+    if (ring_buf_put_claim(&dap->buf.response, &response_status, 1) != 1) return -ENOBUFS;
+    if (ring_buf_put_finish(&dap->buf.response, 1) < 0) return -ENOBUFS;
 
     uint8_t seq_count = 0;
-    CHECK_EQ(ring_buf_get(&dap->buf.request, &seq_count, 1), 1, -EMSGSIZE);
+    if (ring_buf_get(&dap->buf.request, &seq_count, 1) != 1) return -EMSGSIZE;
     for (uint8_t i = 0; i < seq_count; i++) {
         uint8_t info = 0;
-        CHECK_EQ(ring_buf_get(&dap->buf.request, &info, 1), 1, -EMSGSIZE);
+        if (ring_buf_get(&dap->buf.request, &info, 1) != 1) return -EMSGSIZE;
 
         uint8_t tck_cycles = info & info_tck_cycles_mask;
         if (tck_cycles == 0) {
@@ -151,11 +149,11 @@ int32_t dap_handle_command_jtag_sequence(struct dap_driver *dap) {
         }
 
         /* if the current port isn't JTAG, just use this loop to process remaining bytes */
-        if (dap->swj.port != DAP_PORT_JTAG) {
-            status = DAP_COMMAND_RESPONSE_ERROR;
+        if (dap->swj.port != dap_port_jtag) {
+            status = dap_cmd_response_error;
             while (tck_cycles > 0) {
                 uint8_t temp = 0;
-                CHECK_EQ(ring_buf_get(&dap->buf.request, &temp, 1), 1, -EMSGSIZE);
+                if (ring_buf_get(&dap->buf.request, &temp, 1) != 1) return -EMSGSIZE;
                 tck_cycles -= MIN(tck_cycles, 8);
             }
             continue;
@@ -166,7 +164,7 @@ int32_t dap_handle_command_jtag_sequence(struct dap_driver *dap) {
 
         while (tck_cycles > 0) {
             uint8_t tdi = 0;
-            CHECK_EQ(ring_buf_get(&dap->buf.request, &tdi, 1), 1, -EMSGSIZE);
+            if (ring_buf_get(&dap->buf.request, &tdi, 1) != 1) return -EMSGSIZE;
             uint8_t tdo = 0;
 
             uint8_t bits = 8;
@@ -182,7 +180,7 @@ int32_t dap_handle_command_jtag_sequence(struct dap_driver *dap) {
             tdo >>= bits;
 
             if ((info & info_tdo_capture_mask) != 0) {
-                CHECK_EQ(ring_buf_put(&dap->buf.response, &tdo, 1), 1, -ENOBUFS);
+                if (ring_buf_put(&dap->buf.response, &tdo, 1) != 1) return -ENOBUFS;
             }
         }
     }
@@ -191,21 +189,22 @@ int32_t dap_handle_command_jtag_sequence(struct dap_driver *dap) {
     return 0;
 }
 
-int32_t dap_handle_command_jtag_idcode(struct dap_driver *dap) {
-    uint8_t status = DAP_COMMAND_RESPONSE_OK;
+int32_t dap_handle_cmd_jtag_idcode(struct dap_driver *dap) {
+    uint8_t status = dap_cmd_response_ok;
     uint32_t idcode = 0;
 
     uint8_t index = 0;
-    CHECK_EQ(ring_buf_get(&dap->buf.request, &index, 1), 1, -EMSGSIZE);
-    if ((dap->swj.port != DAP_PORT_JTAG) ||
+    if (ring_buf_get(&dap->buf.request, &index, 1) != 1) return -EMSGSIZE;
+    if ((dap->swj.port != dap_port_jtag) ||
         (index >= dap->jtag.count)) {
-        status = DAP_COMMAND_RESPONSE_ERROR;
+        status = dap_cmd_response_error;
         goto end;
     } else {
         dap->jtag.index = index;
     }
 
-    jtag_set_ir(dap, JTAG_IR_IDCODE);
+    const uint8_t jtag_ir_idcode = 0x0e;
+    jtag_set_ir(dap, jtag_ir_idcode);
 
     /* select-dr-scan */
     gpio_pin_set_dt(&dap->io.tms_swdio, 1);
@@ -233,8 +232,9 @@ int32_t dap_handle_command_jtag_idcode(struct dap_driver *dap) {
     jtag_tck_cycle(dap);
 
 end: ;
-    uint8_t response[] = {DAP_COMMAND_JTAG_IDCODE, status, 0, 0, 0, 0};
-    memcpy(&response[2], (uint8_t*) &idcode, sizeof(idcode));
-    CHECK_EQ(ring_buf_put(&dap->buf.response, response, 6), 6, -ENOBUFS);
+    uint8_t response[] = {dap_cmd_jtag_idcode, status, 0, 0, 0, 0};
+    sys_put_le32(idcode, &response[2]);
+    if (ring_buf_put(&dap->buf.response, response, 6) != 6) return -ENOBUFS;
+
     return 0;
 }

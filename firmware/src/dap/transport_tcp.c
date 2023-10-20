@@ -12,7 +12,7 @@ LOG_MODULE_REGISTER(dap_tcp, CONFIG_DAP_LOG_LEVEL);
 static int32_t tcp_bind_sock;
 static int32_t tcp_conn_sock;
 
-int32_t tcp_transport_init(void) {
+int32_t dap_tcp_transport_init(void) {
     int32_t ret;
 
     DNS_SD_REGISTER_TCP_SERVICE(
@@ -56,7 +56,7 @@ static int32_t tcp_set_nonblocking(int32_t sock, bool enabled) {
     return zsock_fcntl(sock, F_SETFL, flags | O_NONBLOCK);
 }
 
-int32_t tcp_transport_configure(void) {
+int32_t dap_tcp_transport_configure(void) {
     int32_t ret;
 
     if ((ret = tcp_set_nonblocking(tcp_bind_sock, true)) < 0) {
@@ -81,7 +81,7 @@ int32_t tcp_transport_configure(void) {
     return 0;
 }
 
-int32_t tcp_transport_recv(uint8_t *read, size_t len) {
+int32_t dap_tcp_transport_recv(uint8_t *read, size_t len) {
     /* tcp transport 'packets' are DAP requests preceeded by a 16-bit little endian request length,
      * to make sure we know exactly when each message ends, which in practice should never
      * be split between recv calls */
@@ -125,7 +125,7 @@ int32_t tcp_transport_recv(uint8_t *read, size_t len) {
     return received;
 }
 
-int32_t tcp_transport_send(uint8_t *send, size_t len) {
+int32_t dap_tcp_transport_send(uint8_t *send, size_t len) {
     /* just like the request, tcp response messages will be preceeded by a 16-bit little endian value */
     uint16_t response_len = (uint16_t) len;
 
@@ -159,9 +159,9 @@ int32_t tcp_transport_send(uint8_t *send, size_t len) {
 }
 
 DAP_TRANSPORT_DEFINE(
-    tcp,
-    tcp_transport_init,
-    tcp_transport_configure,
-    tcp_transport_recv,
-    tcp_transport_send
+    dap_tcp,
+    dap_tcp_transport_init,
+    dap_tcp_transport_configure,
+    dap_tcp_transport_recv,
+    dap_tcp_transport_send
 );

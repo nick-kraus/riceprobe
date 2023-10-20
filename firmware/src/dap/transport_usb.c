@@ -119,16 +119,16 @@ USBD_DEFINE_CFG_DATA(dap_usb_cfg) = {
     .endpoint = dap_usb_ep_data,
 };
 
-int32_t usb_transport_init(void) {
+int32_t dap_usb_transport_init(void) {
     /* all USB initialization is static, no need to do anything here. */
     return 0;
 }
 
-int32_t usb_transport_configure(void) {
+int32_t dap_usb_transport_configure(void) {
     return dap_usb_configured ? 0 : -EAGAIN;
 }
 
-int32_t usb_transport_recv(uint8_t *read, size_t len) {    
+int32_t dap_usb_transport_recv(uint8_t *read, size_t len) {    
     int32_t recv_size = 0;
     int32_t ret = usb_transfer(
         dap_usb_ep_data[dap_out_idx].ep_addr,
@@ -152,7 +152,7 @@ int32_t usb_transport_recv(uint8_t *read, size_t len) {
     return recv_size;
 }
 
-int32_t usb_transport_send(uint8_t *send, size_t len) {
+int32_t dap_usb_transport_send(uint8_t *send, size_t len) {
     int32_t send_size = 0;
     int32_t ret = usb_transfer(
         dap_usb_ep_data[dap_in_idx].ep_addr,
@@ -177,9 +177,9 @@ int32_t usb_transport_send(uint8_t *send, size_t len) {
 }
 
 DAP_TRANSPORT_DEFINE(
-    usb,
-    usb_transport_init,
-    usb_transport_configure,
-    usb_transport_recv,
-    usb_transport_send
+    dap_usb,
+    dap_usb_transport_init,
+    dap_usb_transport_configure,
+    dap_usb_transport_recv,
+    dap_usb_transport_send
 );

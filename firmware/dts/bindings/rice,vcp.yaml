@@ -2,11 +2,7 @@ description: USB-to-UART driver
 
 compatible: "rice,vcp"
 
-properties:
-    label:
-      type: string
-      required: true
-    
+properties:    
     uart:
       type: phandle
       required: true

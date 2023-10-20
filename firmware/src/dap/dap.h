@@ -5,7 +5,6 @@
 #include <zephyr/drivers/pinctrl.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/ring_buffer.h>
-#include <zephyr/usb/usb_device.h>
 
 #include "dap/transport.h"
 
@@ -16,55 +15,20 @@
 /* maximum size for any single transport transfer */
 #define DAP_MAX_PACKET_SIZE     (512)
 
-/* default SWD/JTAG clock rate in Hz */
-#define DAP_DEFAULT_SWJ_CLOCK_RATE    (1000000)
-
-/* current configured state of the dap io port */
-#define DAP_PORT_DISABLED   0
-#define DAP_PORT_JTAG       1
-#define DAP_PORT_SWD        2
-
 /* maximum number of devices supported on the JTAG chain */
 #define DAP_JTAG_MAX_DEVICE_COUNT   4
 
-/* possible status responses to commands */
-#define DAP_COMMAND_RESPONSE_OK     ((uint8_t) 0x00)
-#define DAP_COMMAND_RESPONSE_ERROR  ((uint8_t) 0xff)
+/* default SWD/JTAG clock rate in Hz */
+static const uint32_t dap_default_swj_clock_rate = 1000000;
 
-/* general command ids */
-#define DAP_COMMAND_INFO                    ((uint8_t) 0x00)
-#define DAP_COMMAND_HOST_STATUS             ((uint8_t) 0x01)
-#define DAP_COMMAND_CONNECT                 ((uint8_t) 0x02)
-#define DAP_COMMAND_DISCONNECT              ((uint8_t) 0x03)
-#define DAP_COMMAND_TRANSFER_CONFIGURE      ((uint8_t) 0x04)
-#define DAP_COMMAND_TRANSFER                ((uint8_t) 0x05)
-#define DAP_COMMAND_TRANSFER_BLOCK          ((uint8_t) 0x06)
-#define DAP_COMMAND_TRANSFER_ABORT          ((uint8_t) 0x07)
-#define DAP_COMMAND_WRITE_ABORT             ((uint8_t) 0x08)
-#define DAP_COMMAND_DELAY                   ((uint8_t) 0x09)
-#define DAP_COMMAND_RESET_TARGET            ((uint8_t) 0x0a)
-#define DAP_COMMAND_SWJ_PINS                ((uint8_t) 0x10)
-#define DAP_COMMAND_SWJ_CLOCK               ((uint8_t) 0x11)
-#define DAP_COMMAND_SWJ_SEQUENCE            ((uint8_t) 0x12)
-#define DAP_COMMAND_SWD_CONFIGURE           ((uint8_t) 0x13)
-#define DAP_COMMAND_JTAG_SEQUENCE           ((uint8_t) 0x14)
-#define DAP_COMMAND_JTAG_CONFIGURE          ((uint8_t) 0x15)
-#define DAP_COMMAND_JTAG_IDCODE             ((uint8_t) 0x16)
-#define DAP_COMMAND_SWO_TRANSPORT           ((uint8_t) 0x17)
-#define DAP_COMMAND_SWO_MODE                ((uint8_t) 0x18)
-#define DAP_COMMAND_SWO_BAUDRATE            ((uint8_t) 0x19)
-#define DAP_COMMAND_SWO_CONTROL             ((uint8_t) 0x1a)
-#define DAP_COMMAND_SWO_STATUS              ((uint8_t) 0x1b)
-#define DAP_COMMAND_SWO_DATA                ((uint8_t) 0x1c)
-#define DAP_COMMAND_SWD_SEQUENCE            ((uint8_t) 0x1d)
-#define DAP_COMMAND_SWO_EXTENDED_STATUS     ((uint8_t) 0x1e)
-#define DAP_COMMAND_UART_TRANSPORT          ((uint8_t) 0x1f)
-#define DAP_COMMAND_UART_CONFIGURE          ((uint8_t) 0x20)
-#define DAP_COMMAND_UART_TRANSFER           ((uint8_t) 0x21)
-#define DAP_COMMAND_UART_CONTROL            ((uint8_t) 0x22)
-#define DAP_COMMAND_UART_STATUS             ((uint8_t) 0x23)
-#define DAP_COMMAND_QUEUE_COMMANDS          ((uint8_t) 0x7e)
-#define DAP_COMMAND_EXECUTE_COMMANDS        ((uint8_t) 0x7f)
+/* current configured state of the dap io port */
+static const uint8_t dap_port_disabled = 0;
+static const uint8_t dap_port_jtag = 1;
+static const uint8_t dap_port_swd = 2;
+
+/* possible status responses to commands */
+static const uint8_t dap_cmd_response_ok = 0x00;
+static const uint8_t dap_cmd_response_error = 0xff;
 
 struct dap_driver {
     struct {
@@ -155,7 +119,86 @@ struct dap_driver {
     struct dap_transport *transport;
 };
 
-/* used to configure the tdo/swo pin to one of the two states defined in struct dap_driver */
+/* command ids */
+static const uint8_t dap_cmd_info = 0x00;
+static const uint8_t dap_cmd_host_status = 0x01;
+static const uint8_t dap_cmd_connect = 0x02;
+static const uint8_t dap_cmd_disconnect = 0x03;
+static const uint8_t dap_cmd_transfer_configure = 0x04;
+static const uint8_t dap_cmd_transfer = 0x05;
+static const uint8_t dap_cmd_transfer_block = 0x06;
+static const uint8_t dap_cmd_transfer_abort = 0x07;
+static const uint8_t dap_cmd_write_abort = 0x08;
+static const uint8_t dap_cmd_delay = 0x09;
+static const uint8_t dap_cmd_reset_target = 0x0a;
+static const uint8_t dap_cmd_swj_pins = 0x10;
+static const uint8_t dap_cmd_swj_clock = 0x11;
+static const uint8_t dap_cmd_swj_sequence = 0x12;
+static const uint8_t dap_cmd_swd_configure = 0x13;
+static const uint8_t dap_cmd_jtag_sequence = 0x14;
+static const uint8_t dap_cmd_jtag_configure = 0x15;
+static const uint8_t dap_cmd_jtag_idcode = 0x16;
+static const uint8_t dap_cmd_swo_transport = 0x17;
+static const uint8_t dap_cmd_swo_mode = 0x18;
+static const uint8_t dap_cmd_swo_baudrate = 0x19;
+static const uint8_t dap_cmd_swo_control = 0x1a;
+static const uint8_t dap_cmd_swo_status = 0x1b;
+static const uint8_t dap_cmd_swo_data = 0x1c;
+static const uint8_t dap_cmd_swd_sequence = 0x1d;
+static const uint8_t dap_cmd_swo_extended_status = 0x1e;
+static const uint8_t dap_cmd_queue_commands = 0x7e;
+static const uint8_t dap_cmd_execute_commands = 0x7f;
+
+/* command handlers */
+int32_t dap_handle_cmd_info(struct dap_driver *dap);
+int32_t dap_handle_cmd_host_status(struct dap_driver *dap);
+int32_t dap_handle_cmd_connect(struct dap_driver *dap);
+int32_t dap_handle_cmd_disconnect(struct dap_driver *dap);
+int32_t dap_handle_cmd_transfer_configure(struct dap_driver *dap);
+int32_t dap_handle_cmd_transfer(struct dap_driver *dap);
+int32_t dap_handle_cmd_transfer_block(struct dap_driver *dap);
+int32_t dap_handle_cmd_transfer_abort(struct dap_driver *dap);
+int32_t dap_handle_cmd_write_abort(struct dap_driver *dap);
+int32_t dap_handle_cmd_delay(struct dap_driver *dap);
+int32_t dap_handle_cmd_reset_target(struct dap_driver *dap);
+int32_t dap_handle_cmd_swj_pins(struct dap_driver *dap);
+int32_t dap_handle_cmd_swj_clock(struct dap_driver *dap);
+int32_t dap_handle_cmd_swj_sequence(struct dap_driver *dap);
+int32_t dap_handle_cmd_swd_configure(struct dap_driver *dap);
+int32_t dap_handle_cmd_jtag_sequence(struct dap_driver *dap);
+int32_t dap_handle_cmd_jtag_configure(struct dap_driver *dap);
+int32_t dap_handle_cmd_jtag_idcode(struct dap_driver *dap);
+int32_t dap_handle_cmd_swo_transport(struct dap_driver *dap);
+int32_t dap_handle_cmd_swo_mode(struct dap_driver *dap);
+int32_t dap_handle_cmd_swo_baudrate(struct dap_driver *dap);
+int32_t dap_handle_cmd_swo_control(struct dap_driver *dap);
+int32_t dap_handle_cmd_swo_status(struct dap_driver *dap);
+int32_t dap_handle_cmd_swo_data(struct dap_driver *dap);
+int32_t dap_handle_cmd_swd_sequence(struct dap_driver *dap);
+int32_t dap_handle_cmd_swo_extended_status(struct dap_driver *dap);
+
+/** @brief performs single tck clock cycle */
+void jtag_tck_cycle(struct dap_driver *dap);
+/** @brief performs clock cycle with tdi data output */
+void jtag_tdi_cycle(struct dap_driver *dap, uint8_t tdi);
+/** @brief performs clock cycle with tdo data retreival */
+uint8_t jtag_tdo_cycle(struct dap_driver *dap);
+/** @brief performs clock cycle with tdi data output and tdo data retreival */
+uint8_t jtag_tdio_cycle(struct dap_driver *dap, uint8_t tdi);
+/** @brief sets JTAG IR instruction */
+void jtag_set_ir(struct dap_driver *dap, uint32_t ir);
+
+/** @brief reads single SWD bit */
+uint8_t swd_read_cycle(struct dap_driver *dap);
+/** @brief writes single SWD bit */
+void swd_write_cycle(struct dap_driver *dap, uint8_t swdio);
+/** @brief performs single swclk clock cycle */
+void swd_swclk_cycle(struct dap_driver *dap);
+
+/** @brief enables SWO uart capture */
+void swo_capture_control(struct dap_driver *dap, bool enable);
+
+/** @brief configure a dap_driver pinctrl state */
 static inline int32_t dap_configure_pin(const pinctrl_soc_pin_t *pinctrl_state) {
     return pinctrl_configure_pins(pinctrl_state, 1, PINCTRL_REG_NONE);
 }
