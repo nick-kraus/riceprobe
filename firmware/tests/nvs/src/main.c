@@ -1,3 +1,4 @@
+#include <string.h>
 #include <zephyr/storage/flash_map.h>
 #include <zephyr/ztest.h>
 
@@ -65,6 +66,10 @@ ZTEST(nvs, test_nvs_uuid) {
     uint8_t buf[16] = {0};
     zassert_ok(nvs_get_uuid(buf, sizeof(buf)));
     zassert_mem_equal(buf, &nvs_data[36], sizeof(buf));
+
+    char str[37] = {0};
+    zassert_ok(nvs_get_uuid_str(str, sizeof(str)));
+    zassert_ok(strcmp(str, "20a02fc2-a791-414b-bb66-c6407e78a710"));
 }
 
 ZTEST(nvs, test_nvs_dns_sd) {

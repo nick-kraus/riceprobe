@@ -40,7 +40,8 @@ target_sources(app PRIVATE
     "src/dap/transport_tcp.c"
     "src/dap/transport_usb.c"
     "src/io/io.c"
-    "src/io/usb.c"
+    "src/io/commands_general.c"
+    "src/io/transport_usb.c"
     "src/vcp/usb.c"
     "src/vcp/vcp.c"
     "src/utf8.c"
@@ -54,4 +55,5 @@ target_compile_options(app PRIVATE -Wall -Werror -fanalyzer)
 
 zephyr_linker_sources(DATA_SECTIONS
     "src/dap/transport.ld"
+    "src/io/transport.ld"
 )

@@ -40,6 +40,24 @@ int32_t nvs_get_uuid(char *buf, size_t buf_len) {
     return 0;
 }
 
+int32_t nvs_get_uuid_str(char *buf, size_t buf_len) {
+    /* two characters for each byte, plus four separators and null terminator */
+    if (buf_len < sizeof(nvs.uuid) * 2 + 4 + 1) {
+        return -ENOBUFS;
+    }
+
+    snprintk(
+        buf,
+        buf_len,
+        "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+        nvs.uuid[0], nvs.uuid[1], nvs.uuid[2], nvs.uuid[3], 
+        nvs.uuid[4], nvs.uuid[5], nvs.uuid[6], nvs.uuid[7], 
+        nvs.uuid[8], nvs.uuid[9], nvs.uuid[10], nvs.uuid[11], 
+        nvs.uuid[12], nvs.uuid[13], nvs.uuid[14], nvs.uuid[15]
+    );
+    return 0;
+}
+
 int32_t nvs_init(void) {
     const struct flash_area *mfg_fa;
     int32_t ret = flash_area_open(FIXED_PARTITION_ID(manufacturing_partition), &mfg_fa);

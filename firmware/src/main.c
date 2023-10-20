@@ -10,6 +10,7 @@
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
 int32_t dap_init(void);
+int32_t io_init(void);
 
 static int32_t early_init_ret = 0;
 /* runs before main and many zephyr subsystems, to satisfy dependencies for those systems */
@@ -33,8 +34,10 @@ int32_t main(void) {
 		return ret;
 	}
 
-	const struct device *io_device = DEVICE_DT_GET(DT_NODELABEL(io));
-	FATAL_CHECK(device_is_ready(io_device), "failed to ready io interface");
+	if ((ret = io_init()) < 0) {
+		LOG_ERR("io initialization failed with error %d", ret);
+		return ret;
+	}
 
 	const struct device *vcp_device = DEVICE_DT_GET(DT_NODELABEL(vcp));
 	FATAL_CHECK(device_is_ready(vcp_device), "failed to ready vcp interface");

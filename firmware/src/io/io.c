@@ -1,77 +1,176 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/ring_buffer.h>
-#include <zephyr/sys/slist.h>
 
 #include "io/io.h"
-#include "io/usb.h"
+#include "io/transport.h"
+#include "utf8.h"
+#include "util.h"
 
 LOG_MODULE_REGISTER(io, CONFIG_IO_LOG_LEVEL);
 
-bool io_is_configured(const struct device *dev) {
-    struct io_data *data = dev->data;
-    return data->configured;
-}
+/* ensure we have one and exactly one io driver in the devicetree */
+BUILD_ASSERT(DT_NUM_INST_STATUS_OKAY(rice_io) == 1);
+#define IO_DT_NODE DT_COMPAT_GET_ANY_STATUS_OKAY(rice_io)
 
-int32_t io_configure(const struct device *dev) {
-    struct io_data *data = dev->data;
-    const struct io_config *config = dev->config;
+static struct io_driver io = { };
 
-    if (data->configured) {
-        return 0;
-    }
-    LOG_INF("configuring driver");
-
-    ring_buf_reset(config->rbuf);
-    data->configured = true;
-    return 0;
-}
-
-int32_t io_reset(const struct device *dev) {
-    struct io_data *data = dev->data;
-    const struct io_config *config = dev->config;
-
+int32_t io_reset(struct io_driver *io) {
     LOG_INF("resetting driver state");
-    data->configured = false;
 
-    ring_buf_reset(config->rbuf);
+    io->transport = NULL;
+
+    ring_buf_reset(&io->buf.request);
+    ring_buf_reset(&io->buf.response);
+
     return 0;
 }
 
-sys_slist_t io_devlist;
+int32_t io_handle_request(struct io_driver *io) {
+    int32_t ret;
+    
+    /* this will usually just run once, unless an atomic command is being used */
+    uint8_t num_commands = 1;
+    bool queued_commands = false;
+    do {
+        if (queued_commands && num_commands == 0) {
+            /* this may be the last command in the chain, if not we will reset this flag later */
+            num_commands = 1;
+            queued_commands = false;
+        }
 
-static int32_t io_init(const struct device *dev) {
-    struct io_data *data = dev->data;
+        /* data should be available at the front of the ring buffer before calling this handler */
+        uint32_t command = UINT32_MAX;
+        if ((ret = utf8_rbuf_get(&io->buf.request, &command)) < 0) return ret;
 
-    data->dev = dev;
-    sys_slist_append(&io_devlist, &data->devlist_node);
+        /* multiple commands from separate requests */
+        if (command == io_cmd_queue) {
+            queued_commands = true;
+            /* response of queued command is identical to execute commands, so replace the current
+             * command to re-use the existing code path */
+            command = io_cmd_multi;
+        }
+        /* multiple commands within one request */
+        if (command == io_cmd_multi) {
+            if (ring_buf_get(&io->buf.request, &num_commands, 1) != 1) return -EMSGSIZE;
+            if ((ret = utf8_rbuf_put(&io->buf.response, command)) < 0) return ret;
+            if (ring_buf_put(&io->buf.response, &num_commands, 1) != 1) return -ENOBUFS;
+            /* get the next command for processing */
+            if ((ret = utf8_rbuf_get(&io->buf.request, &command)) < 0) return ret;
+        }
+        
+        if (command == io_cmd_info) { ret = io_handle_cmd_info(io); }
+        else if (command == io_cmd_delay) { ret = io_handle_cmd_delay(io); }
+        else {
+            LOG_ERR("unsupported command 0x%x", command);
+            ret = -ENOTSUP;
+        }
 
-    return io_reset(dev);
+        if (ret < 0) {
+            LOG_ERR("handle command 0x%x failed with error %d", command, ret);
+            return ret;
+        }
+        num_commands--;
+
+    } while (num_commands > 0 || queued_commands);
+
+    return 0;
 }
 
-#define DT_DRV_COMPAT rice_io
+void io_thread_fn(void *arg1, void *arg2, void *arg3) {
+    ARG_UNUSED(arg2);
+    ARG_UNUSED(arg3);
 
-#define IO_DT_DEVICE_DEFINE(idx)                        \
-                                                        \
-    RING_BUF_DECLARE(io_rb_##idx, IO_RING_BUF_SIZE);    \
-                                                        \
-    IO_USB_CONFIG_DEFINE(io_usb_config_##idx, idx);     \
-                                                        \
-    struct io_data io_data_##idx;                       \
-    const struct io_config io_config_##idx = {          \
-        .rbuf = &io_rb_##idx,                           \
-        .usb_config = &io_usb_config_##idx,             \
-    };                                                  \
-                                                        \
-    DEVICE_DT_INST_DEFINE(                              \
-        idx,                                            \
-        io_init,                                        \
-        NULL,                                           \
-        &io_data_##idx,                                 \
-        &io_config_##idx,                               \
-        POST_KERNEL,                                    \
-        99,                                             \
-        NULL,                                           \
-    );
+    struct io_driver *io = arg1;
+    int32_t ret;
 
-DT_INST_FOREACH_STATUS_OKAY(IO_DT_DEVICE_DEFINE);
+    while (1) {
+        if (io->transport == NULL) {
+            STRUCT_SECTION_FOREACH(io_transport, transport) {
+                if ((ret = transport->configure()) == 0) {
+                    LOG_DBG("configured transport %s", transport->name);
+                    io->transport = transport;
+                    /* just for passing the sleep below */
+                    continue;
+                } else if (ret < 0 && ret != -EAGAIN) {
+                    LOG_ERR("transport configuration failed with error %d", ret);
+                }
+            }
+
+            k_sleep(K_MSEC(50));
+        }
+
+        if (io->transport != NULL) {
+            uint8_t *request;
+            uint32_t request_len = ring_buf_put_claim(&io->buf.request, &request, IO_MAX_PACKET_SIZE);
+            if ((ret = io->transport->recv(request, request_len)) < 0) {
+                /* shutdown is an expected condition */
+                if (ret != -ESHUTDOWN) LOG_ERR("transport receive failed with error %d", ret);
+                io_reset(io);
+                continue;
+            }
+            ring_buf_put_finish(&io->buf.request, ret);
+
+            uint32_t command = UINT_MAX;
+            utf8_decode(request, request_len, &command);
+            /* not ready to process command, start the next receive */
+            if (command == io_cmd_queue) continue;
+
+            /* transport sends rely on having the full length of the response ring buffer from one pointer */
+            ring_buf_reset(&io->buf.response);
+            if ((ret = io_handle_request(io)) < 0) {
+                /* commands that failed or aren't implemented get a simple 0xff (not supported) reponse byte */
+                ring_buf_reset(&io->buf.response);
+                uint8_t response = io_cmd_response_enotsup;
+                FATAL_CHECK(ring_buf_put(&io->buf.response, &response, 1) == 1, "response buf is size 0");
+            }
+
+            uint8_t *response;
+            uint32_t response_len = ring_buf_get_claim(&io->buf.response, &response, IO_RING_BUF_SIZE);
+            if ((ret = io->transport->send(response, response_len)) < 0) {
+                /* shutdown is an expected condition */
+                if (ret != -ESHUTDOWN) LOG_ERR("transport send failed with error %d", ret);
+                io_reset(io);
+                continue;
+            } else if (ret < response_len) {
+                LOG_ERR("transport send dropped %d bytes", response_len - ret);
+            }
+            ring_buf_get_finish(&io->buf.response, ret);
+
+            /* transport receives rely on having the full length of the request ring buffer from one pointer */
+            ring_buf_reset(&io->buf.request);
+        }
+    }
+}
+
+K_THREAD_DEFINE(
+    io_thread,
+    KB(4),
+    io_thread_fn,
+    &io,
+    NULL,
+    NULL,
+    CONFIG_MAIN_THREAD_PRIORITY + 1,
+    0,
+    K_TICKS_FOREVER
+);
+
+int32_t io_init(void) {
+    int32_t ret;
+
+    ring_buf_init(&io.buf.request, sizeof(io.buf.request_bytes), io.buf.request_bytes);
+    ring_buf_init(&io.buf.response, sizeof(io.buf.response_bytes), io.buf.response_bytes);
+
+    if ((ret = io_reset(&io)) < 0) return ret;
+
+    STRUCT_SECTION_FOREACH(io_transport, transport) {
+        if ((ret = transport->init()) < 0) {
+            LOG_ERR("transport %s init failed with error %d", transport->name, ret);
+            return ret;
+        }
+    }
+
+    k_thread_start(io_thread);
+
+    return 0;
+}
