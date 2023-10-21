@@ -1,4 +1,4 @@
-#include <dt-bindings/pinctrl/pinctrl_posix.h>
+#include <dt-bindings/pinctrl/pinctrl_sim.h>
 
 / {    
     dap: dap {
@@ -19,12 +19,16 @@
 		pinctrl-swd = <&tdo_swo_uart>;
     };
 
+    io: io {
+        compatible = "rice,io";
+    };
+
     pinctrl: pinctrl {
         compatible = "vnd,pinctrl-test";
 
         /* dap tdo/swo */
-        tdo_swo_gpio: pin3_gpio { group1 { pins = <POSIX_PINMUX(3, POSIX_PINMUX_FUNC_GPIO)>; }; };
-        tdo_swo_uart: pin3_uart { group1 { pins = <POSIX_PINMUX(3, POSIX_PINMUX_FUNC_UART)>; }; };
+        tdo_swo_gpio: pin3_gpio { group1 { pins = <SIM_PINMUX(3, SIM_PINMUX_FUNC_GPIO)>; }; };
+        tdo_swo_uart: pin3_uart { group1 { pins = <SIM_PINMUX(3, SIM_PINMUX_FUNC_UART)>; }; };
     };
 
     uart2: uart2 {

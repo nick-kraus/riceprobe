@@ -1,18 +1,14 @@
 cmake_minimum_required(VERSION 3.20.0)
 set(PROJECT_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../")
 
-list(APPEND DTS_ROOT "${PROJECT_DIR}/firmware")
-
-# used to get <pinctrl_soc.h> in the right path before all zephyr libraries
-include_directories(SYSTEM "boards/pinctrl/include")
-# used to allow pinctrl_posix.h defines in the devicetree
-list(APPEND DTS_ROOT "${CMAKE_CURRENT_LIST_DIR}/boards/pinctrl")
+# native sim overlay
+include("${CMAKE_CURRENT_LIST_DIR}/../boards/native_sim_64/native_sim_64.cmake")
 
 find_package(Zephyr REQUIRED HINTS "${PROJECT_DIR}/firmware/modules/zephyr")
 project(test_dap)
 
 target_sources(app PRIVATE
-    "boards/pinctrl/pinctrl_posix.c"
+    "../boards/native_sim_64/pinctrl/pinctrl_sim.c"
     "src/dap_io.c"
     "src/dap_emul.c"
     "src/dap_transport.c"

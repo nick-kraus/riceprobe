@@ -5,7 +5,7 @@
 static pinctrl_soc_pin_t pinctrl_pinmux[256];
 
 static void pinctrl_configure_pin(pinctrl_soc_pin_t pin) {
-    uint32_t pin_num = (pin >> POSIX_PINMUX_PIN_SHIFT) & POSIX_PINMUX_PIN_MASK;
+    uint32_t pin_num = (pin >> SIM_PINMUX_PIN_SHIFT) & SIM_PINMUX_PIN_MASK;
     pinctrl_pinmux[pin_num] = pin;
 }
 
@@ -22,5 +22,5 @@ int32_t pinctrl_configure_pins(const pinctrl_soc_pin_t *pins, uint8_t pin_cnt, u
 uint32_t pinctrl_pinmux_get_func(uint8_t pin) {
 
     pinctrl_soc_pin_t pinmux = pinctrl_pinmux[pin];
-    return (pinmux >> POSIX_PINMUX_FUNC_SHIFT) & POSIX_PINMUX_FUNC_MASK;
+    return (pinmux >> SIM_PINMUX_FUNC_SHIFT) & SIM_PINMUX_FUNC_MASK;
 }

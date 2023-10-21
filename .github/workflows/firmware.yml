@@ -43,7 +43,7 @@ jobs:
       - name: Twister
         run: |
           west twister --enable-asan --enable-lsan --enable-ubsan --coverage --coverage-tool=lcov \
-            --inline-logs --platform=native_posix_64 --testsuite-root=firmware/tests
+            --inline-logs --platform=native_sim_64 --testsuite-root=firmware/tests
       - name: Twister artifacts
         uses: actions/upload-artifact@v3
         with:

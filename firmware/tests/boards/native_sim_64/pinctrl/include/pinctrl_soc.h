@@ -1,7 +1,7 @@
 #ifndef __PINCTRL_SOC_H__
 #define __PINCTRL_SOC_H__
 
-#include <dt-bindings/pinctrl/pinctrl_posix.h>
+#include <dt-bindings/pinctrl/pinctrl_sim.h>
 #include <zephyr/devicetree.h>
 #include <zephyr/types.h>
 
@@ -20,7 +20,7 @@ int32_t pinctrl_configure_pins(const pinctrl_soc_pin_t *pins, uint8_t pin_cnt, u
 uint32_t pinctrl_pinmux_get_func(uint8_t pin);
 
 /* assertions to check that a certain pin is configured to a given function */
-#define assert_pinctrl_posix_func(_pin, _exp_func)                          \
+#define assert_pinctrl_sim_func(_pin, _exp_func)                            \
     zassert(                                                                \
         pinctrl_pinmux_get_func(_pin) == _exp_func,                         \
         "pinctrl_pinmux_get_func(" #_pin ") not equal to " #_exp_func,      \

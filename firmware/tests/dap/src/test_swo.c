@@ -16,7 +16,7 @@ ZTEST(dap, test_swo) {
     assert_dap_command_expect("\x03", "\x03\x00");
     assert_dap_command_expect("\x02\x01", "\x02\x01");
     /* tdo/swo (io #3) pinctrl function should be UART */
-    assert_pinctrl_posix_func(3, POSIX_PINMUX_FUNC_UART);
+    assert_pinctrl_sim_func(3, SIM_PINMUX_FUNC_UART);
 
     /* usb bulk endpoint is not a supported swo transport */
     assert_dap_command_expect("\x17\x02", "\x17\xff");

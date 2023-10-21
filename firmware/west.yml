@@ -7,12 +7,12 @@ manifest:
       url-base: https://github.com/zephyrproject-rtos
 
     - name: nick-kraus
-      url-base: git@github.com:nick-kraus
+      url-base: https://github.com/nick-kraus
 
   projects:
     - name: zephyr
       remote: nick-kraus
-      revision: bfee2a42feeadc5eed4e6d8a70f029525b0b3a92
+      revision: fab4b3c40ae6ce1ffe08bd574dd77c23eefb0bf9
       path: firmware/modules/zephyr
       west-commands: scripts/west-commands.yml
 

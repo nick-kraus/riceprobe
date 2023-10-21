@@ -1,3 +1,3 @@
 tests:
   module.dap:
-    platform_allow: native_posix_64
+    platform_allow: native_sim_64
