@@ -2,6 +2,8 @@ description: USB-to-UART driver
 
 compatible: "rice,vcp"
 
+include: base.yaml
+
 properties:    
     uart:
       type: phandle

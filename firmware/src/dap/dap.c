@@ -28,8 +28,8 @@ static struct dap_driver dap = {
         .swo_uart = DEVICE_DT_GET(DT_PHANDLE(DAP_DT_NODE, swo_uart)),
     },
     .pinctrl = {
-        .jtag_state_pins = Z_PINCTRL_STATE_PINS_INIT(DAP_DT_NODE, pinctrl_jtag),
-        .swd_state_pins = Z_PINCTRL_STATE_PINS_INIT(DAP_DT_NODE, pinctrl_swd),
+        .jtag_state_pins = (pinctrl_soc_pin_t) Z_PINCTRL_STATE_PINS_INIT(DAP_DT_NODE, pinctrl_jtag),
+        .swd_state_pins = (pinctrl_soc_pin_t) Z_PINCTRL_STATE_PINS_INIT(DAP_DT_NODE, pinctrl_swd),
     },
 };
 
@@ -77,7 +77,7 @@ int32_t dap_reset(struct dap_driver *dap) {
     LOG_INF("resetting driver state");
 
     /* config the pinctrl settings for the tdo/swo pin, default to tdo functionality */
-    FATAL_CHECK(dap_configure_pin(dap->pinctrl.jtag_state_pins) == 0, "tdo/swo pinctrl failed");
+    FATAL_CHECK(dap_configure_pin(&dap->pinctrl.jtag_state_pins) == 0, "tdo/swo pinctrl failed");
 
     /* jtag / swd gpios must be in a safe state on reset */
     FATAL_CHECK(gpio_pin_configure_dt(&dap->io.tck_swclk, GPIO_INPUT) >= 0, "tck swclk config failed");

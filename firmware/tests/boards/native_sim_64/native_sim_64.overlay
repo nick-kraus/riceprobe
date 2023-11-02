@@ -4,14 +4,14 @@
     dap: dap {
         compatible = "rice,dap";
 
-        tck_swclk_gpios = <&gpio0 1 GPIO_ACTIVE_HIGH>;
-		tms_swdio_gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;
-		tdo_gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;
-		tdi_gpios = <&gpio0 4 GPIO_ACTIVE_HIGH>;
-		nreset_gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
-		vtref_gpios = <&gpio0 6 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>;
-		led_connect_gpios = <&gpio0 7 GPIO_ACTIVE_HIGH>;
-		led_running_gpios = <&gpio0 8 GPIO_ACTIVE_HIGH>;
+        tck_swclk_gpios = <&gpio0 0 GPIO_ACTIVE_HIGH>;
+		tms_swdio_gpios = <&gpio0 1 GPIO_ACTIVE_HIGH>;
+		tdo_gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;
+		tdi_gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;
+		nreset_gpios = <&gpio0 4 GPIO_ACTIVE_HIGH>;
+		vtref_gpios = <&gpio0 5 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>;
+		led_connect_gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>;
+		led_running_gpios = <&gpio0 7 GPIO_ACTIVE_HIGH>;
 
         swo_uart = <&uart2>;
 
@@ -21,14 +21,81 @@
 
     io: io {
         compatible = "rice,io";
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        pinctrl-pull-up = <&io_pull_up>;
+        pinctrl-pull-down = <&io_pull_down>;
+        pinctrl-open-drain = <&io_open_drain>;
+
+        gpios = <&gpio0 8 GPIO_ACTIVE_HIGH>,
+                <&gpio0 9 GPIO_ACTIVE_HIGH>,
+                <&gpio0 10 GPIO_ACTIVE_HIGH>,
+                <&gpio0 11 GPIO_ACTIVE_HIGH>,
+                <&gpio0 12 GPIO_ACTIVE_HIGH>,
+                <&gpio0 13 GPIO_ACTIVE_HIGH>,
+                <&gpio0 14 GPIO_ACTIVE_HIGH>,
+                <&gpio0 15 GPIO_ACTIVE_HIGH>,
+                <&gpio0 16 GPIO_ACTIVE_HIGH>,
+                <&gpio0 17 GPIO_ACTIVE_HIGH>;
+
+        pin@0 {
+            reg = <0>;
+            fn_gpio { func = "gpio"; idx = <0>; pinctrl = <&io0_gpio>; };
+            fn_uart { func = "uart"; idx = <0>; pinctrl = <&io0_uart>; };
+        };
+
+        pin@1 {
+            reg = <1>;
+            fn_gpio { func = "gpio"; idx = <1>; pinctrl = <&io1_gpio>; };
+            fn_uart { func = "uart"; idx = <0>; pinctrl = <&io1_uart>; };
+            fn_i2c { func = "i2c"; idx = <0>; pinctrl = <&io1_i2c>; };
+        };
+
+        pin@2 {
+            reg = <2>;
+            fn_gpio { func = "gpio"; idx = <2>; pinctrl = <&io2_gpio>; };
+            fn_i2c { func = "i2c"; idx = <0>; pinctrl = <&io2_i2c>; };
+        };
+
+        pin@3 { reg = <3>; fn_gpio { func = "gpio"; idx = <3>; pinctrl = <&io3_gpio>; }; };
+        pin@4 { reg = <4>; fn_gpio { func = "gpio"; idx = <4>; pinctrl = <&io4_gpio>; }; };
+        pin@5 { reg = <5>; fn_gpio { func = "gpio"; idx = <5>; pinctrl = <&io5_gpio>; }; };
+        pin@6 { reg = <6>; fn_gpio { func = "gpio"; idx = <6>; pinctrl = <&io6_gpio>; }; };
+        pin@7 { reg = <7>; fn_gpio { func = "gpio"; idx = <7>; pinctrl = <&io7_gpio>; }; };
+        pin@8 { reg = <8>; fn_gpio { func = "gpio"; idx = <8>; pinctrl = <&io8_gpio>; }; };
+        pin@9 { reg = <9>; fn_gpio { func = "gpio"; idx = <9>; pinctrl = <&io9_gpio>; }; };
     };
 
     pinctrl: pinctrl {
         compatible = "vnd,pinctrl-test";
 
-        /* dap tdo/swo */
-        tdo_swo_gpio: pin3_gpio { group1 { pins = <SIM_PINMUX(3, SIM_PINMUX_FUNC_GPIO)>; }; };
-        tdo_swo_uart: pin3_uart { group1 { pins = <SIM_PINMUX(3, SIM_PINMUX_FUNC_UART)>; }; };
+        /* dap pinctrl */
+        tdo_swo_gpio: pin2_gpio { g1 { pins = <SIM_PINMUX(2, SIM_PINMUX_FUNC_GPIO)>; }; };
+        tdo_swo_uart: pin2_uart { g1 { pins = <SIM_PINMUX(2, SIM_PINMUX_FUNC_UART)>; }; };
+
+        /* io pinctrl */
+        io_pull_up: io_pull_up { g1 { pins = <0>; bias-pull-up; }; };
+        io_pull_down: io_pull_down { g1 { pins = <0>; bias-pull-down; }; };
+        io_open_drain: io_open_drain { g1 { pins = <0>; drive-open-drain; }; };
+
+        io0_gpio: pin8_gpio { g1 { pins = <SIM_PINMUX(8, SIM_PINMUX_FUNC_GPIO)>; }; };
+        io0_uart: pin8_uart { g1 { pins = <SIM_PINMUX(8, SIM_PINMUX_FUNC_UART)>; }; };
+        
+        io1_gpio: pin9_gpio { g1 { pins = <SIM_PINMUX(9, SIM_PINMUX_FUNC_GPIO)>; }; };
+        io1_uart: pin9_uart { g1 { pins = <SIM_PINMUX(9, SIM_PINMUX_FUNC_UART)>; }; };
+        io1_i2c: pin9_i2c { g1 { pins = <SIM_PINMUX(9, SIM_PINMUX_FUNC_I2C)>; }; };
+        
+        io2_gpio: pin10_gpio { g1 { pins = <SIM_PINMUX(10, SIM_PINMUX_FUNC_GPIO)>; }; };
+        io2_i2c: pin10_i2c { g1 { pins = <SIM_PINMUX(10, SIM_PINMUX_FUNC_I2C)>; }; };
+        
+        io3_gpio: pin11_gpio { g1 { pins = <SIM_PINMUX(11, SIM_PINMUX_FUNC_GPIO)>; }; };
+        io4_gpio: pin12_gpio { g1 { pins = <SIM_PINMUX(12, SIM_PINMUX_FUNC_GPIO)>; }; };
+        io5_gpio: pin13_gpio { g1 { pins = <SIM_PINMUX(13, SIM_PINMUX_FUNC_GPIO)>; }; };
+        io6_gpio: pin14_gpio { g1 { pins = <SIM_PINMUX(14, SIM_PINMUX_FUNC_GPIO)>; }; };
+        io7_gpio: pin15_gpio { g1 { pins = <SIM_PINMUX(15, SIM_PINMUX_FUNC_GPIO)>; }; };
+        io8_gpio: pin16_gpio { g1 { pins = <SIM_PINMUX(16, SIM_PINMUX_FUNC_GPIO)>; }; };
+        io9_gpio: pin17_gpio { g1 { pins = <SIM_PINMUX(17, SIM_PINMUX_FUNC_GPIO)>; }; };
     };
 
     uart2: uart2 {
@@ -64,5 +131,5 @@
 };
 
 &gpio0 {
-	ngpios = <9>;
+	ngpios = <18>;
 };

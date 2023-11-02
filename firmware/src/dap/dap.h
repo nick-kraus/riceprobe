@@ -44,8 +44,8 @@ struct dap_driver {
         const struct device *swo_uart;
     } io;
     struct {
-        pinctrl_soc_pin_t jtag_state_pins[1];
-        pinctrl_soc_pin_t swd_state_pins[1];
+        pinctrl_soc_pin_t jtag_state_pins;
+        pinctrl_soc_pin_t swd_state_pins;
     } pinctrl;
 
     /* shared swd and jtag state */

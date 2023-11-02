@@ -31,8 +31,18 @@
 		pinctrl-swd = <&dap_pinctrl_tdo_swo_uart>;
     };
 
-    io: io {
+	io: io {
         compatible = "rice,io";
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+		pinctrl-pull-up = <&io_pull_up>;
+		pinctrl-pull-down = <&io_pull_down>;
+		pinctrl-open-drain = <&io_open_drain>;
+
+		/* TODO: probably change this, just a placeholder */
+		gpios = <&pioa 5 GPIO_ACTIVE_HIGH>;
+		pin@0 { reg = <0>; fn_gpio { func = "gpio"; idx = <0>; pinctrl = <&io0_gpio>; }; };
     };
 
     vcp: vcp {
@@ -106,51 +116,44 @@
 };
 
 &pinctrl {
+	/* dap pinctrl */
 	dap_pinctrl_tdo_swo_gpio: dap_pinctrl_tdo_swo_gpio {
-		group1 {
-			pinmux = <PD28_GPIO>;
-		};
+		g1 { pinmux = <PD28_GPIO>; };
 	};
-
 	dap_pinctrl_tdo_swo_uart: dap_pinctrl_tdo_swo_uart {
-		group1 {
-			pinmux = <PD28A_UART3_RXD>;
-			bias-pull-up;
-		};
+		g1 { pinmux = <PD28A_UART3_RXD>; bias-pull-up; };
 	};
 
+	/* io pinctrl */
+	io_pull_up: io_pull_up { g1 { pinmux = <0>; bias-pull-up; }; };
+	io_pull_down: io_pull_down { g1 { pinmux = <0>; bias-pull-down; }; };
+	io_open_drain: io_open_drain { g1 { pinmux = <0>; drive-open-drain; }; };
+
+	/* TODO: probably change this, just a placeholder */
+	io0_gpio: pa5_gpio { g1 { pinmux = <PA5_GPIO>; }; };
+
+	/* other pinctrl */
 	gmac_pinctrl: gmac_pinctrl {
-        group1 {
-            pinmux = <PD0A_GMAC_GTXCK>,
-                     <PD1A_GMAC_GTXEN>,
-                     <PD2A_GMAC_GTX0>,
-                     <PD3A_GMAC_GTX1>,
-                     <PD4A_GMAC_GRXDV>,
-                     <PD5A_GMAC_GRX0>,
-                     <PD6A_GMAC_GRX1>,
-                     <PD7A_GMAC_GRXER>;
-        };
-    };
+        g1 { pinmux = <PD0A_GMAC_GTXCK>,
+                      <PD1A_GMAC_GTXEN>,
+                      <PD2A_GMAC_GTX0>,
+                      <PD3A_GMAC_GTX1>,
+                      <PD4A_GMAC_GRXDV>,
+                      <PD5A_GMAC_GRX0>,
+                      <PD6A_GMAC_GRX1>,
+                      <PD7A_GMAC_GRXER>;
+	}; };
 
     mdio_pinctrl: mdio_pinctrl {
-        group1 {
-            pinmux = <PD8A_GMAC_GMDC>,
-                     <PD9A_GMAC_GMDIO>;
-        };
+        g1 { pinmux = <PD8A_GMAC_GMDC>, <PD9A_GMAC_GMDIO>; };
     };
 
     twihs0_pinctrl: twihs0_pinctrl {
-        group1 {
-            pinmux = <PA4A_TWI0_TWCK>,
-                     <PA3A_TWI0_TWD>;
-        };
+        g1 { pinmux = <PA4A_TWI0_TWCK>, <PA3A_TWI0_TWD>; };
     };
 
 	usart1_pinctrl: usart1_pinctrl {
-		group1 {
-			pinmux = <PA21A_USART1_RXD>,
-					 <PB4D_USART1_TXD>;
-		};
+		g1 { pinmux = <PA21A_USART1_RXD>, <PB4D_USART1_TXD>; };
 	};
 };
 

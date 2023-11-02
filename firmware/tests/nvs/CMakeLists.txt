@@ -17,4 +17,4 @@ target_include_directories(app PRIVATE
     "${PROJECT_DIR}/firmware/src"
 )
 
-target_compile_options(app PRIVATE -Wall -Werror -fanalyzer)
+target_compile_options(app PRIVATE -Wall -Werror -fanalyzer -save-temps=obj)

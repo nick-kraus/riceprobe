@@ -2,15 +2,19 @@
 #define __DT_PINCTRL_SIM_H__
 
 /* pin number field */
-#define SIM_PINMUX_PIN_MASK       (0xff)
-#define SIM_PINMUX_PIN_SHIFT      (0)
+#define SIM_PINMUX_PIN_MASK         (0xff)
+#define SIM_PINMUX_PIN_SHIFT        (0)
 /* function field */
-#define SIM_PINMUX_FUNC_MASK      (0xff)
-#define SIM_PINMUX_FUNC_SHIFT     (SIM_PINMUX_PIN_SHIFT + 8)
+#define SIM_PINMUX_FUNC_MASK        (0xff)
+#define SIM_PINMUX_FUNC_SHIFT       (SIM_PINMUX_PIN_SHIFT + 8)
+/* flags field */
+#define SIM_PINMUX_FLAG_MASK        (0xff)
+#define SIM_PINMUX_FLAG_SHIFT       (SIM_PINMUX_FUNC_SHIFT + 8)
 
 /* options for the pinmux function field */
-#define SIM_PINMUX_FUNC_GPIO      (0)
-#define SIM_PINMUX_FUNC_UART      (1)
+#define SIM_PINMUX_FUNC_GPIO        (0)
+#define SIM_PINMUX_FUNC_UART        (1)
+#define SIM_PINMUX_FUNC_I2C         (2)
 
 /* pinmux bit field declaration */
 #define SIM_PINMUX(pin, func)                                       \

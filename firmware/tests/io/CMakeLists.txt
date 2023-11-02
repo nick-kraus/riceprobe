@@ -12,8 +12,10 @@ target_sources(app PRIVATE
     "src/io_transport.c"
     "src/main.c"
     "src/test_general.c"
+    "src/test_pinctrl.c"
     "${PROJECT_DIR}/firmware/src/io/io.c"
     "${PROJECT_DIR}/firmware/src/io/commands_general.c"
+    "${PROJECT_DIR}/firmware/src/io/commands_pinctrl.c"
     "${PROJECT_DIR}/firmware/src/nvs.c"
     "${PROJECT_DIR}/firmware/src/utf8.c"
 )
@@ -23,7 +25,7 @@ target_include_directories(app PRIVATE
     "${PROJECT_DIR}/firmware/tests"
 )
 
-target_compile_options(app PRIVATE -Wall -Werror -fanalyzer)
+target_compile_options(app PRIVATE -Wall -Werror -fanalyzer -save-temps=obj)
 
 zephyr_linker_sources(DATA_SECTIONS
     "${PROJECT_DIR}/firmware/src/io/transport.ld"

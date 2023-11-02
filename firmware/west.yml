@@ -12,11 +12,11 @@ manifest:
   projects:
     - name: zephyr
       remote: nick-kraus
-      revision: fab4b3c40ae6ce1ffe08bd574dd77c23eefb0bf9
+      revision: fc4704b32a7cf7bd800fff51a1554919513f8ec6
       path: firmware/modules/zephyr
       west-commands: scripts/west-commands.yml
 
-    # projects below are lifted from zephyr v3.5.0-rc2 west.yml, with unused projects removed
+    # projects below are lifted from zephyr v3.5.0 west.yml, with unused projects removed
     - name: hal_atmel
       revision: 5ab43007eda3f380c125f957f03638d2e8d1144d
       path: firmware/modules/hal/atmel

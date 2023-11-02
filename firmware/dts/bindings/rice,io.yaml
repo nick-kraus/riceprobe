@@ -2,10 +2,53 @@ description: RICE I/O protocol driver
 
 compatible: "rice,io"
 
-properties:    
-    led_status_gpios:
-      type: phandle-array
-      required: false
-      description: Status LED GPIO Pin.
+include: base.yaml
 
-        Outputs the status of the remote IO interface.
+properties:
+  pinctrl-pull-up:
+    type: phandle
+    required: true
+    description: Phandle to pinctrl node with no muxing, only pull-up
+
+  pinctrl-pull-down:
+    type: phandle
+    required: true
+    description: Phandle to pinctrl node with no muxing, only pull-down
+  
+  pinctrl-open-drain:
+    type: phandle
+    required: true
+    description: Phandle to pinctrl node with no muxing, only open-drain drive
+  
+  gpios:
+    type: phandle-array
+    required: true
+    description: Phandles of each pins GPIO
+
+child-binding:
+  properties:
+    reg:
+      type: array
+      required: true
+      description: Pin reference number
+      
+  child-binding:
+    properties:      
+      func:
+        type: string
+        required: true
+        description: Pin function type
+        enum:
+          - "gpio"
+          - "uart"
+          - "i2c"
+      
+      idx:
+        type: int
+        required: true
+        description: Index of the pin function type (e.g. UART 1 vs UART 3)
+
+      pinctrl:
+        type: phandle
+        required: true
+        description: Pinctrl node phandle

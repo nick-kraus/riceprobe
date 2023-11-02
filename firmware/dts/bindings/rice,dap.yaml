@@ -2,8 +2,7 @@ description: CMSIS-DAP protocol driver
 
 compatible: "rice,dap"
 
-include:
-    - name: pinctrl-device.yaml
+include: [base.yaml, pinctrl-device.yaml]
 
 properties:
     tck_swclk_gpios:

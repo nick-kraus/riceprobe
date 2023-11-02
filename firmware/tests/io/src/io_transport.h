@@ -1,5 +1,5 @@
-#ifndef __IO_TRANSPORT_H__
-#define __IO_TRANSPORT_H__
+#ifndef __TEST_IO_TRANSPORT_H__
+#define __TEST_IO_TRANSPORT_H__
 
 #include <zephyr/ztest.h>
 
@@ -22,4 +22,4 @@ void io_transport_command(uint8_t *request, size_t request_len, uint8_t **respon
         }                                                                               \
     } while (0)
 
-#endif /* __IO_TRANSPORT_H__ */
+#endif /* __TEST_IO_TRANSPORT_H__ */

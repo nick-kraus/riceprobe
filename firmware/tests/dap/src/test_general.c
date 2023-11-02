@@ -105,8 +105,8 @@ ZTEST(dap, test_disconnect_connect) {
     assert_gpio_emul_not_flag(dap_io_tdo, GPIO_OUTPUT);
     assert_gpio_emul_not_flag(dap_io_tdi, GPIO_OUTPUT);
     assert_gpio_emul_not_flag(dap_io_nreset, GPIO_OUTPUT);
-    /* tdo/swo (io #3) pinctrl function should be GPIO */
-    assert_pinctrl_sim_func(3, SIM_PINMUX_FUNC_GPIO);
+    /* tdo/swo (io #2) pinctrl function should be GPIO */
+    assert_pinctrl_sim_func(2, SIM_PINMUX_FUNC_GPIO);
 
     /* dap interface should not connect if no voltage is present on vtref */
     assert_gpio_emul_input_set(dap_io_vtref, 0);
@@ -124,8 +124,8 @@ ZTEST(dap, test_disconnect_connect) {
     assert_gpio_emul_not_flag(dap_io_tdi, GPIO_OUTPUT);
     /* reset is output */
     assert_gpio_emul_has_flag(dap_io_nreset, GPIO_OUTPUT);
-    /* tdo/swo (io #3) pinctrl function should be UART */
-    assert_pinctrl_sim_func(3, SIM_PINMUX_FUNC_UART);
+    /* tdo/swo (io #2) pinctrl function should be UART */
+    assert_pinctrl_sim_func(2, SIM_PINMUX_FUNC_UART);
     assert_dap_command_expect("\x03", "\x03\x00");
 
     /* JTAG mode pin configurations */
@@ -136,8 +136,8 @@ ZTEST(dap, test_disconnect_connect) {
     assert_gpio_emul_has_flag(dap_io_tms_swdio, GPIO_OUTPUT);
     /* TDI is output */
     assert_gpio_emul_has_flag(dap_io_tdi, GPIO_OUTPUT);
-    /* tdo/swo (io #3) pinctrl function should be GPIO */
-    assert_pinctrl_sim_func(3, SIM_PINMUX_FUNC_GPIO);
+    /* tdo/swo (io #2) pinctrl function should be GPIO */
+    assert_pinctrl_sim_func(2, SIM_PINMUX_FUNC_GPIO);
     /* TDO is input */
     assert_gpio_emul_not_flag(dap_io_tdo, GPIO_OUTPUT);
     /* reset is output */

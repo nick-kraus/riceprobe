@@ -31,6 +31,7 @@ int32_t io_handle_cmd_info(struct io_driver *io) {
     const uint32_t info_firmware_version = 0x07;
     const uint32_t info_protocol_version = 0x08;
     const uint32_t info_supported_subsystems = 0x09;
+    const uint32_t info_num_gpio = 0x0a;
 
     /* supported subsystems byte 0 (capabilities for each subsystem exist as their own command) */
     const uint8_t subsys_no_gpio_support = 0x00;
@@ -116,6 +117,10 @@ int32_t io_handle_cmd_info(struct io_driver *io) {
                                 subsys_no_adc_support;
         uint8_t response[3] = { io_cmd_response_ok, subsys_len, subsys0 };
         if (ring_buf_put(&io->buf.response, response, 3) != 3) return -ENOBUFS;
+    } else if (id == info_num_gpio) {
+        uint8_t response[4] = { io_cmd_response_ok, 2, 0, 0 };
+        sys_put_le16(IO_GPIOS_CNT(), &response[2]);
+        if (ring_buf_put(&io->buf.response, response, 4) != 4) return -ENOBUFS;
     } else {
         if (ring_buf_put(&io->buf.response, &io_cmd_response_enotsup, 1) != 1) return -ENOBUFS;
     }

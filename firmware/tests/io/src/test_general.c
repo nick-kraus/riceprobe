@@ -1,7 +1,6 @@
 #include <zephyr/ztest.h>
 
 #include "io_transport.h"
-#include "util/gpio.h"
 
 ZTEST(io, test_info_command) {
     /* transport packet size */
@@ -20,6 +19,10 @@ ZTEST(io, test_info_command) {
     assert_io_command_expect("\x01\x07", "\x01\x00\x1f" "v987.654.321-99-ba5eba11-dirty\0");
     /* protocol version */
     assert_io_command_expect("\x01\x08", "\x01\x00\x06" "0.1.0\0");
+    /* supported subsystems */
+    assert_io_command_expect("\x01\x09", "\x01\x00\x01\x00");
+    /* number of available pins */
+    assert_io_command_expect("\x01\x0a", "\x01\x00\x02\x0a\x00");
 
     /* don't currently support anything */
     assert_io_command_expect("\x01\x09", "\x01\x00\x01\x00");
@@ -56,6 +59,6 @@ ZTEST(io, test_multi_queue_delay_command) {
     );
 
     /* incomplete command requests */
-    assert_io_command_expect("\x02", "\xff");
     assert_io_command_expect("\x03", "\xff");
+    assert_io_command_expect("\x02", "\xff");
 }

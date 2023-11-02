@@ -9,16 +9,29 @@
 
 LOG_MODULE_REGISTER(io, CONFIG_IO_LOG_LEVEL);
 
-/* ensure we have one and exactly one io driver in the devicetree */
-BUILD_ASSERT(DT_NUM_INST_STATUS_OKAY(rice_io) == 1);
-#define IO_DT_NODE DT_COMPAT_GET_ANY_STATUS_OKAY(rice_io)
-
-static struct io_driver io = { };
+static struct io_driver io = {
+    .pinctrls = IO_PINCTRL_FUNCS_DECLARE(),
+    .gpios = IO_GPIOS_DECLARE(),
+};
 
 int32_t io_reset(struct io_driver *io) {
     LOG_INF("resetting driver state");
+    int32_t ret;
 
     io->transport = NULL;
+
+    for (uint8_t i = 0; i < ARRAY_SIZE(io->gpios); i++) {
+        if ((ret = gpio_pin_configure_dt(&io->gpios[i], GPIO_INPUT)) < 0) {
+            LOG_ERR("gpio%u initialize failed (%d)", i, ret);
+            return ret;
+        }
+    }
+    for (uint16_t i = 0; i < ARRAY_SIZE(io->pinctrls); i++) {
+        if (io->pinctrls[i].function == IO_PIN_FUNC_GPIO && (ret = io_configure_pin(&io->pinctrls[i].pinctrl)) < 0) {
+            LOG_ERR("io%u pinctrl configure failed (%d)", io->pinctrls[i].pin, ret);
+            return ret;
+        }
+    }
 
     ring_buf_reset(&io->buf.request);
     ring_buf_reset(&io->buf.response);
@@ -61,6 +74,9 @@ int32_t io_handle_request(struct io_driver *io) {
         
         if (command == io_cmd_info) { ret = io_handle_cmd_info(io); }
         else if (command == io_cmd_delay) { ret = io_handle_cmd_delay(io); }
+        else if (command == io_cmd_pins_caps) { ret = io_handle_cmd_pins_caps(io); }
+        else if (command == io_cmd_pins_default) { ret = io_handle_cmd_pins_default(io); }
+        else if (command == io_cmd_pins_cfg) { ret = io_handle_cmd_pins_cfg(io); }
         else {
             LOG_ERR("unsupported command 0x%x", command);
             ret = -ENOTSUP;
@@ -157,6 +173,10 @@ K_THREAD_DEFINE(
 
 int32_t io_init(void) {
     int32_t ret;
+
+    for (uint8_t i = 0; i < ARRAY_SIZE(io.gpios); i++) {
+        FATAL_CHECK(gpio_is_ready_dt(&io.gpios[i]), "gpio not ready");
+    }
 
     ring_buf_init(&io.buf.request, sizeof(io.buf.request_bytes), io.buf.request_bytes);
     ring_buf_init(&io.buf.response, sizeof(io.buf.response_bytes), io.buf.response_bytes);

@@ -190,7 +190,7 @@ int32_t dap_handle_cmd_connect(struct dap_driver *dap) {
     if (port == 0 || port == 1) {
         /* tdo is configured as uart but capture not enabled */
         swo_capture_control(dap, false);
-        if (dap_configure_pin(dap->pinctrl.swd_state_pins) != 0) { goto end; }
+        if (dap_configure_pin(&dap->pinctrl.swd_state_pins) != 0) { goto end; }
         FATAL_CHECK(
             gpio_pin_configure_dt(&dap->io.tck_swclk, GPIO_INPUT | GPIO_OUTPUT_ACTIVE) >= 0,
             "tck swclk config failed"
@@ -211,7 +211,7 @@ int32_t dap_handle_cmd_connect(struct dap_driver *dap) {
     } else if (port == 2) {
         /* tdo pinctrl must be configured as gpio, and uart capture disabled */
         swo_capture_control(dap, false);
-        if (dap_configure_pin(dap->pinctrl.jtag_state_pins) != 0) { goto end; }
+        if (dap_configure_pin(&dap->pinctrl.jtag_state_pins) != 0) { goto end; }
         FATAL_CHECK(
             gpio_pin_configure_dt(&dap->io.tck_swclk, GPIO_INPUT | GPIO_OUTPUT_ACTIVE | GPIO_PULL_DOWN) >= 0,
             "tck swclk config failed"
@@ -249,7 +249,7 @@ int32_t dap_handle_cmd_disconnect(struct dap_driver *dap) {
 
     /* disable SWO if it is currently enabled */
     swo_capture_control(dap, false);
-    if (dap_configure_pin(dap->pinctrl.jtag_state_pins) != 0) { status = dap_cmd_response_error; }
+    if (dap_configure_pin(&dap->pinctrl.jtag_state_pins) != 0) { status = dap_cmd_response_error; }
 
     dap->swj.port = dap_port_disabled;
     FATAL_CHECK(gpio_pin_configure_dt(&dap->io.tck_swclk, GPIO_INPUT) >= 0, "tck swclk config failed");
