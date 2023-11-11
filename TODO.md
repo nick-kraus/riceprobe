@@ -1,0 +1,1 @@
+maybe use this in CI: `west init && west update --fetch-opt=--filter=tree:0`

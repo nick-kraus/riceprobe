@@ -16,6 +16,7 @@
 
 /* possible status responses to commands */
 static const uint8_t io_cmd_response_ok = 0x00;
+static const uint8_t io_cmd_response_etimedout = 0xfd;
 static const uint8_t io_cmd_response_eio = 0xfe;
 static const uint8_t io_cmd_response_enotsup = 0xff;
 
@@ -61,9 +62,26 @@ BUILD_ASSERT(DT_FOREACH_CHILD_SEP(IO_DT_NODE, UTIL_ONE, (+)) == DT_PROP_LEN(IO_D
 #define IO_GPIOS_DECLARE(...) { DT_FOREACH_PROP_ELEM_SEP(IO_DT_NODE, gpios, GPIO_DT_SPEC_GET_BY_IDX, (,)) }
 
 /* macros to dynamically adjust pinctrl pin flags based on provided devicetree nodes */
-#define IO_PINCTRL_FLAG_PULLUP      ((pinctrl_soc_pin_t) Z_PINCTRL_STATE_PINS_INIT(IO_DT_NODE, pinctrl_pull_up))
-#define IO_PINCTRL_FLAG_PULLDOWN    ((pinctrl_soc_pin_t) Z_PINCTRL_STATE_PINS_INIT(IO_DT_NODE, pinctrl_pull_down))
-#define IO_PINCTRL_FLAG_OPENDRAIN   ((pinctrl_soc_pin_t) Z_PINCTRL_STATE_PINS_INIT(IO_DT_NODE, pinctrl_open_drain))
+#define IO_PINCTRL_FLAG_PULLUP                                                              \
+    COND_CODE_1(                                                                            \
+        DT_NODE_HAS_PROP(IO_DT_NODE, pinctrl_pull_up),                                      \
+        ((pinctrl_soc_pin_t) Z_PINCTRL_STATE_PINS_INIT(IO_DT_NODE, pinctrl_pull_up)),       \
+        ((pinctrl_soc_pin_t) {0})                                                           \
+    )
+
+#define IO_PINCTRL_FLAG_PULLDOWN                                                            \
+    COND_CODE_1(                                                                            \
+        DT_NODE_HAS_PROP(IO_DT_NODE, pinctrl_pull_down),                                    \
+        ((pinctrl_soc_pin_t) Z_PINCTRL_STATE_PINS_INIT(IO_DT_NODE, pinctrl_pull_down)),     \
+        ((pinctrl_soc_pin_t) {0})                                                           \
+    )
+
+#define IO_PINCTRL_FLAG_OPENDRAIN                                                           \
+    COND_CODE_1(                                                                            \
+        DT_NODE_HAS_PROP(IO_DT_NODE, pinctrl_open_drain),                                   \
+        ((pinctrl_soc_pin_t) Z_PINCTRL_STATE_PINS_INIT(IO_DT_NODE, pinctrl_open_drain)),    \
+        ((pinctrl_soc_pin_t) {0})                                                           \
+    )
 
 struct io_driver {
     struct io_driver_pin_function pinctrls[IO_PINCTRL_FUNCS_CNT()];
@@ -87,6 +105,9 @@ static const uint32_t io_cmd_delay = 0x04;
 static const uint32_t io_cmd_pins_caps = 0x09;
 static const uint32_t io_cmd_pins_default = 0x0a;
 static const uint32_t io_cmd_pins_cfg = 0x0b;
+static const uint32_t io_cmd_gpio_caps = 0x10;
+static const uint32_t io_cmd_gpio_cfg = 0x11;
+static const uint32_t io_cmd_gpio_ctrl = 0x12;
 
 /* command handlers */
 int32_t io_handle_cmd_info(struct io_driver *io);
@@ -94,6 +115,9 @@ int32_t io_handle_cmd_delay(struct io_driver *io);
 int32_t io_handle_cmd_pins_caps(struct io_driver *io);
 int32_t io_handle_cmd_pins_default(struct io_driver *io);
 int32_t io_handle_cmd_pins_cfg(struct io_driver *io);
+int32_t io_handle_cmd_gpio_caps(struct io_driver *io);
+int32_t io_handle_cmd_gpio_cfg(struct io_driver *io);
+int32_t io_handle_cmd_gpio_ctrl(struct io_driver *io);
 
 /** @brief configure a io_driver pinctrl state */
 static inline int32_t io_configure_pin(const pinctrl_soc_pin_t *pinctrl_state) {

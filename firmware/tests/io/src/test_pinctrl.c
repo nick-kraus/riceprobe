@@ -8,11 +8,11 @@
 
 ZTEST(io, test_pins_capabilities_command) {
     /* io0, gpio0, uart0 */
-    assert_io_command_expect("\x09\x00", "\x09\x00\x01\x07\x02\x00\x00\x01\x00");
+    assert_io_command_expect("\x09\x00", "\x09\x00\x01\x03\x02\x00\x00\x01\x00");
     /* io1, gpio1, uart0, i2c0 */
-    assert_io_command_expect("\x09\x01", "\x09\x00\x01\x07\x03\x00\x01\x01\x00\x02\x00");
+    assert_io_command_expect("\x09\x01", "\x09\x00\x01\x03\x03\x00\x01\x01\x00\x02\x00");
     /* io2, gpio2, i2c0 */
-    assert_io_command_expect("\x09\x02", "\x09\x00\x01\x07\x02\x00\x02\x02\x00");
+    assert_io_command_expect("\x09\x02", "\x09\x00\x01\x03\x02\x00\x02\x02\x00");
 
     /* unsupported io */
     assert_io_command_expect("\x09\xff", "\x09\xff");
@@ -79,11 +79,11 @@ ZTEST(io, test_pins_cfg_default_commands) {
     assert_pinctrl_sim_func(8, SIM_PINMUX_FUNC_GPIO);
     assert_pinctrl_sim_has_flags(8, SIM_PINFLAG_PULLUP);
     assert_gpio_emul_has_flag(&io_gpios[0], (GPIO_INPUT | GPIO_PULL_UP));
-    assert_io_command_expect("\x0b\x00\x00\x00\x01\x06", "\x0b\x00");
+    assert_io_command_expect("\x0b\x00\x00\x00\x01\x02", "\x0b\x00");
     assert_pinctrl_sim_func(8, SIM_PINMUX_FUNC_GPIO);
-    assert_pinctrl_sim_has_flags(8, (SIM_PINFLAG_PULLDOWN | SIM_PINFLAG_OPENDRAIN));
-    /* we can't get GPIO_OPEN_DRAIN here, since the GPIO is configured as an input */
+    assert_pinctrl_sim_has_flags(8, SIM_PINFLAG_PULLDOWN);
     assert_gpio_emul_has_flag(&io_gpios[0], (GPIO_INPUT | GPIO_PULL_DOWN));
+    /* posix boards don't support open drain IO, not tested here */
 
     /* incomplete command requests */
     assert_io_command_expect("\x0b", "\xff");

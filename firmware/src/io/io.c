@@ -77,6 +77,9 @@ int32_t io_handle_request(struct io_driver *io) {
         else if (command == io_cmd_pins_caps) { ret = io_handle_cmd_pins_caps(io); }
         else if (command == io_cmd_pins_default) { ret = io_handle_cmd_pins_default(io); }
         else if (command == io_cmd_pins_cfg) { ret = io_handle_cmd_pins_cfg(io); }
+        else if (command == io_cmd_gpio_caps) { ret = io_handle_cmd_gpio_caps(io); }
+        else if (command == io_cmd_gpio_cfg) { ret = io_handle_cmd_gpio_cfg(io); }
+        else if (command == io_cmd_gpio_ctrl) { ret = io_handle_cmd_gpio_ctrl(io); }
         else {
             LOG_ERR("unsupported command 0x%x", command);
             ret = -ENOTSUP;

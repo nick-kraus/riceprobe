@@ -15,17 +15,14 @@ typedef uint32_t pinctrl_soc_pin_t;
 
 #define SIM_PINFLAG_PULLUP_SHIFT        (0)
 #define SIM_PINFLAG_PULLDOWN_SHIFT      (1)
-#define SIM_PINFLAG_OPENDRAIN_SHIFT     (2)
 
 #define SIM_PINFLAG_PULLUP          (BIT(SIM_PINFLAG_PULLUP_SHIFT))
 #define SIM_PINFLAG_PULLDOWN        (BIT(SIM_PINFLAG_PULLDOWN_SHIFT))
-#define SIM_PINFLAG_OPENDRAIN       (BIT(SIM_PINFLAG_OPENDRAIN_SHIFT))
 
 #define Z_PINCTRL_STATE_PIN_INIT(node_id, prop, idx)                                                    \
     (DT_PROP_BY_IDX(node_id, prop, idx)                                                                 \
     | (DT_PROP(node_id, bias_pull_up) << (SIM_PINMUX_FLAG_SHIFT + SIM_PINFLAG_PULLUP_SHIFT))            \
     | (DT_PROP(node_id, bias_pull_down) << (SIM_PINMUX_FLAG_SHIFT + SIM_PINFLAG_PULLDOWN_SHIFT))        \
-    | (DT_PROP(node_id, drive_open_drain) << (SIM_PINMUX_FLAG_SHIFT + SIM_PINFLAG_OPENDRAIN_SHIFT))     \
     ),
 
 #define Z_PINCTRL_STATE_PINS_INIT(node_id, prop) {                                          \

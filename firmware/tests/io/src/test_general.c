@@ -62,3 +62,7 @@ ZTEST(io, test_multi_queue_delay_command) {
     assert_io_command_expect("\x03", "\xff");
     assert_io_command_expect("\x02", "\xff");
 }
+
+ZTEST(io, test_unsupported_command) {
+    assert_io_command_expect("\xf4\x8f\xa0\x80", "\xff");
+}

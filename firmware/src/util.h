@@ -38,6 +38,12 @@ static inline void busy_wait_nanos(uint32_t nanos) {
  * convenience functions for ring buffers
  */
 
+static inline int32_t ring_buf_get_skip(struct ring_buf *buf, size_t len) {
+    uint8_t *ptr = NULL;
+    if (ring_buf_get_claim(buf, &ptr, len) != len) return -EMSGSIZE;
+    return ring_buf_get_finish(buf, len);
+}
+
 static inline int32_t ring_buf_get_le16(struct ring_buf *buf, uint16_t *value) {
     uint8_t *ptr = NULL;
     if (ring_buf_get_claim(buf, &ptr, 2) != 2) return -EMSGSIZE;

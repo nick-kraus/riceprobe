@@ -37,10 +37,11 @@ int32_t io_handle_cmd_pins_caps(struct io_driver *io) {
     }
     if ((ret = ring_buf_put(&io->buf.response, &io_cmd_response_ok, 1)) != 1) return -ENOBUFS;
 
-    /* supported on all IOs */
-    const uint8_t supported_flags = pinctrl_flags_pull_up |
-                                    pinctrl_flags_pull_down |
-                                    pinctrl_flags_open_drain;
+    /* all devices support pull up/down */
+    uint8_t supported_flags = pinctrl_flags_pull_up |
+                              pinctrl_flags_pull_down;
+    /* posix based boards do not support open drain IO */
+    supported_flags |= IO_PINCTRL_FLAG_OPENDRAIN == 0 ? 0 : pinctrl_flags_open_drain;
     const uint8_t flags_response[2] = { pinctrl_flags_len, supported_flags };
     if ((ret = ring_buf_put(&io->buf.response, flags_response, 2)) != 2) return -ENOBUFS;
 
@@ -114,14 +115,16 @@ int32_t io_handle_cmd_pins_cfg(struct io_driver *io) {
 
     uint8_t flags_len = 0;
     if (ring_buf_get(&io->buf.request, &flags_len, 1) != 1) return -EMSGSIZE;
-    uint8_t flags = 0;
-    if (ring_buf_get(&io->buf.request, &flags, 1) != 1) return -EMSGSIZE;
     /* only support a single flags byte for now */
-    if (flags_len > pinctrl_flags_len) {
+    if (flags_len != pinctrl_flags_len) {
         LOG_WRN("Only support a single pin flag byte");
+        /* clear remaining request bytes */
+        if (ring_buf_get_skip(&io->buf.request, flags_len) < 0) return -EMSGSIZE;
         if (ring_buf_put(&io->buf.response, &io_cmd_response_enotsup, 1) != 1) return -ENOBUFS;
         return 0;
     }
+    uint8_t flags = 0;
+    if (ring_buf_get(&io->buf.request, &flags, 1) != 1) return -EMSGSIZE;
 
     pinctrl_soc_pin_t *pinctrl = NULL;
     for (uint16_t i = 0; i < ARRAY_SIZE(io->pinctrls); i++) {
